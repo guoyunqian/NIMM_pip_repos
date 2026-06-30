@@ -1,0 +1,77 @@
+# orographic_precipitation_downscaling
+
+## 算法概述
+
+`orographic_precipitation_downscaling` 用于基于地形抬升效应计算降水地形增强项，并支持将该增强项叠加或扣除到降水场。原始算法迁移自 Met Office IMPROVER 的地形增强相关实现，并适配 `meteva_base` 的 `grid_data` 六维数据结构，同时保留二维场和 `numpy.ndarray` 输入能力。
+
+本次整理的核心能力包括：
+
+- 从温度、相对湿度、气压、风速、风向和目标地形计算地形增强项。
+- 将风速风向解析为目标网格坐标系下的 `u/v` 风分量。
+- 基于迎风抬升项 `v·gradZ`、湿度阈值、地形阈值和上游贡献计算地形增强。
+- 支持将地形增强项以 `add` 或 `subtract` 模式应用到降水场。
+- 提供 CLI 示例、notebook 示例、单元测试和样例 `nc` 测试数据。
+
+## 算法分类
+
+- 分类：`00space_downscale`
+- 分类依据：算法以地形抬升和风场为主要物理约束，对降水场进行空间降尺度和地形影响订正。
+
+## 主要文件
+
+| 类型 | 文件 | 说明 |
+| --- | --- | --- |
+| 核心源码 | `src/orographic_enhancement.py` | 地形增强项计算、风分量解析和元插件流程 |
+| 应用源码 | `src/apply_orographic_enhancement.py` | 将地形增强项叠加或扣除到降水场 |
+| 辅助源码 | `utils/utils.py` | `meteva_base` 网格数据校验、坐标检查与输出封装工具 |
+| CLI | `cli/dsc_orographic_enhancement.py` | 地形增强项计算示例调度脚本 |
+| 文档 | `docs/orographic_enhancement.md` | 原始算法说明文档 |
+| 测试 | `test/test_orographic_enhancement.py` | 合成样例与官方样例对照测试 |
+| 数据 | `test_data/orographic_enhancement_data/` | 地形增强样例和对照数据 |
+
+## 输入输出
+
+### 地形增强项计算
+
+输入：
+
+- `temperature`：温度场，支持 `K` 或 `degC`。
+- `humidity`：相对湿度场，支持 `1` 或 `%`。
+- `pressure`：气压场，支持 `Pa`、`hPa` 或 `kPa`。
+- `wind_speed`：风速场，支持 `m s-1` 或等效单位。
+- `wind_direction`：风向场，通常为相对真北角度。
+- `orography`：目标地形高度场，通常为 `m`。
+
+输出：
+
+- `orographic_enhancement`：地形增强项，单位 `m s-1`。
+
+### 地形增强项应用
+
+输入：
+
+- `precip_data`：降水场，单场或场序列。
+- `orographic_enhancement_data`：地形增强项。
+- `operation`：`add` 或 `subtract`。
+- `allowed_time_diff`：多时次增强场与降水场的时间匹配容差。
+
+输出：
+
+- 应用地形增强后的降水场。
+
+## 当前整理状态
+
+当前阶段为原始算法整理至中间目录，尚未补充到正式算法仓库目录。
+
+已完成：
+
+- 原始源码、CLI、文档、notebook、测试脚本、测试数据复制到 `00temp/orographic_precipitation_downscaling/`。
+- 保留原始代码逻辑和原始包导入路径。
+- 记录分类、贡献人、入口文件和已知问题。
+
+待处理：
+
+- 当前代码导入路径仍保留原始包名 `orographic_enhancement`，补充到正式仓库时需要统一改为仓库包路径。
+- 需要在正式补充阶段运行完整测试，并确认 `meteva_base`、`cf_units`、`xarray`、`numpy`、`scipy`、`pyproj`、`pytest`、`netcdf4` 等依赖。
+- 测试数据中包含 `cli_test_result.nc`、`_test_orog.nc` 等结果或临时文件，正式入库前建议筛选必要样例。
+
