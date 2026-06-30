@@ -1,0 +1,2 @@
+# NIMM_pip_repos
+上传符合NIMM国省统筹算法规范的独立算法包，测试数据请放在NIMM_pip_testdata包中
