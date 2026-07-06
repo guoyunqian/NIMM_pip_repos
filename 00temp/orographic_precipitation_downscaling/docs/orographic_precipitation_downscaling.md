@@ -10,7 +10,7 @@
 - 将风速风向解析为目标网格坐标系下的 `u/v` 风分量。
 - 基于迎风抬升项 `v·gradZ`、湿度阈值、地形阈值和上游贡献计算地形增强。
 - 支持将地形增强项以 `add` 或 `subtract` 模式应用到降水场。
-- 提供 CLI 示例、notebook 示例、单元测试和样例 `nc` 测试数据。
+- 提供 CLI 示例、notebook 示例和单元测试。
 
 ## 算法分类
 
@@ -19,17 +19,24 @@
 
 ## 主要文件
 
-| 类型 | 文件 | 说明 |
-| --- | --- | --- |
-| 核心源码 | `src/orographic_enhancement.py` | 地形增强项计算、风分量解析和元插件流程 |
-| 应用源码 | `src/apply_orographic_enhancement.py` | 将地形增强项叠加或扣除到降水场 |
-| 辅助源码 | `utils/utils.py` | `meteva_base` 网格数据校验、坐标检查与输出封装工具 |
-| CLI | `cli/dsc_orographic_enhancement.py` | 地形增强项计算示例调度脚本 |
-| 文档 | `docs/orographic_enhancement.md` | 原始算法说明文档 |
-| 测试 | `test/test_orographic_enhancement.py` | 合成样例与官方样例对照测试 |
-| 数据 | `test_data/orographic_enhancement_data/` | 地形增强样例和对照数据 |
+
+| 类型   | 文件                                    | 说明                               |
+| ---- | ------------------------------------- | -------------------------------- |
+| 核心源码 | `src/orographic_enhancement.py`       | 地形增强项计算、风分量解析和元插件流程              |
+| 应用源码 | `src/apply_orographic_enhancement.py` | 将地形增强项叠加或扣除到降水场                  |
+| 内部工具 | `src/utils/`                          | 网格处理、数值计算、饱和水汽压等内部函数             |
+| 辅助源码 | `utils/base_plugin.py`                | 插件基类与后处理插件基类                     |
+| 辅助源码 | `utils/utils.py`                      | `meteva_base` 网格数据校验、坐标检查与输出封装工具 |
+| CLI  | `cli/dsc_orographic_enhancement.py`   | 地形增强项计算示例调度脚本                    |
+| 文档   | `docs/orographic_enhancement.md`      | 原始算法说明文档                         |
+| 测试   | `test/test_orographic_enhancement.py` | 合成样例与官方样例对照测试                    |
+
+
+
 
 ## 输入输出
+
+
 
 ### 地形增强项计算
 
@@ -46,6 +53,8 @@
 
 - `orographic_enhancement`：地形增强项，单位 `m s-1`。
 
+
+
 ### 地形增强项应用
 
 输入：
@@ -59,19 +68,20 @@
 
 - 应用地形增强后的降水场。
 
+
+
 ## 当前整理状态
 
 当前阶段为原始算法整理至中间目录，尚未补充到正式算法仓库目录。
 
 已完成：
 
-- 原始源码、CLI、文档、notebook、测试脚本、测试数据复制到 `00temp/orographic_precipitation_downscaling/`。
-- 保留原始代码逻辑和原始包导入路径。
-- 记录分类、贡献人、入口文件和已知问题。
+- 原始源码、CLI、文档、notebook、测试脚本复制到 `00temp/orographic_precipitation_downscaling/`。
+- 2026-07-03 从 `D:\workspace\improver\orographic_enhancement` 增量同步，导入路径已统一为中间目录模块名 `orographic_precipitation_downscaling`。
 
 待处理：
 
-- 当前代码导入路径仍保留原始包名 `orographic_enhancement`，补充到正式仓库时需要统一改为仓库包路径。
+- 补充至正式仓库时，需将导入路径调整为 `NIMM` 下实际包路径。
+- 正式入库时需评估 `utils/base_plugin.py` 是否替换为仓库统一基类。
 - 需要在正式补充阶段运行完整测试，并确认 `meteva_base`、`cf_units`、`xarray`、`numpy`、`scipy`、`pyproj`、`pytest`、`netcdf4` 等依赖。
-- 测试数据中包含 `cli_test_result.nc`、`_test_orog.nc` 等结果或临时文件，正式入库前建议筛选必要样例。
 

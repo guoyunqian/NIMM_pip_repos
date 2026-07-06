@@ -53,8 +53,8 @@ def process(
     xr.DataArray
         地形增强结果，单位 ``m s-1``。
     """
-    from orographic_enhancement.src.orographic_enhancement import MetaOrographicEnhancement
-    from orographic_enhancement.utils.utils import check_for_meb_griddata, check_for_xy_coordinates
+    from orographic_precipitation_downscaling.src.orographic_enhancement import MetaOrographicEnhancement
+    from orographic_precipitation_downscaling.utils.utils import check_for_meb_griddata, check_for_xy_coordinates
 
     _unbounded = (-np.inf, np.inf, np.nan)
 
@@ -119,22 +119,23 @@ if __name__ == "__main__":
     if str(repo_root) not in sys.path:
         sys.path.insert(0, str(repo_root))
         
-    #测试数据路径
-    data_dir = (
+    # 测试数据路径
+    data_root = (
         Path(__file__).resolve().parent.parent
         / "test_data"
         / "orographic_enhancement_data"
-        / "normalized_meb6d"
     )
+    cli_input_dir = data_root / "cli_input"
+    cli_output_dir = data_root / "cli_output"
 
-    #各输入文件的路径映射
-    temperature_path = str(data_dir / "temperature.nc")   #温度场nc文件路径
-    humidity_path = str(data_dir / "humidity.nc")   #相对湿度场nc文件路径
-    pressure_path = str(data_dir / "pressure.nc")   #气压场nc文件路径
-    wind_speed_path = str(data_dir / "wind_speed.nc")   #风速场nc文件路径
-    wind_direction_path = str(data_dir / "wind_direction.nc")   #风向场nc文件路径
-    orography_path = str(data_dir / "orography_uk-standard_1km.nc")   #地形场nc文件路径
-    output_path = str(data_dir / "cli_test_result.nc")   #输出nc文件路径
+    # 各输入文件的路径映射
+    temperature_path = str(cli_input_dir / "temperature.nc")   # 温度场 nc 文件路径
+    humidity_path = str(cli_input_dir / "humidity.nc")   # 相对湿度场 nc 文件路径
+    pressure_path = str(cli_input_dir / "pressure.nc")   # 气压场 nc 文件路径
+    wind_speed_path = str(cli_input_dir / "wind_speed.nc")   # 风速场 nc 文件路径
+    wind_direction_path = str(cli_input_dir / "wind_direction.nc")   # 风向场 nc 文件路径
+    orography_path = str(cli_input_dir / "orography_uk-standard_1km.nc")   # 地形场 nc 文件路径
+    output_path = str(cli_output_dir / "cli_result.nc")   # 输出 nc 文件路径
 
     boundary_height = 1000.0   #边界层代表高度  
     boundary_height_units = "m"   #边界层代表高度单位

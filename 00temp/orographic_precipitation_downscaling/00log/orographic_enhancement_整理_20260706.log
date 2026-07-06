@@ -1,0 +1,54 @@
+================================================================================
+算法整理日志 — 降水降尺度(地形)
+================================================================================
+整理日期   : 2026-07-06
+算法代号   : orographic_enhancement
+仓库目录   : 00temp/orographic_precipitation_downscaling/
+整理阶段   : NIMM 标准化目录结构整理
+贡献人     : 郭云谦、王亭波
+原始来源   : D:\workspace\improver\orographic_enhancement（原 improver 包名 `orographic_enhancement`）
+================================================================================
+
+一、目录映射（原 → 现）
+--------------------------------------------------------------------------------
+  核心算法             → src/orographic_enhancement.py（MetaOrographicEnhancement、OrographicEnhancement）
+  应用算法             → src/apply_orographic_enhancement.py（ApplyOrographicEnhancement）
+  内部工具             → src/utils/（_grid、_apply、_numerics、_svp）
+  模块工具             → utils/utils.py（meteva_base 校验与输出封装）
+  插件基类             → utils/base_plugin.py（BasePlugin 本地提供）
+  CLI              → cli/dsc_orographic_enhancement.py（地形增强项计算示例）
+  文档               → docs/orographic_enhancement.md、docs/orographic_precipitation_downscaling.md
+  notebook         → nbs/orographic_enhancement_validation.ipynb（示例与验证）
+  测试               → test/test_orographic_enhancement.py（合成样例与官方样例对照）
+  整理清单         → NIMM_list.md（本目录）
+  整理中间数据     → 00temp/orographic_enhancement/
+  整理过程日志     → 00log/orographic_enhancement_整理_20260706.log
+
+二、本次已完成
+--------------------------------------------------------------------------------
+  [x] 自 improver/orographic_enhancement 重新同步 src/、utils/、cli/、test/、docs/、nbs/
+  [x] 同步 improver 源目录最新代码修改（含 utils/utils.py、src/orographic_enhancement.py 等）
+  [x] 导入路径统一为中间目录模块名 orographic_precipitation_downscaling
+  [x] MetaOrographicEnhancement 等插件已继承 BasePlugin
+  [x] 建立算法内 00log/、00temp/、NIMM_list.md、.gitignore
+  [x] improver 原代码目录下全部 pytest 用例已通过（2026-07-06，整理人复验）
+
+三、仍存在问题 — 需人工补充
+--------------------------------------------------------------------------------
+  [ ] 入库路径：补充至 NIMM/00space_downscale/ 时需调整为仓库正式包路径
+  [ ] BasePlugin：正式入库时评估是否改为仓库统一基类
+  [ ] test_data：含结果或临时文件，正式入库前筛选必要样例
+  [ ] resource/：当前为空，正式补充时确认是否保留
+
+四、验证记录
+--------------------------------------------------------------------------------
+  [x] 整理人在 improver 原代码目录（`D:\workspace\improver\orographic_enhancement`）下已运行全部测试用例，全部通过（2026-07-06）
+  [x] 含单元测试与官方样例对照测试
+
+五、导入路径说明
+--------------------------------------------------------------------------------
+  中间目录 Python import 已统一为模块名 `orographic_precipitation_downscaling`。
+  补充至 NIMM/00space_downscale/ 时需再调整为仓库正式包路径。
+  源码文件名（如 orographic_enhancement.py）保留 improver 原名，未改算法逻辑。
+
+================================================================================

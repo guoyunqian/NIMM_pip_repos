@@ -2,12 +2,12 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2019 NMC Developers.
 # Distributed under the terms of the GPL V3 License.
-"""orographic_enhancement 模块 CLI 入口。"""
+"""orographic_precipitation_downscaling 模块 CLI 入口。"""
 
 from typing import Optional, Sequence
 
 
-_CLI_SCRIPTS = ("orographic_enhancement/cli/dsc_orographic_enhancement.py",)
+_CLI_SCRIPTS = ("orographic_precipitation_downscaling/cli/dsc_orographic_enhancement.py",)
 
 
 def main(argv: Optional[Sequence[str]] = None):

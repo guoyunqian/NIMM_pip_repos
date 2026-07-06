@@ -19,85 +19,22 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import List, Optional, Sequence, Union
+from typing import List, Sequence, Union
 
 import numpy as np
 import xarray as xr
-from cf_units import Unit
 
-try:
-    from orographic_enhancement.utils.utils import check_for_meb_griddata
-except ImportError:
-    try:
-        from utils.utils import check_for_meb_griddata
-    except ImportError:
-        check_for_meb_griddata = None
-
-
-def _as_numpy(values: Union[xr.DataArray, np.ndarray]) -> np.ndarray:
-    """提取数值数组。"""
-    if isinstance(values, xr.DataArray):
-        return np.asarray(values.values)
-    return np.asarray(values)
+from orographic_precipitation_downscaling.utils.base_plugin import BasePlugin
+from orographic_precipitation_downscaling.utils.utils import check_for_meb_griddata, convert_units
+from orographic_precipitation_downscaling.src.utils._apply import (
+    _extract_scalar_time_value,
+    _nearest_time_index,
+    _threshold_in_units,
+    _to_datetime64,
+)
 
 
-def _convert_values(values: np.ndarray, from_units: str, to_units: str) -> np.ndarray:
-    """按单位字符串转换数组值。"""
-    from_units = (from_units or "").strip()
-    to_units = (to_units or "").strip()
-    if not from_units or not to_units or from_units == to_units:
-        return values
-    return np.asarray(Unit(from_units).convert(values, Unit(to_units)))
-
-
-def _threshold_in_units(units: str, min_precip_rate_mmh: float) -> float:
-    """将最小降水率阈值（mm/h）转换到目标单位。"""
-    target_units = (units or "").strip() or "mm/hr"
-    return float(Unit("mm/hr").convert(min_precip_rate_mmh, Unit(target_units)))
-
-
-def _to_datetime64(value: object) -> Optional[np.datetime64]:
-    """将标量时间值标准化为 ``np.datetime64``。"""
-    if value is None:
-        return None
-    if isinstance(value, np.datetime64):
-        return value
-    if isinstance(value, datetime):
-        return np.datetime64(value)
-    try:
-        return np.datetime64(value)
-    except Exception:
-        return None
-
-
-def _extract_scalar_time_value(time_value: object) -> object:
-    """提取 time 坐标中的标量时间值。"""
-    values = np.asarray(time_value)
-    if values.ndim == 0:
-        return values.item()
-    if values.size == 1:
-        return values.reshape(-1)[0]
-    raise ValueError("降水输入 time 坐标包含多个时次，无法匹配单个地形增强时次")
-
-
-def _nearest_time_index(
-    target_time: np.datetime64, candidates: np.ndarray, allowed_time_diff: int
-) -> int:
-    """在候选时间中查找最近时刻索引。"""
-    candidate_time = candidates.astype("datetime64[s]")
-    target_s = target_time.astype("datetime64[s]")
-    abs_delta_s = np.abs((candidate_time - target_s).astype("timedelta64[s]").astype(np.int64))
-    best_idx = int(np.argmin(abs_delta_s))
-    if int(abs_delta_s[best_idx]) > int(allowed_time_diff):
-        raise ValueError(
-            "未找到满足时间容差的地形增强时次："
-            f"最小时间差 {int(abs_delta_s[best_idx])}s，允许 {int(allowed_time_diff)}s"
-        )
-    return best_idx
-
-
-class ApplyOrographicEnhancement:
+class ApplyOrographicEnhancement(BasePlugin):
     """对降水场叠加或扣除地形增强项的插件类。
 
     该类实现了对降水场应用地形增强或扣除地形增强的核心算法。支持对单个或多个
@@ -147,35 +84,6 @@ class ApplyOrographicEnhancement:
     def __repr__(self) -> str:
         """返回对象的可读字符串表示。"""
         return f"<ApplyOrographicEnhancement: operation={self.operation}>"
-
-    def __call__(
-        self,
-        precip_data: Union[xr.DataArray, Sequence[xr.DataArray]],
-        orographic_enhancement_data: xr.DataArray,
-        allowed_time_diff: int = 1800,
-    ) -> Union[xr.DataArray, List[xr.DataArray]]:
-        """使插件实例可调用，简化接口调用。
-
-        参数
-        ----------
-        precip_data : Union[xr.DataArray, Sequence[xr.DataArray]]
-            单个降水场，或降水场序列
-        orographic_enhancement_data : xr.DataArray
-            地形增强场，允许单时次或多时次（xarray time 维）输入
-        allowed_time_diff : int, 默认=1800
-            时间匹配容差（秒）
-
-        返回
-        -------
-        Union[xr.DataArray, List[xr.DataArray]]
-            若输入是单个场，返回单个处理结果；
-            若输入是序列，返回对应结果列表
-        """
-        return self.process(
-            precip_data,
-            orographic_enhancement_data,
-            allowed_time_diff=allowed_time_diff,
-        )
 
     @staticmethod
     def _select_orographic_enhancement_data(
@@ -239,8 +147,10 @@ class ApplyOrographicEnhancement:
             处理后的降水场
         """
         precip_units = str(precip_field.attrs.get("units", "mm h-1"))
-        oe_units = str(oe_field.attrs.get("units", precip_units))
-        oe_values = _convert_values(_as_numpy(oe_field), oe_units, precip_units)
+        if (oe_field.attrs.get("units") or "").strip():
+            oe_values = convert_units(oe_field, precip_units)
+        else:
+            oe_values = np.asarray(oe_field.values, dtype=np.float32)
         threshold = _threshold_in_units(precip_units, self.min_precip_rate_mmh)
         precip_values = np.asarray(precip_field.values)
         with np.errstate(invalid="ignore"):
@@ -283,8 +193,8 @@ class ApplyOrographicEnhancement:
         threshold_in_precip = _threshold_in_units(
             precip_units, self.min_precip_rate_mmh
         )
-        precip_values = _as_numpy(precip_field)
-        values = _as_numpy(updated_field)
+        precip_values = np.asarray(precip_field.values)
+        values = np.asarray(updated_field.values)
         with np.errstate(invalid="ignore"):
             mask = (precip_values >= threshold_in_precip) & (values <= threshold)
         new_values = np.where(mask, threshold, values)
@@ -335,7 +245,7 @@ class ApplyOrographicEnhancement:
         if check_for_meb_griddata is None:
             raise ImportError(
                 "未找到 check_for_meb_griddata，请确认已安装并可导入 "
-                "orographic_enhancement.utils.utils"
+                "orographic_precipitation_downscaling.utils.utils"
             )
         if not isinstance(orographic_enhancement_data, xr.DataArray):
             raise TypeError("orographic_enhancement_data 必须为 xarray.DataArray")

@@ -4,18 +4,26 @@ from pathlib import Path
 import sys
 
 import numpy as np
+import pytest
 import xarray as xr
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.orographic_enhancement import MetaOrographicEnhancement, OrographicEnhancement
+from orographic_precipitation_downscaling.src.orographic_enhancement import MetaOrographicEnhancement, OrographicEnhancement
 
-RESOURCE_DIR = PROJECT_ROOT / "test_data" / "orographic_enhancement_data" / "normalized_meb6d"
-if not RESOURCE_DIR.exists():
-    RESOURCE_DIR = PROJECT_ROOT / "test_data" / "orographic_enhancement_data"
+DATA_ROOT = PROJECT_ROOT / "test_data" / "orographic_enhancement_data"
+CLI_INPUT_DIR = DATA_ROOT / "cli_input"
+REFERENCE_DIR = DATA_ROOT
 MEB_DIMS = ("member", "level", "time", "dtime", "lat", "lon")
+
+
+def _as_spatial(values: np.ndarray) -> np.ndarray:
+    arr = np.squeeze(np.asarray(values))
+    if arr.ndim != 2:
+        raise AssertionError(f"expected 2D spatial values, got shape {arr.shape}")
+    return arr
 
 
 def create_test_data():
@@ -69,11 +77,19 @@ def to_meb6d(data_2d: xr.DataArray) -> xr.DataArray:
 
 def open_resource_dataarray(filename: str, variable_name: str) -> xr.DataArray:
     """Open a resource variable and load it eagerly."""
-    dataset = xr.open_dataset(RESOURCE_DIR / filename, decode_timedelta=False)
-    try:
-        return dataset[variable_name].load()
-    finally:
-        dataset.close()
+    search_dirs = [CLI_INPUT_DIR]
+    if filename == "original_algorithm_result.nc":
+        search_dirs = [REFERENCE_DIR]
+    for base_dir in search_dirs:
+        path = base_dir / filename
+        if not path.exists():
+            continue
+        dataset = xr.open_dataset(path, decode_timedelta=False)
+        try:
+            return dataset[variable_name].load()
+        finally:
+            dataset.close()
+    raise FileNotFoundError(f"未找到测试数据: {filename}")
 
 
 class TestOrographicEnhancement:
@@ -92,26 +108,49 @@ class TestOrographicEnhancement:
 
     def test_xarray_input(self):
         temp_da, hum_da, pres_da, uwind_da, vwind_da, topo_da = create_test_xarray_data()
-        result = OrographicEnhancement()(temp_da, hum_da, pres_da, uwind_da, vwind_da, topo_da)
+        result = OrographicEnhancement()(
+            to_meb6d(temp_da),
+            to_meb6d(hum_da),
+            to_meb6d(pres_da),
+            to_meb6d(uwind_da),
+            to_meb6d(vwind_da),
+            to_meb6d(topo_da),
+        )
 
         assert isinstance(result, xr.DataArray)
         assert result.attrs["units"] == "m s-1"
         assert result.attrs["long_name"] == "orographic_enhancement"
-        assert result.dims == temp_da.dims
-        assert np.array_equal(result.coords["lat"], temp_da.coords["lat"])
-        assert np.array_equal(result.coords["lon"], temp_da.coords["lon"])
-        assert result.shape == temp_da.shape
+        assert result.dims == MEB_DIMS
+        assert result.sizes["lat"] == topo_da.sizes["lat"]
+        assert result.sizes["lon"] == topo_da.sizes["lon"]
+        assert result.shape == (1, 1, 1, 1, *topo_da.shape)
 
-    def test_2d_output_inherits_aux_time_from_meteorology(self):
+    def test_rejects_two_dimensional_xarray_topography(self):
+        temp_da, hum_da, pres_da, uwind_da, vwind_da, topo_da = create_test_xarray_data()
+        with pytest.raises(ValueError, match="topography 的 xarray 输入必须是标准六维网格"):
+            OrographicEnhancement()(
+                to_meb6d(temp_da),
+                to_meb6d(hum_da),
+                to_meb6d(pres_da),
+                to_meb6d(uwind_da),
+                to_meb6d(vwind_da),
+                topo_da,
+            )
+
+    def test_2d_output_inherits_time_from_topography_template(self):
         temp_da, hum_da, pres_da, uwind_da, vwind_da, topo_da = create_test_xarray_data()
         forecast_time = np.datetime64("2023-09-20T06:00:00")
-        temp_with_time = temp_da.assign_coords(time=forecast_time)
+        topo_meb = to_meb6d(topo_da).assign_coords(time=forecast_time)
 
         result = OrographicEnhancement()(
-            temp_with_time, hum_da, pres_da, uwind_da, vwind_da, topo_da
+            to_meb6d(temp_da),
+            to_meb6d(hum_da),
+            to_meb6d(pres_da),
+            to_meb6d(uwind_da),
+            to_meb6d(vwind_da),
+            topo_meb,
         )
 
-        assert "time" not in topo_da.coords
         assert "time" in result.coords
         assert result.coords["time"].values == forecast_time
 
@@ -120,9 +159,16 @@ class TestOrographicEnhancement:
         result_np = OrographicEnhancement()(temperature, humidity, pressure, uwind, vwind, topography)
 
         temp_da, hum_da, pres_da, uwind_da, vwind_da, topo_da = create_test_xarray_data()
-        result_xr = OrographicEnhancement()(temp_da, hum_da, pres_da, uwind_da, vwind_da, topo_da)
+        result_xr = OrographicEnhancement()(
+            to_meb6d(temp_da),
+            to_meb6d(hum_da),
+            to_meb6d(pres_da),
+            to_meb6d(uwind_da),
+            to_meb6d(vwind_da),
+            to_meb6d(topo_da),
+        )
 
-        np.testing.assert_allclose(result_np.values, result_xr.values, rtol=1e-5)
+        np.testing.assert_allclose(result_np, _as_spatial(result_xr.values), rtol=1e-5)
 
     def test_zero_wind_case(self):
         temperature, humidity, pressure, uwind, vwind, topography = create_test_data()
@@ -192,4 +238,9 @@ class TestOrographicEnhancement:
             temperature, humidity, pressure, wind_speed, wind_direction, orography
         )
 
-        np.testing.assert_allclose(result.values, expected.values, atol=6e-7, rtol=0.0)
+        np.testing.assert_allclose(
+            _as_spatial(result.values),
+            _as_spatial(expected.values),
+            atol=6e-7,
+            rtol=0.0,
+        )

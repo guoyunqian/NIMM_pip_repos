@@ -20,9 +20,190 @@
 
 ---
 
-## 2. 类与主函数
+## 2. 核心计算公式与处理流程
 
-### 2.1 MetaOrographicEnhancement
+本节说明地形增强数值核心的物理量关系与主链路，不涉及输入校验、网格格式转换与六维结果组装等适配步骤。
+
+### 2.1 核心计算公式
+
+公式采用与实现一致的英文符号；流程图（2.2 节）仅使用中文节点描述。
+
+#### （1）边界层代表场
+
+从多层 `temperature`、`humidity`、`pressure`、`wind_speed`、`wind_direction` 中，在 `level` 坐标上选取与边界层代表高度 `boundary_height`（默认 1000 m）最接近的一层，得到二维边界层场。
+
+#### （2）网格风分量
+
+由风速 `ws`（m/s）与风向 `wd`（相对真北，**from** 约定，单位 degree）得到网格坐标系风分量 `u`、`v`（m/s）：
+
+```
+theta = rad(wd) + alpha + pi          # alpha 为真北偏角（投影网格）
+u = ws * sin(theta)
+v = ws * cos(theta)
+```
+
+源网格与地形网格投影不一致时，对 `(u, v)` 做旋转并重采样到地形网格。
+
+#### （3）地形梯度与迎风抬升率
+
+地形高度 `Z`（m）沿 x、y 方向分别做 3 点一维平滑得 `Z_smooth`，再求梯度（m/m）：
+
+```
+grad_x = diff(Z_smooth, axis=x) / dx    # dx 为 x 方向格距（m）
+grad_y = diff(Z_smooth, axis=y) / dy    # dy 为 y 方向格距（m）
+```
+
+迎风抬升率 `vgradz`（m/s）：
+
+```
+vgradz = u * grad_x + v * grad_y
+```
+
+
+
+#### （4）饱和水汽压
+
+温度 `T`（K）、气压 `P`（Pa）下，先对 Goff-Gratch 纯水饱和水汽压查表（183.15–338.15 K，步长 0.1 K）并线性插值得 `SVP_water`，再作湿空气修正：
+
+```
+T_c = T - 273.15
+correction = 1 + 1e-8 * P * (4.5 + 6e-4 * T_c^2)
+SVP = SVP_water * correction
+```
+
+
+
+#### （5）有效计算掩码
+
+`mask = True` 表示该格点**不参与**计算，满足以下任一条件时置掩码：
+
+```
+mean(Z, 3x3 neighbourhood) < orog_thresh     # orog_thresh = 20 m
+RH < rh_thresh                               # rh_thresh = 0.8
+abs(vgradz) < vgradz_thresh                  # vgradz_thresh = 0.0005 m/s
+RH 或 vgradz 为非有限值
+```
+
+
+
+#### （6）格点地形增强
+
+对 `mask = False` 的格点，格点尺度增强 `point_oe`（mm/h）：
+
+```
+R_v = 461.6    # J K^-1 kg^-1
+point_oe = (3600 / R_v) * (RH * SVP * vgradz) / T
+point_oe = max(point_oe, 0)
+```
+
+
+
+#### （7）上游叠加
+
+沿风向在上游回溯，影响距离约 `upstream_range = 15 km`。设回溯格距为 `d`（格点），风速 `wind_speed = sqrt(u^2 + v^2)`，则高斯权重：
+
+```
+sigma = wind_speed * cloud_lifetime / grid_spacing    # cloud_lifetime = 102 s
+variance = sigma^2
+weight(d) = exp(-0.5 * d^2 / variance)
+```
+
+对上游各格点 `point_oe` 加权平均，再乘效率系数 `efficiency_factor = 0.23265`，得 `oe_mmh`（mm/h）。
+
+#### （8）输出单位
+
+```
+oe_ms = oe_mmh / 3600000    # 输出地形增强，单位 m/s
+```
+
+
+
+#### （9）应用到降水场
+
+降水率 `P_rate` 与地形增强项 `OE` 统一到相同单位后：
+
+```
+# 低降水阈值 min_rate ≈ 1/32 mm/h
+OE_eff = 0                         if P_rate < min_rate else OE
+
+# add 模式
+P_corrected = P_rate + OE_eff
+
+# subtract 模式
+P_corrected = P_rate - OE_eff
+P_corrected = max(P_corrected, min_rate)    # 不低于最小降水率
+```
+
+---
+
+
+
+### 2.2 核心处理流程
+
+
+
+#### 地形增强计算主流程
+
+```mermaid
+flowchart TD
+    A[多层温湿压与风场] --> B[选取边界层代表高度层]
+    B --> C[由风速风向解析网格风分量]
+    C --> D[对齐并重采样至地形网格]
+    D --> E[平滑地形并计算梯度]
+    E --> F[计算迎风抬升率]
+    F --> G[按地形/湿度/抬升阈值生成掩码]
+    G --> H[计算湿空气饱和水汽压]
+    H --> I[计算格点地形增强]
+    I --> J[沿风向上游高斯加权叠加]
+    J --> K[换算为 m/s 地形增强场]
+```
+
+
+
+
+
+#### 风分量解析（子流程）
+
+```mermaid
+flowchart LR
+    A[风速与风向] --> B[统一单位并转弧度]
+    B --> C[真北偏角修正]
+    C --> D[分解为东西风与南北风]
+    D --> E{源网格与地形网格一致?}
+    E -->|否| F[风分量旋转与重采样]
+    E -->|是| G[输出网格风分量]
+    F --> G
+```
+
+
+
+
+
+#### 降水订正（Apply 插件）
+
+```mermaid
+flowchart TD
+    A[降水场] --> C{操作模式}
+    B[地形增强场] --> C
+    C -->|叠加| D[原降水 + 增强项]
+    C -->|扣除| E[原降水 - 增强项]
+    D --> F[低降水区增强项置零]
+    E --> G[应用最小降水率下限]
+    F --> H[订正降水场]
+    G --> H
+```
+
+
+
+---
+
+
+
+## 3. 类与主函数
+
+
+
+### 3.1 MetaOrographicEnhancement
 
 主函数：
 
@@ -40,7 +221,9 @@
 - 入口地形为六维单场时，主算法返回标准六维结果。
 - 入口地形为二维时，主算法返回二维结果。
 
-### 2.2 ResolveWindComponents
+
+
+### 3.2 ResolveWindComponents
 
 主函数：
 
@@ -53,7 +236,9 @@
 3. 在投影网格场景下处理真北偏角。
 4. 必要时重采样到目标网格。
 
-### 2.3 OrographicEnhancement
+
+
+### 3.3 OrographicEnhancement
 
 主函数：
 
@@ -65,7 +250,9 @@
 2. 计算 `v·gradZ`、掩码、格点增强与上游贡献。
 3. 输出 `orographic_enhancement`（单位 `m s-1`）。
 
-### 2.4 ApplyOrographicEnhancement
+
+
+### 3.4 ApplyOrographicEnhancement
 
 主函数：
 
@@ -83,9 +270,13 @@
 
 ---
 
-## 3. 输入输出与参数说明
 
-### 3.1 MetaOrographicEnhancement
+
+## 4. 输入输出与参数说明
+
+
+
+### 4.1 MetaOrographicEnhancement
 
 输入输出总览：
 
@@ -117,7 +308,9 @@
 | `boundary_height_units` | -                         | 否   | `m`      | 边界层高度单位（初始化参数） |
 
 
-### 3.2 OrographicEnhancement
+
+
+### 4.2 OrographicEnhancement
 
 输入输出总览：
 
@@ -147,7 +340,9 @@
 | `topography`  | `m` / `km`           | 是   | 无   | 地形高度场，作为目标网格 |
 
 
-### 3.3 ApplyOrographicEnhancement
+
+
+### 4.3 ApplyOrographicEnhancement
 
 输入输出总览：
 
@@ -173,7 +368,9 @@
 
 ---
 
-## 4. 关键参数（与原算法保持一致）
+
+
+## 5. 关键参数（与原算法保持一致）
 
 - `OROG_THRESH_M = 20.0`
 - `RH_THRESH_RATIO = 0.8`
@@ -184,20 +381,22 @@
 
 ---
 
-## 5. CLI 用法
+
+
+## 6. CLI 用法
 
 示例脚本：`orographic_enhancement/cli/dsc_orographic_enhancement.py`
 
-### 5.1 运行方式
+### 6.1 运行方式
 
 ```powershell
-python -m orographic_enhancement.cli.dsc_orographic_enhancement
+python -m orographic_precipitation_downscaling.cli.dsc_orographic_enhancement
 ```
 
 在代码中调用：
 
 ```python
-from orographic_enhancement.cli.dsc_orographic_enhancement import process
+from orographic_precipitation_downscaling.cli.dsc_orographic_enhancement import process
 
 result = process(
     temperature_path="temperature.nc",
@@ -212,7 +411,9 @@ result = process(
 )
 ```
 
-### 5.2 `process()` 参数
+
+
+### 6.2 `process()` 参数
 
 
 | 参数                      | 必填  | 说明                  |
@@ -234,17 +435,21 @@ result = process(
 ./venv/Scripts/python.exe orographic_enhancement/cli/dsc_orographic_enhancement.py
 ```
 
-内置测试数据目录：`orographic_enhancement/test_data/orographic_enhancement_data/normalized_meb6d/`。
+内置测试数据目录：输入 `orographic_enhancement/test_data/orographic_enhancement_data/cli_input/`，CLI 输出 `cli_output/`。
 
 ---
 
-## 6. Python 调用示例
 
-### 6.1 计算地形增强
+
+## 7. Python 调用示例
+
+
+
+### 7.1 计算地形增强
 
 ```python
 import xarray as xr
-from orographic_enhancement.src.orographic_enhancement import MetaOrographicEnhancement
+from orographic_precipitation_downscaling.src.orographic_enhancement import MetaOrographicEnhancement
 
 temperature = xr.open_dataset("temperature.nc")["air_temperature"]
 humidity = xr.open_dataset("humidity.nc")["relative_humidity"]
@@ -257,14 +462,16 @@ plugin = MetaOrographicEnhancement(boundary_height=1000.0, boundary_height_units
 oe = plugin(temperature, humidity, pressure, wind_speed, wind_direction, orography)
 ```
 
-### 6.2 应用地形增强项
+
+
+### 7.2 应用地形增强项
 
 ```python
 import xarray as xr
-from orographic_enhancement.src.apply_orographic_enhancement import ApplyOrographicEnhancement
+from orographic_precipitation_downscaling.src.apply_orographic_enhancement import ApplyOrographicEnhancement
 
 precip = xr.open_dataset("precip.nc")["lwe_precipitation_rate"]
-oe = xr.open_dataset("orographic_enhancement.nc")["orographic_enhancement"]
+oe = xr.open_dataset("orographic_precipitation_downscaling.nc")["orographic_enhancement"]
 
 plugin = ApplyOrographicEnhancement(operation="add")
 applied = plugin.process(precip, oe, allowed_time_diff=1800)
@@ -272,7 +479,9 @@ applied = plugin.process(precip, oe, allowed_time_diff=1800)
 
 ---
 
-## 7. 验证建议
+
+
+## 8. 验证建议
 
 建议使用同一批标准化输入，对比：
 
@@ -289,6 +498,8 @@ applied = plugin.process(precip, oe, allowed_time_diff=1800)
 
 ---
 
-## 8. 注意事项
+
+
+## 9. 注意事项
 
 若输出文件被占用（如被 Notebook 打开），CLI 写文件可能失败。

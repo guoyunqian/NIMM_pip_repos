@@ -11,22 +11,13 @@ from typing import Sequence
 
 import numpy as np
 import xarray as xr
+from cf_units import Unit
 
 import meteva_base as meb
 
-_REQUIRED_DIMS = ("member", "level", "time", "dtime", "lat", "lon")
-_DEFAULT_GRID_ATTRS = {
-    "units": None,
-    "model": None,
-    "dtime_units": "hour",
-    "level_type": "isobaric",
-    "time_type": "UT",
-    "time_bounds": [0, 0],
-}
-
 
 def check_for_meb_griddata(
-    grid_data: xr.DataArray,
+    grd: xr.DataArray,
     is_single: bool = False,
     valid_val: Sequence[float] = (-1000.0, 1000.0, np.nan),
 ) -> xr.DataArray:
@@ -46,31 +37,29 @@ def check_for_meb_griddata(
     xr.DataArray
         经过检查后的网格数据副本，维度顺序已统一，数据类型为 `float32`。
     """
-    if not isinstance(grid_data, xr.DataArray):
-        raise ValueError("griddata must be xr.DataArray")
-
-    if set(grid_data.dims) != set(_REQUIRED_DIMS):
-        raise ValueError(
-            "griddata dims must be "
-            f"{set(_REQUIRED_DIMS)}, got {set(grid_data.dims)}"
+    if not isinstance(grd, xr.DataArray):
+        msg = "ERROR: griddata must be xr.DataArray, please check"
+        raise ValueError(msg)
+    if set(grd.dims) != {"member", "level", "time", "dtime", "lat", "lon"}:
+        msg = (
+            "ERROR: griddata dims must be set of "
+            "{'member', 'level', 'time', 'dtime', 'lat', 'lon'} , please check"
         )
-
-    if is_single and len(grid_data.values.squeeze().shape) > 2:
-        raise ValueError("griddata must be a single field over lat/lon")
-
-    normalized = grid_data.copy()
-    if normalized.dims != _REQUIRED_DIMS:
-        normalized = normalized.transpose(*_REQUIRED_DIMS)
-
-    if normalized.values.dtype != np.float32:
-        normalized.values = normalized.values.astype(np.float32)
-
-    lower, upper, fill_value = valid_val
-    invalid = (normalized.values < lower) | (normalized.values > upper)
-    if invalid.any():
-        normalized.values[invalid] = fill_value
-
-    return normalized
+        raise ValueError(msg)
+    if is_single:
+        if len(grd.values.squeeze().shape) > 2:
+            msg = "ERROR: griddata has more effective coordinates than (lat, lon) , please check"
+            raise ValueError(msg)
+    grd0 = grd.copy()
+    if grd0.dims != ("member", "level", "time", "dtime", "lat", "lon"):
+        grd0 = grd0.transpose("member", "level", "time", "dtime", "lat", "lon")
+    if grd0.values.dtype == np.float64:
+        grd0.values = grd0.values.astype(np.float32)
+    if ((grd0.values < valid_val[0]) | (grd0.values > valid_val[1])).any():
+        msg = "WARNING: griddata values exceed VALID_VAL, setting to np.NaN"
+        print(msg)
+        grd0.values[(grd0.values < valid_val[0]) | (grd0.values > valid_val[1])] = valid_val[2]
+    return grd0
 
 
 def rebuild_to_meb_griddata(
@@ -105,9 +94,12 @@ def rebuild_to_meb_griddata(
         raise TypeError("template 必须为 xarray.DataArray。")
 
     # 模板必须是完整六维网格，禁止自动补维。
-    normalized = check_for_meb_griddata(template)
+    normalized = check_for_meb_griddata(template, valid_val=(-np.inf, np.inf, np.nan))
 
-    target_shape = tuple(normalized.sizes[dim] for dim in _REQUIRED_DIMS)
+    target_shape = tuple(
+        normalized.sizes[dim]
+        for dim in ("member", "level", "time", "dtime", "lat", "lon")
+    )
     value_array = np.asarray(values, dtype=dtype)
     if value_array.shape != target_shape:
         if value_array.size != int(np.prod(target_shape)):
@@ -116,25 +108,24 @@ def rebuild_to_meb_griddata(
             )
         value_array = value_array.reshape(target_shape)
 
-    # 优先走 meteva_base 网格对象；若坐标推算的 nlat/nlon 与模板格点数不一致，
-    # 则直接继承模板坐标，避免 grid_data 按起止经纬度反推格点数时 off-by-one。
+    # 通过 meteva_base 网格对象组装，避免手工补维和坐标构造误差。
     grid_info = meb.get_grid_of_data(normalized)
-    expected_nlat = int(normalized.sizes["lat"])
-    expected_nlon = int(normalized.sizes["lon"])
-    if grid_info.nlat == expected_nlat and grid_info.nlon == expected_nlon:
-        result = meb.grid_data(grid=grid_info, data=value_array)
-        if not isinstance(result, xr.DataArray):
-            raise TypeError("meb.grid_data 返回结果不是 xarray.DataArray")
-        if result.dims != _REQUIRED_DIMS:
-            result = result.transpose(*_REQUIRED_DIMS)
-    else:
-        result = xr.DataArray(
-            value_array,
-            coords={dim: normalized.coords[dim] for dim in _REQUIRED_DIMS},
-            dims=_REQUIRED_DIMS,
-        )
+    result = meb.grid_data(grid=grid_info, data=value_array)
 
-    attrs = dict(_DEFAULT_GRID_ATTRS)
+    if not isinstance(result, xr.DataArray):
+        raise TypeError("meb.grid_data 返回结果不是 xarray.DataArray")
+    if result.dims != ("member", "level", "time", "dtime", "lat", "lon"):
+        result = result.transpose("member", "level", "time", "dtime", "lat", "lon")
+
+    # 构造默认属性
+    attrs = {
+        "units": units,
+        "model": None,
+        "dtime_units": "hour",
+        "level_type": "isobaric",
+        "time_type": "UT",
+        "time_bounds": [0, 0],
+    }
     attrs.update(dict(normalized.attrs))
     if units is not None:
         attrs["units"] = units
@@ -214,3 +205,22 @@ def _check_time_dtime_same(times0, dtimes0, times1, dtimes1):
     alltimes0 = set(alltimes0)
     alltimes1 = set(alltimes1)
     return alltimes0 & alltimes1 == alltimes0
+
+
+def convert_units(field: xr.DataArray, to_unit: str) -> np.ndarray:
+    """将 ``DataArray`` 换算到目标单位，返回 ``numpy`` 数组。
+
+    源单位从 ``attrs['units']`` 读取；``to_unit`` 须为 ``cf_units`` 可识别的 CF 写法。
+    """
+    to_unit = (to_unit or "").strip()
+    from_unit = field.attrs.get("units")
+    if from_unit is None or not str(from_unit).strip():
+        name = field.name or "<unnamed>"
+        raise ValueError(f"DataArray '{name}' 缺少有效的 units 属性。")
+    from_unit = str(from_unit).strip()
+    if from_unit == to_unit:
+        return field.values.astype(np.float32, copy=False)
+
+    values_f64 = np.asarray(field.values, dtype=np.float64)
+    converted = Unit(from_unit).convert(values_f64, Unit(to_unit))
+    return converted.astype(np.float32)
