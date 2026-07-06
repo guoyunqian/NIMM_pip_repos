@@ -9,7 +9,7 @@
 | 主入口 / 命令行 | `src/mait_1h_cli.py` — `process()` / `RunProcess` / Clize CLI |
 | 权重与插值 | `src/mait_1_plugin.py` |
 | 读数与时间 | `src/mait_1_plugin_util.py` |
-| 运行上下文 | `utils/mai_1_plugin_context.py` — `RunContext` |
+| 运行上下文 | `src/utils/util_context.py` — `RunContext` |
 | 插件基类 / 多进程 | `utils/base_plugin.py`、`utils/multipro_plugin.py` |
 | 配置与 I/O | `utils/util_env.py`、`utils/util_new.py` |
 | 运行默认项 | `resource/mait_1.ini` |
@@ -36,7 +36,7 @@
 1. `os.chdir` → **`src/`**  
 2. `get_resolved_paths()` → **`mait_1.ini`**  
 3. `_prepare`：12 位 `%Y%m%d%H%M` → `dt_now`，读 `sta.info`  
-4. `_analysis_para_ini`：读 **`para.ini`**（或 `para_1.ini`，由 `para_ini` 指定）  
+4. `_analysis_para_ini`：读 **`local.ini`**（或 `para_1.ini`，由 `para_ini` 指定）  
 5. `_analysis_background_ini` → **`para_1_background.ini`**  
 6. `build_run_context`；background 缺键 → `ctx=None` 退出  
 
@@ -91,7 +91,7 @@ flowchart TD
 | `src/mait_1h_cli.py` | 主入口 |
 | `src/mait_1_plugin.py` | TS、Cressman、DataFlg |
 | `src/mait_1_plugin_util.py` | 读数、background、回溯 |
-| `utils/mai_1_plugin_context.py` | `RunContext`、`dt_search_base` |
+| `src/utils/util_context.py` | `RunContext`、`dt_search_base` |
 | `utils/base_plugin.py` | `PostProcessingPlugin` 基类 |
 | `utils/multipro_plugin.py` | `SimpleParallelTool` 多进程 |
 | `utils/util_env.py` | `mait_1.ini` 配置解析 |
@@ -115,7 +115,7 @@ flowchart TD
 | 文件 | 内容 |
 |------|------|
 | `resource/mait_1.ini` | 日志、**`para_ini`**、background、mask、clip、时效、多进程 |
-| `resource/para.ini` / `para_1.ini` | 模式 M3、`fact`、`staoutputPath`（GBK） |
+| `resource/local.ini` / `para_1.ini` | 模式 M3、`fact`、`staoutputPath`（GBK） |
 | `resource/para_1_background.ini` | 背景 M4/NC，键名与 para 一致 |
 | `resource/sta.info` | 站点表 |
 | `resource/mask010.dat` | 插值掩膜 |

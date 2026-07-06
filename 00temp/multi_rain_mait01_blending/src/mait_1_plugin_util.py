@@ -4,7 +4,7 @@ MAIT 1h 数据读取与时间工具（``mait_1_plugin_util.py``）。
 
 与数值结果相关的分工：
 
-- **站点 Micaps3**：仍按 ``para.ini`` 模板 + ``VVV→TTT`` + 36h 回溯（``_find_model_file_with_backtrack``）
+- **站点 Micaps3**：仍按模式配置 ini（``local.ini`` / ``para_1.ini``）模板 + ``VVV→TTT`` + 36h 回溯（``_find_model_file_with_backtrack``）
 - **背景格点 M4**：按 ``para_1_background.ini`` 模板（``.m4``）+ ``dt_search_base`` 与 36h 回溯；均无则全 0 规则格点（与 mait_st 无 m4 时一致）
 - **``gd_back_ground`` / ``grid_base`` 经纬度**：仍取**第一个**成功读入的背景文件元数据（与旧版“只取一份背景场”一致）
 - **时间函数** ``_analysis_time1/2/3``：未改规则；``is_obs_bjt`` 在 time2 中 +8h 对齐实况
@@ -18,11 +18,11 @@ import numpy as np
 import meteva_base as meb
 import os
 from utils.util_new import copy_data, GridData, NcData, create_regular_background_grid
-from utils.mai_1_plugin_context import RunContext
+from utils.util_context import RunContext
 
 
 def _analysis_background_ini(para_filepath):
-    """解析 ``para_1_background.ini``：每行 ``模式键名=格点路径模板``，键名须与 ``para.ini`` 一致。支持 UTF-8/GBK/GB18030；``#`` 与空行忽略。"""
+    """解析 ``para_1_background.ini``：每行 ``模式键名=格点路径模板``，键名须与 local.ini / para_1.ini 一致。支持 UTF-8/GBK/GB18030；``#`` 与空行忽略。"""
     out = {}
     if not para_filepath or not os.path.exists(para_filepath):
         return out
@@ -340,7 +340,7 @@ def _read_now_source_micaps3_nc(
     """
     读取当前时效 Micaps3 站点场 + 背景 M4 场。
 
-    - 站点：``para.ini`` 的 M3 模板，检索基准 ``dt_search_base``
+    - 站点：模式配置 ini 的 M3 模板，检索基准 ``dt_search_base``
     - 背景：``para_1_background.ini`` 的 ``.m4`` 模板，同一检索基准与 36h 回溯；首个读成功者作 ``gd_back_ground``
     - 均无可用背景文件时：70–140°E / 0–60°N 全 0 格点（与 mait_st 无 m4 时一致）
 

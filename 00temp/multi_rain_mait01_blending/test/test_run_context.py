@@ -1,16 +1,20 @@
 # -*- coding: utf-8 -*-
-"""``mai_1_plugin_context`` 与 background ini 相关单元测试。"""
+"""``util_context`` 与 background ini 相关单元测试。"""
 import datetime
 import os
 import sys
 
 _REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _SRC = os.path.join(_REPO, "src")
-for _p in (_SRC, _REPO):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+_ROOT_UTILS = os.path.join(_REPO, "utils")
+_ordered = (_SRC, _ROOT_UTILS, _REPO)
+for _p in _ordered:
+    while _p in sys.path:
+        sys.path.remove(_p)
+for _p in reversed(_ordered):
+    sys.path.insert(0, _p)
 
-from utils.mai_1_plugin_context import RunContext, build_run_context
+from utils.util_context import RunContext, build_run_context
 from mait_1_plugin_util import _analysis_background_ini
 from utils.util_env import get_resolved_paths
 
@@ -50,8 +54,8 @@ def test_analysis_background_ini_reads_resource_file():
 
 def test_util_env_resolves_paths_from_mait_1_ini():
     paths = get_resolved_paths()
-    assert paths["background_ini"].endswith("para_1_background.ini")
-    assert paths["para_ini"].endswith("para.ini")
+    assert paths["background_ini"].endswith("local_background.ini")
+    assert paths["para_ini"].endswith("local.ini")
     assert paths["mask_dat"].endswith("mask010.dat")
     ini_path = os.path.join(_REPO, "resource", "mait_1.ini")
     assert os.path.isfile(ini_path)

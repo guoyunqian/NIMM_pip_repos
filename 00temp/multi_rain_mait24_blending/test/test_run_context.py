@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""``mai_24_plugin_context`` 与 ini 解析相关单元测试（不依赖 meteva 运行时）。"""
+"""``util_context`` 与 ini 解析相关单元测试（不依赖 meteva 运行时）。"""
 import datetime
 import os
 
-from utils.mai_24_plugin_context import RunContext, build_run_context
+from utils.util_context import RunContext, build_run_context
 from mait_24_plugin_util import _analysis_background_ini
 from utils.util_env import get_resolved_paths, get_default_clip_coords
 from utils.util_new import _analysis_para_ini

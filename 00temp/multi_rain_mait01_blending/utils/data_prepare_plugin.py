@@ -6,7 +6,7 @@ import time
 import pandas as pd
 import os
 
-from utils.multipro_plugin import SimpleParallelTool
+from multipro_plugin import SimpleParallelTool
 
 
 para_example= {

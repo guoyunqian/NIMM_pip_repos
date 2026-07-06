@@ -4,12 +4,16 @@ import sys
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _SRC = os.path.join(_ROOT, "src")
-for _p in (_SRC, _ROOT):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+_ROOT_UTILS = os.path.join(_ROOT, "utils")
+_ordered = (_SRC, _ROOT_UTILS, _ROOT)
+for _p in _ordered:
+    while _p in sys.path:
+        sys.path.remove(_p)
+for _p in reversed(_ordered):
+    sys.path.insert(0, _p)
 
 import pandas as pd
-import mait_1h_cli
+import mait_1h
 
 """
 10种网格预报
@@ -40,5 +44,5 @@ if __name__ == '__main__':
         "clip_coords" : clip_coords,
         "pro_count" : pro_count,
     }
-    mait_1h_cli.process(**keyword)
+    mait_1h.process(**keyword)
 

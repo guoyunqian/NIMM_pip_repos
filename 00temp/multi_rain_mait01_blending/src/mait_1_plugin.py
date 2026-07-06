@@ -3,8 +3,8 @@
 import numpy as np
 import meteva_base as meb
 # from nimm import PostProcessingPlugin
-from utils.base_plugin import PostProcessingPlugin
-from utils.mai_1_plugin_context import RunContext
+from base_plugin import PostProcessingPlugin
+from utils.util_context import RunContext
 from utils.util_new import copy_data, MetevaFrequencyMatch, data0_str, get_ts, StationDataArray, \
     MetevaSpatialAnalisis, bilinear_interpolation_from_grid_data
 

@@ -11,7 +11,7 @@ for _p in (_SRC, _ROOT):
 
 import pandas as pd
 
-import mait_24h_cli
+import mait_24h
 
 """
 10种网格预报
@@ -50,4 +50,4 @@ if __name__ == '__main__':
         "split_lat" : split_lat,
         "split_lon" : split_lon
     }
-    mait_24h_cli.process(**keyword)
+    mait_24h.process(**keyword)
