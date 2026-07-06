@@ -1,0 +1,52 @@
+================================================================================
+算法整理日志 — 体感温度
+================================================================================
+整理日期   : 2026-07-06
+算法代号   : feels_like_temperature
+仓库目录   : 00temp/feels_like_temperature/
+整理阶段   : NIMM 标准化目录结构整理
+贡献人     : 郭云谦、王亭波
+原始来源   : D:\workspace\improver\feels_like_temperature（原 improver 包名 `feels_like_temperature`）
+================================================================================
+
+一、目录映射（原 → 现）
+--------------------------------------------------------------------------------
+  核心算法             → src/feels_like_temperature.py（CalculateWindChill、calculate_feels_like_temperature）
+  内部工具             → src/utils/_feels_like.py（饱和水汽压、风寒、显温及融合逻辑）
+  模块工具             → utils/utils.py（meteva_base 网格数据校验与输出封装）
+  插件基类             → utils/base_plugin.py（BasePlugin 本地提供）
+  CLI              → cli/der_feel_like_temp.py（体感温度计算示例调度）
+  CLI 路由           → cli/__main__.py（模块 CLI 入口）
+  文档               → docs/feels_like_temperature.md（算法说明）
+  notebook         → nbs/feels_like_temperature.ipynb（示例与验证）
+  测试               → test/test_feels_like_temperature.py 等（单元测试与官方样例对照）
+  整理清单         → NIMM_list.md（本目录）
+  整理中间数据     → 00temp/feels_like_temperature/
+  整理过程日志     → 00log/feels_like_temperature_整理_20260706.log
+
+二、本次已完成
+--------------------------------------------------------------------------------
+  [x] 自 improver 独立模块同步 src/、utils/、cli/、test/、docs/、nbs/
+  [x] 导入路径统一为中间目录模块名 feels_like_temperature
+  [x] CalculateWindChill 已继承 utils/base_plugin.BasePlugin
+  [x] 建立算法内 00log/、00temp/、NIMM_list.md、.gitignore
+  [x] improver 原代码目录下全部 pytest 用例已通过（2026-07-06，整理人复验）
+
+三、仍存在问题 — 需人工补充
+--------------------------------------------------------------------------------
+  [ ] 入库路径：补充至 NIMM/02diagnostic/ 时需调整为仓库正式包路径
+  [ ] BasePlugin：正式入库时评估是否改为仓库统一基类
+  [ ] resource/：当前为空，正式补充时确认是否保留
+
+四、验证记录
+--------------------------------------------------------------------------------
+  [x] 整理人在 improver 原代码目录（`D:\workspace\improver\feels_like_temperature`）下已运行全部测试用例，全部通过（2026-07-06）
+  [x] 含单元测试与官方样例对照测试
+
+五、导入路径说明
+--------------------------------------------------------------------------------
+  中间目录 Python import 已统一为模块名 `feels_like_temperature`。
+  补充至 NIMM/02diagnostic/ 时需再调整为仓库正式包路径。
+  源码文件名（如 orographic_enhancement.py）保留 improver 原名，未改算法逻辑。
+
+================================================================================
