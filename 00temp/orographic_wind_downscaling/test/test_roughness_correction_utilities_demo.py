@@ -1,6 +1,6 @@
 import numpy as np
 
-from wind_calculations.src.wind_downscaling import RoughnessCorrectionUtilities
+from orographic_wind_downscaling.src.wind_downscaling import RoughnessCorrectionUtilities
 
 
 def test_roughness_correction_utilities_demo_smoke():

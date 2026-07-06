@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from wind_calculations.src.wind_downscaling import (
+from orographic_wind_downscaling.src.wind_downscaling import (
     RoughnessCorrectionUtilities,
     RMDI,
     Z0M_SEA,

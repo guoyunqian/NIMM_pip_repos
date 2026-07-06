@@ -9,7 +9,7 @@
 - 根据地形轮廓粗糙度、网格内地形高度标准差、目标地形、模式地形和植被粗糙度长度构建订正参数。
 - 对输入风速执行粗糙度订正和高度订正。
 - 支持一维公共高度层或三维空间变化高度层。
-- 提供 CLI 示例、notebook 示例、单元测试和样例 `nc` 测试数据。
+- 提供 CLI 示例、notebook 示例和单元测试。
 
 ## 算法分类
 
@@ -18,14 +18,19 @@
 
 ## 主要文件
 
-| 类型 | 文件 | 说明 |
-| --- | --- | --- |
-| 核心源码 | `src/wind_downscaling.py` | 风速粗糙度订正和高度订正核心算法 |
-| 辅助源码 | `utils/utils.py` | `meteva_base` 网格数据校验与输出封装工具 |
-| CLI | `cli/dsc_wind_downscaling.py` | 风速降尺度示例调度脚本 |
-| 文档 | `docs/wind_downscaling.md` | 原始算法分析文档 |
-| 测试 | `test/` | 粗糙度订正、摩擦速度、官方数据等测试 |
-| 数据 | `test_data/wind_calculations_data/` | 风速降尺度样例和对照数据 |
+
+| 类型   | 文件                                       | 说明                          |
+| ---- | ---------------------------------------- | --------------------------- |
+| 核心源码 | `src/wind_downscaling.py`                | 风速粗糙度订正和高度订正核心算法            |
+| 辅助源码 | `utils/base_plugin.py`                   | 插件基类与后处理插件基类                |
+| 辅助源码 | `utils/utils.py`                         | `meteva_base` 网格数据校验与输出封装工具 |
+| CLI  | `cli/dsc_wind_downscaling.py`            | 风速降尺度示例调度脚本                 |
+| 文档   | `docs/wind_downscaling.md`               | 原始算法分析文档                    |
+| 测试   | `test/test_RoughnessCorrection.py`       | 粗糙度订正主流程测试                  |
+| 测试   | `test/test_official_wind_downscaling.py` | 官方样例数据对照测试                  |
+
+
+
 
 ## 输入输出
 
@@ -45,6 +50,8 @@
 
 - 经地形粗糙度和高度订正后的风速场，输出结构与输入风速保持一致；`DataArray` 输入返回 `meteva_base` 六维结构。
 
+
+
 ## 当前整理状态
 
 当前阶段为原始算法整理至中间目录，尚未补充到正式算法仓库目录。
@@ -52,12 +59,11 @@
 已完成：
 
 - 原始源码、CLI、文档、notebook、测试脚本、测试数据复制到 `00temp/orographic_wind_downscaling/`。
-- 保留原始代码逻辑和原始包导入路径。
-- 记录分类、贡献人、入口文件和已知问题。
+- 2026-07-02 从 `D:\workspace\improver\wind_calculations` 增量同步，导入路径已统一为中间目录模块名 `orographic_wind_downscaling`。
 
 待处理：
 
-- 当前代码导入路径仍保留原始包名 `wind_calculations`，补充到正式仓库时需要统一改为仓库包路径。
+- 补充至正式仓库时，需将导入路径调整为 `NIMM` 下实际包路径。
+- 正式入库时需评估 `utils/base_plugin.py` 是否替换为仓库统一基类。
 - 需要在正式补充阶段运行完整测试，并确认 `meteva_base`、`cf_units`、`xarray`、`numpy`、`pytest`、`netcdf4` 等依赖。
-- 测试数据中存在部分临时文件命名，如 `*_tmp.nc`，正式入库前建议筛选必要样例。
 

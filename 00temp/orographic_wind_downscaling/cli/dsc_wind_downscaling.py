@@ -58,8 +58,8 @@ def process(
     xr.DataArray
         订正后的风速场。
     """
-    from wind_calculations.src.wind_downscaling import RoughnessCorrection
-    from wind_calculations.utils.utils import check_for_meb_griddata
+    from orographic_wind_downscaling.src.wind_downscaling import RoughnessCorrection
+    from orographic_wind_downscaling.utils.utils import check_for_meb_griddata
     
     _unbounded = (-np.inf, np.inf, np.nan)
 
@@ -184,7 +184,13 @@ if __name__ == "__main__":
         Path(__file__).resolve().parent.parent
         / "test_data"
         / "wind_calculations_data"
-        / "normalized_meb6d"
+        / "cli_input"
+    )
+    cli_output_dir = (
+        Path(__file__).resolve().parent.parent
+        / "test_data"
+        / "wind_calculations_data"
+        / "cli_output"
     )
 
     #各输入文件的路径映射
@@ -194,7 +200,7 @@ if __name__ == "__main__":
     standard_orography_path = str(data_dir / "standard_orog.nc")   #标准网格地形高度场nc文件路径
     silhouette_roughness_path = str(data_dir / "a_over_s.nc")   #地形轮廓粗糙度场nc文件路径
     vegetative_roughness_path = str(data_dir / "veg.nc")   #植被粗糙度长度场nc文件路径
-    output_path = str(data_dir / "cli_test_tmp.nc")   #输出nc文件路径
+    output_path = str(cli_output_dir / "cli_result.nc")   #输出nc文件路径
 
     model_resolution = 1500.0   #模式原始分辨率（米）
     output_height_level = None   #若指定，则从结果中提取该高度层

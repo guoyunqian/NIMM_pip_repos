@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from wind_calculations.src.wind_downscaling import FrictionVelocity, RMDI, VONKARMAN
+from orographic_wind_downscaling.src.wind_downscaling import FrictionVelocity, RMDI, VONKARMAN
 
 
 def create_dummy_friction_data(n_lat=3, n_lon=4):

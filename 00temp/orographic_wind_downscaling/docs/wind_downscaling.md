@@ -54,7 +54,7 @@ u* = K \times \frac{u_{href}}{\ln(\frac{h_{ref}}{z_0})}
 #### 使用方法
 
 ```python
-from src.wind_downscaling import FrictionVelocity
+from orographic_wind_downscaling.src.wind_downscaling import FrictionVelocity
 
 # 初始化实例
 fv = FrictionVelocity(u_href, h_ref, z_0, mask)
@@ -67,7 +67,7 @@ ustar = fv()  # 或 fv.process()
 
 ```python
 import numpy as np
-from wind_calculations.src.wind_downscaling import FrictionVelocity
+from orographic_wind_downscaling.src.wind_downscaling import FrictionVelocity
 
 # 构造二维输入场 (lat, lon)
 u_href = (np.random.rand(101, 101) * 20.0).astype(np.float32)      # m s-1
@@ -136,7 +136,7 @@ print(ustar.dtype)      # float32
 #### 使用方法
 
 ```python
-from src.wind_downscaling import RoughnessCorrectionUtilities
+from orographic_wind_downscaling.src.wind_downscaling import RoughnessCorrectionUtilities
 
 # 初始化实例
 rc_utils = RoughnessCorrectionUtilities(
@@ -212,7 +212,7 @@ final_wind = rc_utils.do_rc_hc_all(height_grid, wind_speed)
 #### 使用方法
 
 ```python
-from wind_calculations.src.wind_downscaling import RoughnessCorrection
+from orographic_wind_downscaling.src.wind_downscaling import RoughnessCorrection
 
 # 初始化实例
 plugin = RoughnessCorrection(
@@ -280,7 +280,7 @@ corrected_wind = plugin.process(wind_speed, height_levels)
 
 ```python
 import numpy as np
-from wind_calculations.src.wind_downscaling import RoughnessCorrection
+from orographic_wind_downscaling.src.wind_downscaling import RoughnessCorrection
 
 # 假设风速是 (level, lat, lon)
 wind_speed = np.random.rand(9, 101, 101).astype(np.float32) * 20.0
@@ -315,7 +315,7 @@ print(corrected_wind.shape)       # (9, 101, 101)
 ```python
 import numpy as np
 import xarray as xr
-from wind_calculations.src.wind_downscaling import RoughnessCorrection
+from orographic_wind_downscaling.src.wind_downscaling import RoughnessCorrection
 
 # 构造标准六维风速场: (member, level, time, dtime, lat, lon)
 wind_speed_da = xr.DataArray(
@@ -370,36 +370,52 @@ print(corrected_da.shape)         # (1, 9, 1, 1, 101, 101)
 
 ## 8. CLI 应用
 
-示例脚本：`wind_calculations/cli/dsc_wind_downscaling.py`
+示例脚本：`orographic_wind_downscaling/cli/dsc_wind_downscaling.py`
 
 ### 8.1 运行方式
 
 PowerShell 示例：
 
 ```powershell
-python -m wind_calculations.cli.dsc_wind_downscaling
+python -m orographic_wind_downscaling.cli.dsc_wind_downscaling
 ```
 
 在代码中调用：
 
 ```python
-from wind_calculations.cli.dsc_wind_downscaling import process
+from orographic_wind_downscaling.cli.dsc_wind_downscaling import process
 
 result = process(
-    wind_speed_path="input.nc",
-    sigma_path="sigma.nc",
-    target_orography_path="highres_orog.nc",
-    standard_orography_path="standard_orog.nc",
-    silhouette_roughness_path="a_over_s.nc",
+    wind_speed_path="orographic_wind_downscaling/test_data/wind_calculations_data/cli_input/input.nc",
+    sigma_path="orographic_wind_downscaling/test_data/wind_calculations_data/cli_input/sigma.nc",
+    target_orography_path="orographic_wind_downscaling/test_data/wind_calculations_data/cli_input/highres_orog.nc",
+    standard_orography_path="orographic_wind_downscaling/test_data/wind_calculations_data/cli_input/standard_orog.nc",
+    silhouette_roughness_path="orographic_wind_downscaling/test_data/wind_calculations_data/cli_input/a_over_s.nc",
     model_resolution=1500.0,
-    vegetative_roughness_path="veg.nc",
-    output_path="cli_test_tmp.nc",
+    vegetative_roughness_path="orographic_wind_downscaling/test_data/wind_calculations_data/cli_input/veg.nc",
+    output_path="orographic_wind_downscaling/test_data/wind_calculations_data/cli_output/cli_result.nc",
     output_height_level=None,
     output_height_level_units="m",
 )
 ```
 
-内置测试数据目录：`wind_calculations/test_data/wind_calculations_data/normalized_meb6d/`。
+内置测试数据目录：`orographic_wind_downscaling/test_data/wind_calculations_data/`。
+
+| 路径 | 说明 |
+| ---- | ---- |
+| `cli_input/` | CLI 与插件输入（六维 meb 网格 nc，由 notebook 预处理写出） |
+| `cli_output/` | CLI 示例输出目录 |
+| `kgo.nc` | 官方 KGO（投影坐标，位于数据根目录） |
+| `original_algorithm_result.nc` | 原 IMPROVER 算法结果（投影坐标，位于数据根目录） |
+| `input.nc`、`a_over_s.nc` 等 | 原始官方投影样例（预处理源文件） |
+
+官方回归测试：
+
+```powershell
+pytest orographic_wind_downscaling/test/test_official_wind_downscaling.py
+```
+
+测试从 `cli_input/` 读入六维输入，与根目录 `kgo.nc`、`original_algorithm_result.nc` 对照。若 `cli_input/` 缺失，可先运行 `nbs/official_data_wind_calculations.ipynb` 中的预处理单元格生成。
 
 ### 8.2 `process()` 参数说明
 
@@ -420,8 +436,8 @@ result = process(
 
 ### 使用注意
 
-1. 本 CLI 当前仅支持meteva_base网格数据格式输入：`member, level, time, dtime, lat, lon`。
-2. 若输入不是 meteva_base 网格数据格式，请先在 notebook 中执行数据预处理单元格（将原始 NetCDF 升维为六维）；预处理逻辑内联在 `nbs/official_data_wind_calculations.ipynb`，默认 `coord_mode='rename'`。
+1. 本 CLI 当前仅支持 meteva_base 网格数据格式输入：`member, level, time, dtime, lat, lon`。
+2. 若输入不是 meteva_base 网格数据格式，请先在 notebook 中执行数据预处理单元格（将原始投影 NetCDF 升维为六维并写出 `cli_input/`）；预处理逻辑内联在 `nbs/official_data_wind_calculations.ipynb`，仅做投影维重命名为 `lat/lon`，不做经纬重网格。
 3. `--output-height-level` 与 `--output-height-level-units` 建议配套使用；只给单位不指定高度时，单位参数不会生效。
 
 ## 9. 总结

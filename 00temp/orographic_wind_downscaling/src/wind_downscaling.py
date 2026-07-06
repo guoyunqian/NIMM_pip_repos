@@ -16,20 +16,11 @@ import xarray as xr
 from numpy import ndarray
 from typing import Optional, Tuple, Union
 
-try:
-    from wind_calculations.utils.utils import (
-        check_for_meb_griddata,
-        rebuild_to_meb_griddata,
-    )
-except ImportError:
-    from utils.utils import (
-        check_for_meb_griddata,
-        rebuild_to_meb_griddata,
-    )
-
-# 假设meteva提供了类似的数据类型，这里用meteva.base作为示例
-# 实际导入可能需要根据meteva的安装调整
-# import meteva.base as meb
+from orographic_wind_downscaling.utils.base_plugin import BasePlugin
+from orographic_wind_downscaling.utils.utils import (
+    check_for_meb_griddata,
+    rebuild_to_meb_griddata,
+)
 
 # 真实缺测数据指示符
 RMDI = -32767.0
@@ -47,7 +38,7 @@ VONKARMAN = 0.4
 Z0M_SEA = 0.0001
 
 
-class FrictionVelocity:
+class FrictionVelocity(BasePlugin):
     """
     摩擦速度计算类
     该类用于计算大气边界层中的摩擦速度 u*，这是表征近地面大气湍流强度的特征速度尺度。
@@ -88,15 +79,6 @@ class FrictionVelocity:
         array_sizes = [np.size(u_href), np.size(h_ref), np.size(z_0), np.size(mask)]
         if not all(x == array_sizes[0] for x in array_sizes):
             raise ValueError("输入数组 u_href, h_ref, z_0, mask 的大小不一致")
-
-    def __call__(self):
-        """
-        使类实例可调用，直接返回 process() 方法的计算结果
-        返回值
-        ----------
-        ndarray: 二维浮点型数组（float32）—— 摩擦速度场
-        """
-        return self.process()
 
     def process(self) -> ndarray:
         """
@@ -759,7 +741,7 @@ class RoughnessCorrectionUtilities:
         return result.astype(np.float32)
 
 
-class RoughnessCorrection:
+class RoughnessCorrection(BasePlugin):
     """
     风速降尺度主插件：对输入风速执行粗糙度订正（RC）与高度订正（HC）。
 

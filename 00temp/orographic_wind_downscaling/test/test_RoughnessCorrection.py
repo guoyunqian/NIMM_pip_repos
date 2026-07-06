@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import meteva_base as meb
 
-from wind_calculations.src.wind_downscaling import RoughnessCorrection
+from orographic_wind_downscaling.src.wind_downscaling import RoughnessCorrection
 
 
 def create_dummy_data(n_lat=3, n_lon=4, n_levels=5):
@@ -102,8 +102,6 @@ class TestRoughnessCorrection:
         assert not np.isnan(corrected1).any(), "输出包含 NaN 值"
         assert (corrected1 >= 0).all(), "输出包含负值"
 
-        print(">>> corrected1_max:", corrected1.max())
-
     def test_with_grid_data(self, dummy_data, roughness_correction):
         """测试使用 grid_data 作为输入"""
         # 先添加缺失的维度
@@ -132,8 +130,6 @@ class TestRoughnessCorrection:
         # 验证输出值
         assert not np.isnan(corrected2).any(), "输出包含 NaN 值"
         assert (corrected2 >= 0).all(), "输出包含负值"
-
-        print(">>> corrected2_max:", corrected2.max())
 
     def test_with_3d_height(self, dummy_data, roughness_correction):
         """测试使用3D高度网格"""
@@ -179,6 +175,34 @@ class TestRoughnessCorrection:
         # 验证输出值
         assert not np.isnan(corrected).any(), "输出包含 NaN 值"
         assert (corrected >= 0).all(), "输出包含负值"
+
+    def test_edge_case_minimal_grid(self):
+        """测试最小格点（1×1×1）可正常处理。"""
+        n_lat, n_lon, n_levels = 1, 1, 1
+
+        a_over_s = np.random.rand(n_lat, n_lon).astype(np.float32)
+        sigma = np.random.rand(n_lat, n_lon).astype(np.float32) * 100
+        pporo = np.random.rand(n_lat, n_lon).astype(np.float32) * 500
+        modoro = np.random.rand(n_lat, n_lon).astype(np.float32) * 500
+        z0 = np.random.rand(n_lat, n_lon).astype(np.float32) * 0.5
+
+        wind_speed = np.random.rand(1, n_levels, n_lat, n_lon).astype(np.float32)
+        height_1d = np.linspace(10, 500, n_levels, dtype=np.float32)
+
+        rc = RoughnessCorrection(
+            a_over_s=a_over_s,
+            sigma=sigma,
+            pporo=pporo,
+            modoro=modoro,
+            z0=z0,
+            modres=4000.0,
+            ppres=1000.0,
+        )
+        corrected = rc.process(wind_speed, height_1d)
+
+        assert corrected.shape == wind_speed.shape
+        assert not np.isnan(corrected).any()
+        assert (corrected >= 0).all()
 
 
 if __name__ == '__main__':
