@@ -16,6 +16,16 @@ from temperature.src.lapse_rate import ApplyGriddedLapseRate, LapseRate
 ROOT = Path(__file__).resolve().parents[2]
 APPLY_DATA_DIR = ROOT / "temperature" / "test_data" / "apply_lapse_rate_data"
 LAPSE_DATA_DIR = ROOT / "temperature" / "test_data" / "temp_lapse_rate_data"
+APPLY_CLI_INPUT_DIR = APPLY_DATA_DIR / "cli_input"
+LAPSE_CLI_INPUT_DIR = LAPSE_DATA_DIR / "cli_input"
+
+
+def _as_spatial(values: np.ndarray) -> np.ndarray:
+    """将六维 meb6d 或二维场统一为二维空间数组以便对照。"""
+    arr = np.squeeze(np.asarray(values))
+    if arr.ndim != 2:
+        raise AssertionError(f"expected 2D spatial values, got shape {arr.shape}")
+    return arr
 
 
 def _assert_files_exist(paths: list[Path]) -> None:
@@ -26,14 +36,13 @@ def _assert_files_exist(paths: list[Path]) -> None:
 
 def test_official_apply_gridded_lapse_rate_with_actual_orog_diff() -> None:
     """验证 ApplyGriddedLapseRate 与官方 KGO、原算法结果一致。"""
-    data_dir = APPLY_DATA_DIR / "normalized_meb6d"
     files = {
-        "temperature": data_dir / "ukvx_temperature.nc",
-        "lapse_rate": data_dir / "ukvx_lapse_rate.nc",
-        "source_orog": data_dir / "ukvx_orography.nc",
-        "dest_orog": data_dir / "highres_orog.nc",
-        "kgo": data_dir / "kgo.nc",
-        "original": data_dir / "original_algorithm_result.nc",
+        "temperature": APPLY_CLI_INPUT_DIR / "ukvx_temperature.nc",
+        "lapse_rate": APPLY_CLI_INPUT_DIR / "ukvx_lapse_rate.nc",
+        "source_orog": APPLY_CLI_INPUT_DIR / "ukvx_orography.nc",
+        "dest_orog": APPLY_CLI_INPUT_DIR / "highres_orog.nc",
+        "kgo": APPLY_DATA_DIR / "kgo.nc",
+        "original": APPLY_DATA_DIR / "original_algorithm_result.nc",
     }
     _assert_files_exist(list(files.values()))
 
@@ -45,11 +54,15 @@ def test_official_apply_gridded_lapse_rate_with_actual_orog_diff() -> None:
     original = xr.open_dataset(files["original"], decode_timedelta=False)["air_temperature"].values
 
     result = ApplyGriddedLapseRate()(temperature, lapse_rate, source_orog, dest_orog)
-    result_values = result.values if isinstance(result, xr.DataArray) else np.asarray(result)
+    result_values = _as_spatial(
+        result.values if isinstance(result, xr.DataArray) else np.asarray(result)
+    )
+    expected_values = _as_spatial(expected)
+    original_values = _as_spatial(original)
 
-    assert result_values.shape == expected.shape
-    np.testing.assert_allclose(result_values, expected, atol=1e-4, rtol=1e-6)
-    np.testing.assert_allclose(result_values, original, atol=1e-4, rtol=1e-6)
+    assert result_values.shape == expected_values.shape
+    np.testing.assert_allclose(result_values, expected_values, atol=1e-4, rtol=1e-6)
+    np.testing.assert_allclose(result_values, original_values, atol=1e-4, rtol=1e-6)
 
     # 额外做一个范围检查，避免出现明显异常值。
     assert np.all((result_values > 250.0) & (result_values < 320.0))
@@ -57,13 +70,12 @@ def test_official_apply_gridded_lapse_rate_with_actual_orog_diff() -> None:
 
 def test_official_lapse_rate_algorithm() -> None:
     """验证 LapseRate 与官方 KGO、原算法结果一致。"""
-    data_dir = LAPSE_DATA_DIR / "normalized_meb6d"
     files = {
-        "temperature": data_dir / "temperature_at_screen_level.nc",
-        "orography": data_dir / "ukvx_orography.nc",
-        "landmask": data_dir / "ukvx_landmask.nc",
-        "kgo": data_dir / "kgo.nc",
-        "original": data_dir / "original_lapse_rate_result.nc",
+        "temperature": LAPSE_CLI_INPUT_DIR / "temperature_at_screen_level.nc",
+        "orography": LAPSE_CLI_INPUT_DIR / "ukvx_orography.nc",
+        "landmask": LAPSE_CLI_INPUT_DIR / "ukvx_landmask.nc",
+        "kgo": LAPSE_DATA_DIR / "kgo.nc",
+        "original": LAPSE_DATA_DIR / "original_lapse_rate_result.nc",
     }
     _assert_files_exist(list(files.values()))
 
@@ -74,11 +86,15 @@ def test_official_lapse_rate_algorithm() -> None:
     original = xr.open_dataset(files["original"], decode_timedelta=False)["air_temperature_lapse_rate"].values
 
     result = LapseRate()(temperature, orography, landmask)
-    result_values = result.values if isinstance(result, xr.DataArray) else np.asarray(result)
+    result_values = _as_spatial(
+        result.values if isinstance(result, xr.DataArray) else np.asarray(result)
+    )
+    expected_values = _as_spatial(expected)
+    original_values = _as_spatial(original)
 
-    assert result_values.shape == expected.shape
-    np.testing.assert_allclose(result_values, expected, atol=1e-6, rtol=1e-6)
-    np.testing.assert_allclose(result_values, original, atol=1e-6, rtol=1e-6)
+    assert result_values.shape == expected_values.shape
+    np.testing.assert_allclose(result_values, expected_values, atol=1e-6, rtol=1e-6)
+    np.testing.assert_allclose(result_values, original_values, atol=1e-6, rtol=1e-6)
 
     assert np.all((result_values >= -0.01) & (result_values <= 0.03))
 

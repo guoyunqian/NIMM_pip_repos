@@ -1,0 +1,52 @@
+================================================================================
+算法整理日志 — 气温降尺度(地形)
+================================================================================
+整理日期   : 2026-07-06
+算法代号   : lapse_rate
+仓库目录   : 00temp/orographic_temperature_downscaling/
+整理阶段   : NIMM 标准化目录结构整理
+贡献人     : 郭云谦、王亭波
+原始来源   : D:\workspace\improver\temperature（原 improver 包名 `temperature`）
+================================================================================
+
+一、目录映射（原 → 现）
+--------------------------------------------------------------------------------
+  核心算法             → src/lapse_rate.py（LapseRate、ApplyGriddedLapseRate、compute_lapse_rate_adjustment）
+  模块工具             → utils/utils.py（meteva_base 网格数据校验、单位换算与输出封装）
+  插件基类             → utils/base_plugin.py（BasePlugin 本地提供）
+  CLI              → cli/dsc_temp_lapse_rate.py（层结递减率计算）
+  CLI              → cli/anc_lapse_rate.py（温度地形订正）
+  文档               → docs/lapse_rate.md、docs/orographic_temperature_downscaling.md（算法说明）
+  notebook         → nbs/lapse_rate.ipynb（示例与验证）
+  测试               → test/test_lapse_rate.py、test/test_official_lapse_rate_actual_orog.py（单元测试与官方样例）
+  整理清单         → NIMM_list.md（本目录）
+  整理中间数据     → 00temp/lapse_rate/
+  整理过程日志     → 00log/lapse_rate_整理_20260706.log
+
+二、本次已完成
+--------------------------------------------------------------------------------
+  [x] 自 improver/temperature 同步；体感温度相关内容已拆分至独立模块
+  [x] 导入路径由 temperature 统一改为 orographic_temperature_downscaling
+  [x] LapseRate、ApplyGriddedLapseRate 已继承 BasePlugin
+  [x] 建立算法内 00log/、00temp/、NIMM_list.md、.gitignore
+  [x] improver 原代码目录下全部 pytest 用例已通过（2026-07-06，整理人复验）
+
+三、仍存在问题 — 需人工补充
+--------------------------------------------------------------------------------
+  [ ] 入库路径：补充至 NIMM/00space_downscale/ 时需调整为仓库正式包路径
+  [ ] BasePlugin：正式入库时评估是否改为仓库统一基类
+  [ ] test_data：体量大，正式入库前确认必要小样例范围
+  [ ] resource/：当前为空，正式补充时确认是否保留
+
+四、验证记录
+--------------------------------------------------------------------------------
+  [x] 整理人在 improver 原代码目录（`D:\workspace\improver\temperature`）下已运行全部测试用例，全部通过（2026-07-06）
+  [x] 含单元测试与官方样例对照测试
+
+五、导入路径说明
+--------------------------------------------------------------------------------
+  中间目录 Python import 已统一为模块名 `orographic_temperature_downscaling`。
+  补充至 NIMM/00space_downscale/ 时需再调整为仓库正式包路径。
+  源码文件名（如 orographic_enhancement.py）保留 improver 原名，未改算法逻辑。
+
+================================================================================

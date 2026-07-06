@@ -16,12 +16,15 @@ from typing import Union, Tuple
 import numpy as np
 import xarray as xr
 
-from temperature.utils.utils import (
-    assert_xy_match,
+from orographic_temperature_downscaling.utils.base_plugin import BasePlugin
+from orographic_temperature_downscaling.utils.utils import (
     check_for_meb_griddata,
+    check_for_xy_coordinates,
     convert_units,
     rebuild_to_meb_griddata,
 )
+
+_MEB_VALID_VAL = (-np.inf, np.inf, np.nan)
 
 
 # 物理常数（单位：K/m）
@@ -78,7 +81,7 @@ def compute_lapse_rate_adjustment(
     return vertical_adjustment
 
 
-class ApplyGriddedLapseRate:
+class ApplyGriddedLapseRate(BasePlugin):
     """将网格化层结递减率应用到温度场的插件。
 
     典型使用步骤：
@@ -99,50 +102,21 @@ class ApplyGriddedLapseRate:
         pass
 
 
-    def _calc_orog_diff(self, source_orog: Union[xr.DataArray, np.ndarray],
-                       dest_orog: Union[xr.DataArray, np.ndarray]) -> np.ndarray:
-        """计算地形高度差（目标地形 - 源地形，单位 m）。
-
-        参数
-        ----------
-        source_orog : xr.DataArray 或 np.ndarray
-            源地形高度数据
-        dest_orog : xr.DataArray 或 np.ndarray
-            目标地形高度数据
-
-        返回值
-        -------
-        np.ndarray
-            地形高度差数组（目标减源），单位 m。
-        """
-        # 处理 xarray 输入
-        if isinstance(source_orog, xr.DataArray):
-            source_units = source_orog.attrs.get("units") or "m"
-            source_values = source_orog.values
-            source_m = convert_units(source_values, source_units, "m")
-        else:
-            # numpy 输入，默认假设为米
-            source_m = source_orog
-
-        if isinstance(dest_orog, xr.DataArray):
-            dest_units = dest_orog.attrs.get("units") or "m"
-            dest_values = dest_orog.values
-            dest_m = convert_units(dest_values, dest_units, "m")
-        else:
-            # numpy 输入，默认假设为米
-            dest_m = dest_orog
-
-        return dest_m - source_m
-
-    def __call__(
+    def _calc_orog_diff(
         self,
-        temperature: Union[xr.DataArray, np.ndarray],
-        lapse_rate: Union[xr.DataArray, np.ndarray],
         source_orog: Union[xr.DataArray, np.ndarray],
-        dest_orog: Union[xr.DataArray, np.ndarray]
-    ) -> Union[xr.DataArray, np.ndarray]:
-        """`process(...)` 的便捷入口，支持直接调用插件实例。"""
-        return self.process(temperature, lapse_rate, source_orog, dest_orog)
+        dest_orog: Union[xr.DataArray, np.ndarray],
+    ) -> np.ndarray:
+        """计算地形高度差（目标 - 源，单位 m）。"""
+        if isinstance(source_orog, xr.DataArray):
+            source_m = convert_units(source_orog, "m")
+        else:
+            source_m = np.asarray(source_orog, dtype=np.float32)
+        if isinstance(dest_orog, xr.DataArray):
+            dest_m = convert_units(dest_orog, "m")
+        else:
+            dest_m = np.asarray(dest_orog, dtype=np.float32)
+        return dest_m - source_m
 
     def process(
         self,
@@ -177,81 +151,68 @@ class ApplyGriddedLapseRate:
         - 内部计算统一在 Kelvin 与 K/m 语义下执行，输出亦为 K（与上游 Improver 一致）；
         - 返回值类型随输入类型而变化，但数值形状与输入温度保持一致。
         """
-        # 处理温度输入
-        if isinstance(temperature, xr.DataArray):
-            temp_units = temperature.attrs.get("units") or "K"
-            temp_values = temperature.values.astype(np.float32, copy=False)
-            check_for_meb_griddata(temperature)
-        else:
-            # numpy 输入，默认假设为开尔文 (K)
-            temp_units = "K"
-            temp_values = temperature.astype(np.float32, copy=False)
+        temp_template = (
+            check_for_meb_griddata(temperature, valid_val=_MEB_VALID_VAL)
+            if isinstance(temperature, xr.DataArray)
+            else None
+        )
+        source_template = (
+            check_for_meb_griddata(source_orog, valid_val=_MEB_VALID_VAL)
+            if isinstance(source_orog, xr.DataArray)
+            else None
+        )
+        dest_template = (
+            check_for_meb_griddata(dest_orog, valid_val=_MEB_VALID_VAL)
+            if isinstance(dest_orog, xr.DataArray)
+            else None
+        )
 
-        # 处理层结递减率输入
         if isinstance(lapse_rate, xr.DataArray):
-            lr_units = lapse_rate.attrs.get("units") or "K m-1"
-            lr_values = lapse_rate.values.astype(np.float32, copy=False)
-            check_for_meb_griddata(lapse_rate)
-            # 单位转换：确保层结递减率为 K/m（CF: K m-1）
-            lr_k_per_m = convert_units(lr_values, lr_units, "K m-1")
-
-            if isinstance(temperature, xr.DataArray):
-                assert_xy_match(temperature, lapse_rate, "层结递减率")
+            lr_template = check_for_meb_griddata(lapse_rate, valid_val=_MEB_VALID_VAL)
+            lr_k_per_m = convert_units(lapse_rate, "K m-1")
+            if temp_template is not None:
+                if not check_for_xy_coordinates(
+                    [temp_template, lr_template], is_time_match=True
+                ):
+                    raise ValueError("层结递减率与温度场的空间/时效坐标不一致")
         else:
-            # numpy 输入，默认假设为 K/m
-            lr_k_per_m = lapse_rate.astype(np.float32, copy=False)
+            lr_k_per_m = np.asarray(lapse_rate, dtype=np.float32)
 
-        # 处理地形输入
-        if (
-            isinstance(source_orog, xr.DataArray)
-            and isinstance(temperature, xr.DataArray)
-        ):
-            check_for_meb_griddata(source_orog)
-            assert_xy_match(temperature, source_orog, "源地形")
+        if temp_template is not None:
+            if source_template is not None:
+                if not check_for_xy_coordinates(
+                    [temp_template, source_template], is_time_match=False
+                ):
+                    raise ValueError("源地形与温度场的坐标不一致")
+            if dest_template is not None:
+                if not check_for_xy_coordinates(
+                    [temp_template, dest_template], is_time_match=False
+                ):
+                    raise ValueError("目标地形与温度场的坐标不一致")
 
-        if (
-            isinstance(dest_orog, xr.DataArray)
-            and isinstance(temperature, xr.DataArray)
-        ):
-            check_for_meb_griddata(dest_orog)
-            assert_xy_match(temperature, dest_orog, "目标地形")
-
-        # 计算地形高度差
         orog_diff = self._calc_orog_diff(source_orog, dest_orog)
-
-        # 单位转换：确保温度为开尔文用于计算
-        temp_k = convert_units(temp_values, temp_units, "K")
+        if isinstance(temperature, xr.DataArray):
+            temp_k = convert_units(temperature, "K")
+        else:
+            temp_k = np.asarray(temperature, dtype=np.float32)
 
         # 应用层结递减率调整
         # 订正项由“局地递减率部分 + 极端高差回退部分”共同组成。
         result = temp_k + compute_lapse_rate_adjustment(lr_k_per_m, orog_diff)
         result = result.astype(np.float32)
 
-        if isinstance(temperature, xr.DataArray):
-            # xarray 输入场景下，将输出重组装为 meteva_base 约定维度顺序。
-            try:
-                return rebuild_to_meb_griddata(
-                    result,
-                    template=temperature,
-                    name=temperature.name,
-                    units="K",
-                )
-            except Exception:
-                # 非标准 grid_data 模板时，回退为原始维度输出。
-                out_attrs = dict(temperature.attrs)
-                out_attrs["units"] = "K"
-                return xr.DataArray(
-                    result,
-                    dims=temperature.dims,
-                    coords=temperature.coords,
-                    attrs=out_attrs,
-                    name=temperature.name,
-                )
+        if temp_template is not None:
+            return rebuild_to_meb_griddata(
+                result,
+                template=temp_template,
+                name=temp_template.name,
+                units="K",
+            )
 
         return result
 
 
-class LapseRate:
+class LapseRate(BasePlugin):
     """从温度和地形估计局地层结递减率场（K/m）的插件。
 
     使用者视角下的流程：
@@ -466,15 +427,6 @@ class LapseRate:
         lapse_rate_array = np.clip(lapse_rate_array, self.min_lapse_rate, self.max_lapse_rate)
         return lapse_rate_array
 
-    def __call__(
-        self,
-        temperature: Union[xr.DataArray, np.ndarray],
-        orography: Union[xr.DataArray, np.ndarray],
-        land_sea_mask: Union[xr.DataArray, np.ndarray],
-    ) -> Union[xr.DataArray, np.ndarray]:
-        """`process(...)` 的便捷入口，支持直接调用插件实例。"""
-        return self.process(temperature, orography, land_sea_mask)
-
     def process(
         self,
         temperature: Union[xr.DataArray, np.ndarray],
@@ -505,41 +457,43 @@ class LapseRate:
         - 多维输入会按非空间维逐片计算；
         - 输出数值数据类型为 `np.float32`；
         """
-        # 处理温度输入
-        if isinstance(temperature, xr.DataArray):
-            temp_units = temperature.attrs.get("units") or "K"
-            temp_values = temperature.values.astype(np.float32, copy=False)
-            check_for_meb_griddata(temperature)
-        else:
-            # numpy 输入，默认假设为开尔文 (K)
-            temp_units = "K"
-            temp_values = temperature.astype(np.float32, copy=False)
+        temp_template = (
+            check_for_meb_griddata(temperature, valid_val=_MEB_VALID_VAL)
+            if isinstance(temperature, xr.DataArray)
+            else None
+        )
 
-        # 处理地形输入
         if isinstance(orography, xr.DataArray):
-            orog_units = orography.attrs.get("units") or "m"
-            orog_values = orography.values.astype(np.float32, copy=False)
-            check_for_meb_griddata(orography)
-            if isinstance(temperature, xr.DataArray):
-                assert_xy_match(temperature, orography, "地形")
+            orog_template = check_for_meb_griddata(orography, valid_val=_MEB_VALID_VAL)
+            if temp_template is not None:
+                if not check_for_xy_coordinates(
+                    [temp_template, orog_template], is_time_match=False
+                ):
+                    raise ValueError("地形与温度场的坐标不一致")
         else:
-            # numpy 输入，默认假设为米
-            orog_units = "m"
-            orog_values = orography.astype(np.float32, copy=False)
+            orography = orography.astype(np.float32, copy=False)
 
-        # 处理陆地-海洋掩膜输入
         if isinstance(land_sea_mask, xr.DataArray):
-            land_mask_values = land_sea_mask.values.astype(bool, copy=False)
-            check_for_meb_griddata(land_sea_mask)
-            if isinstance(temperature, xr.DataArray):
-                assert_xy_match(temperature, land_sea_mask, "陆地-海洋掩膜")
+            mask_template = check_for_meb_griddata(
+                land_sea_mask, valid_val=_MEB_VALID_VAL
+            )
+            land_mask_values = mask_template.values.astype(bool, copy=False)
+            if temp_template is not None:
+                if not check_for_xy_coordinates(
+                    [temp_template, mask_template], is_time_match=True
+                ):
+                    raise ValueError("陆地-海洋掩膜与温度场的空间/时效坐标不一致")
         else:
-            # numpy 输入
             land_mask_values = land_sea_mask.astype(bool, copy=False)
 
-        # 单位转换：确保温度为开尔文，地形为米
-        temp_k = convert_units(temp_values, temp_units, "K")
-        orog_values = convert_units(orog_values, orog_units, "m")
+        if isinstance(temperature, xr.DataArray):
+            temp_k = convert_units(temperature, "K")
+        else:
+            temp_k = np.asarray(temperature, dtype=np.float32)
+        if isinstance(orography, xr.DataArray):
+            orog_values = convert_units(orography, "m")
+        else:
+            orog_values = np.asarray(orography, dtype=np.float32)
 
         # 提取2D空间切片（假设最后两个维度是lat, lon）
         # 处理多维情况（member, level, time, dtime, lat, lon）
@@ -570,23 +524,12 @@ class LapseRate:
 
         lapse_rate_data = lapse_rate_data.astype(np.float32, copy=False)
 
-        if isinstance(temperature, xr.DataArray):
-            # xarray 输入场景下，输出重组装为标准 grid_data 维度顺序。
-            try:
-                return rebuild_to_meb_griddata(
-                    lapse_rate_data,
-                    template=temperature,
-                    name="air_temperature_lapse_rate",
-                    units="K m-1",
-                )
-            except Exception:
-                # 非标准 grid_data 模板时，回退为原始维度输出。
-                return xr.DataArray(
-                    lapse_rate_data,
-                    dims=temperature.dims,
-                    coords=temperature.coords,
-                    attrs={**temperature.attrs, "units": "K m-1"},
-                    name="air_temperature_lapse_rate",
-                )
+        if temp_template is not None:
+            return rebuild_to_meb_griddata(
+                lapse_rate_data,
+                template=temp_template,
+                name="air_temperature_lapse_rate",
+                units="K m-1",
+            )
 
         return lapse_rate_data

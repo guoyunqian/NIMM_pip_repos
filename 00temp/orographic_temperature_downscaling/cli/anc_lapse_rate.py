@@ -40,8 +40,8 @@ def process(
     xr.DataArray or np.ndarray
         地形订正后的温度场。
     """
-    from temperature.src.lapse_rate import ApplyGriddedLapseRate
-    from temperature.utils.utils import check_for_meb_griddata, check_for_xy_coordinates
+    from orographic_temperature_downscaling.src.lapse_rate import ApplyGriddedLapseRate
+    from orographic_temperature_downscaling.utils.utils import check_for_meb_griddata, check_for_xy_coordinates
     
     _unbounded = (-np.inf, np.inf, np.nan)
 
@@ -57,10 +57,10 @@ def process(
 
     if not check_for_xy_coordinates([temperature, lapse_rate], is_time_match=True):
         raise ValueError("层结递减率场与温度场的空间/时效坐标不一致")
-    if not check_for_xy_coordinates([temperature, source_orography], is_time_match=True):
-        raise ValueError("源地形高度场与温度场的空间/时效坐标不一致")
-    if not check_for_xy_coordinates([temperature, target_orography], is_time_match=True):
-        raise ValueError("目标地形高度场与温度场的空间/时效坐标不一致")
+    if not check_for_xy_coordinates([temperature, source_orography], is_time_match=False):
+        raise ValueError("源地形高度场与温度场的坐标不一致")
+    if not check_for_xy_coordinates([temperature, target_orography], is_time_match=False):
+        raise ValueError("目标地形高度场与温度场的坐标不一致")
 
     result = ApplyGriddedLapseRate()(
         temperature,
@@ -84,17 +84,18 @@ if __name__ == "__main__":
         sys.path.insert(0, str(repo_root))
 
     #测试数据路径
-    data_dir = (
+    data_root = (
         Path(__file__).resolve().parent.parent
         / "test_data"
         / "apply_lapse_rate_data"
-        / "normalized_meb6d"
     )
+    cli_input_dir = data_root / "cli_input"
+    cli_output_dir = data_root / "cli_output"
 
-    temperature_path = str(data_dir / "ukvx_temperature.nc")    #温度场nc文件路径
-    lapse_rate_path = str(data_dir / "ukvx_lapse_rate.nc")    #层结递减率场nc文件路径
-    source_orography_path = str(data_dir / "ukvx_orography.nc")    #源地形高度场nc文件路径
-    target_orography_path = str(data_dir / "highres_orog.nc")    #目标地形高度场nc文件路径
-    output_path = str(data_dir / "cli_apply_lapse_rate_result.nc")#地形订正后温度场nc文件路径
+    temperature_path = str(cli_input_dir / "ukvx_temperature.nc")    #温度场nc文件路径
+    lapse_rate_path = str(cli_input_dir / "ukvx_lapse_rate.nc")    #层结递减率场nc文件路径
+    source_orography_path = str(cli_input_dir / "ukvx_orography.nc")    #源地形高度场nc文件路径
+    target_orography_path = str(cli_input_dir / "highres_orog.nc")    #目标地形高度场nc文件路径
+    output_path = str(cli_output_dir / "cli_apply_lapse_rate_result.nc")#地形订正后温度场nc文件路径
 
     result = process(temperature_path, lapse_rate_path, source_orography_path, target_orography_path, output_path=output_path)

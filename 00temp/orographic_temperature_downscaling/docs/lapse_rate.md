@@ -199,7 +199,7 @@ print(f"调整量: {adjustment}")  # [1.0, 1.3]
 ```python
 import numpy as np
 import xarray as xr
-from temperature.src.lapse_rate import ApplyGriddedLapseRate
+from orographic_temperature_downscaling.src.lapse_rate import ApplyGriddedLapseRate
 
 # 示例2: ApplyGriddedLapseRate 类使用
 plugin = ApplyGriddedLapseRate()
@@ -236,7 +236,7 @@ result_np = plugin(temp_np, lapse_np, orog_np, orog_np + 100)
 ```python
 import numpy as np
 import xarray as xr
-from temperature.src.lapse_rate import LapseRate
+from orographic_temperature_downscaling.src.lapse_rate import LapseRate
 
 # 示例3: LapseRate 类使用
 plugin = LapseRate(max_height_diff=35.0, nbhood_radius=7)
@@ -276,8 +276,8 @@ print(result_np.shape, result_np.dtype)
 
 | 脚本                                       | 对应插件                    | 说明                 |
 | ---------------------------------------- | ----------------------- | ------------------ |
-| `temperature/cli/anc_lapse_rate.py`      | `ApplyGriddedLapseRate` | 应用已计算的层结递减率        |
-| `temperature/cli/dsc_temp_lapse_rate.py` | `LapseRate`             | 从温度、地形和海陆掩膜计算层结递减率 |
+| `orographic_temperature_downscaling/cli/anc_lapse_rate.py`      | `ApplyGriddedLapseRate` | 应用已计算的层结递减率        |
+| `orographic_temperature_downscaling/cli/dsc_temp_lapse_rate.py` | `LapseRate`             | 从温度、地形和海陆掩膜计算层结递减率 |
 
 
 ### 7.1 运行方式
@@ -287,13 +287,13 @@ print(result_np.shape, result_np.dtype)
 PowerShell 示例（应用层结递减率）：
 
 ```powershell
-python -m temperature.cli.anc_lapse_rate
+python -m orographic_temperature_downscaling.cli.anc_lapse_rate
 ```
 
 **方式 2：在代码中调用 `process()`**
 
 ```python
-from temperature.cli.anc_lapse_rate import process
+from orographic_temperature_downscaling.cli.anc_lapse_rate import process
 
 result = process(
     temperature_path=".../ukvx_temperature.nc",
@@ -318,7 +318,7 @@ result = process(
 | `output_path`           | str | 否   | 输出 nc 路径；`None` 时不写文件 |
 
 
-脚本内置测试数据目录：`temperature/test_data/apply_lapse_rate_data/normalized_meb6d/`。
+脚本内置测试数据目录：输入 `orographic_temperature_downscaling/test_data/apply_lapse_rate_data/cli_input/`，CLI 输出 `cli_output/`。
 
 ### 7.3 LapseRate（`dsc_temp_lapse_rate.py`）
 
@@ -338,7 +338,7 @@ result = process(
 | `dry_adiabatic`      | bool  | 否   | 为真时直接输出干绝热递减率场                           |
 
 
-脚本内置测试数据目录：`temperature/test_data/temp_lapse_rate_data/normalized_meb6d/`。
+脚本内置测试数据目录：输入 `orographic_temperature_downscaling/test_data/temp_lapse_rate_data/cli_input/`，CLI 输出 `cli_output/`。
 
 ## 8. 算法验证
 

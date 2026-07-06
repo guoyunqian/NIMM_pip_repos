@@ -194,7 +194,7 @@ class TestApplyGriddedLapseRate:
         source_orog = create_test_grid_data(shape1, "m", 100.0)
         dest_orog = create_test_grid_data(shape1, "m", 200.0)
 
-        with pytest.raises(ValueError, match="层结递减率与参考场的空间/时效坐标不一致"):
+        with pytest.raises(ValueError, match="层结递减率与温度场的空间/时效坐标不一致"):
             lapse_rate_plugin(temperature, lapse_rate, source_orog, dest_orog)
 
 

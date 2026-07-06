@@ -74,17 +74,10 @@ def process(
     xr.DataArray
         层结递减率场，单位 ``K m-1``。
     """
-    from temperature.src.lapse_rate import LapseRate
-    from temperature.utils.utils import check_for_meb_griddata, check_for_xy_coordinates
+    from orographic_temperature_downscaling.src.lapse_rate import LapseRate
+    from orographic_temperature_downscaling.utils.utils import check_for_meb_griddata, check_for_xy_coordinates
     
     _unbounded = (-np.inf, np.inf, np.nan)
-
-    if min_lapse_rate > max_lapse_rate:
-        raise ValueError("最小层结递减率不能大于最大层结递减率。")
-    if max_height_diff < 0:
-        raise ValueError("max_height_diff 必须大于等于 0。")
-    if nbhood_radius < 0:
-        raise ValueError("nbhood_radius 必须大于等于 0。")
 
     temperature = check_for_meb_griddata(
         meb.read_griddata_from_nc(temperature_path), valid_val=_unbounded
@@ -96,6 +89,13 @@ def process(
         )
         result = _as_lapse_rate_dataarray(result, temperature)
     else:
+        if min_lapse_rate > max_lapse_rate:
+            raise ValueError("最小层结递减率不能大于最大层结递减率。")
+        if max_height_diff < 0:
+            raise ValueError("max_height_diff 必须大于等于 0。")
+        if nbhood_radius < 0:
+            raise ValueError("nbhood_radius 必须大于等于 0。")
+
         if orography_path is None or land_sea_mask_path is None:
             raise RuntimeError("计算真实层结递减率时，必须同时提供 orography_path 和 land_sea_mask_path。")
 
@@ -104,8 +104,8 @@ def process(
         )
         land_sea_mask = check_for_meb_griddata(meb.read_griddata_from_nc(land_sea_mask_path))
 
-        if not check_for_xy_coordinates([temperature, orography], is_time_match=True):
-            raise ValueError("地形高度场与温度场的空间/时效坐标不一致")
+        if not check_for_xy_coordinates([temperature, orography], is_time_match=False):
+            raise ValueError("地形高度场与温度场的坐标不一致")
         if not check_for_xy_coordinates([temperature, land_sea_mask], is_time_match=True):
             raise ValueError("海陆掩码与温度场的空间/时效坐标不一致")
 
@@ -138,18 +138,19 @@ if __name__ == "__main__":
         sys.path.insert(0, str(repo_root))
 
     #测试数据路径
-    data_dir = (
+    data_root = (
         Path(__file__).resolve().parent.parent
         / "test_data"
         / "temp_lapse_rate_data"
-        / "normalized_meb6d"
     )
+    cli_input_dir = data_root / "cli_input"
+    cli_output_dir = data_root / "cli_output"
 
     #各输入文件的路径映射
-    temperature_path = str(data_dir / "temperature_at_screen_level.nc")   #温度场nc文件路径
-    orography_path = str(data_dir / "ukvx_orography.nc")   #地形高度场nc文件路径
-    land_sea_mask_path = str(data_dir / "ukvx_landmask.nc")   #海陆掩码场nc文件路径
-    output_path = str(data_dir / "cli_lapse_rate_result.nc")   #输出nc文件路径
+    temperature_path = str(cli_input_dir / "temperature_at_screen_level.nc")   #温度场nc文件路径
+    orography_path = str(cli_input_dir / "ukvx_orography.nc")   #地形高度场nc文件路径
+    land_sea_mask_path = str(cli_input_dir / "ukvx_landmask.nc")   #海陆掩码场nc文件路径
+    output_path = str(cli_output_dir / "cli_lapse_rate_result.nc")   #输出nc文件路径
 
     result = process(
         temperature_path,
