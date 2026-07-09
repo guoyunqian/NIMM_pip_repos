@@ -14,19 +14,15 @@ import xarray as xr
 
 import meteva_base as meb
 
-_REQUIRED_DIMS = ("member", "level", "time", "dtime", "lat", "lon")
-_DEFAULT_GRID_ATTRS = {
-    "units": None,
-    "model": None,
-    "dtime_units": "hour",
-    "level_type": "isobaric",
-    "time_type": "UT",
-    "time_bounds": [0, 0],
-}
+__all__ = [
+    "check_for_meb_griddata",
+    "check_for_xy_coordinates",
+    "rebuild_to_meb_griddata",
+]
 
 
 def check_for_meb_griddata(
-    grid_data: xr.DataArray,
+    grd: xr.DataArray,
     is_single: bool = False,
     valid_val: Sequence[float] = (-1000.0, 1000.0, np.nan),
 ) -> xr.DataArray:
@@ -46,31 +42,29 @@ def check_for_meb_griddata(
     xr.DataArray
         经过检查后的网格数据副本，维度顺序已统一，数据类型为 `float32`。
     """
-    if not isinstance(grid_data, xr.DataArray):
-        raise ValueError("griddata must be xr.DataArray")
-
-    if set(grid_data.dims) != set(_REQUIRED_DIMS):
-        raise ValueError(
-            "griddata dims must be "
-            f"{set(_REQUIRED_DIMS)}, got {set(grid_data.dims)}"
+    if not isinstance(grd, xr.DataArray):
+        msg = "ERROR: griddata must be xr.DataArray, please check"
+        raise ValueError(msg)
+    if set(grd.dims) != {"member", "level", "time", "dtime", "lat", "lon"}:
+        msg = (
+            "ERROR: griddata dims must be set of "
+            "{'member', 'level', 'time', 'dtime', 'lat', 'lon'} , please check"
         )
-
-    if is_single and len(grid_data.values.squeeze().shape) > 2:
-        raise ValueError("griddata must be a single field over lat/lon")
-
-    normalized = grid_data.copy()
-    if normalized.dims != _REQUIRED_DIMS:
-        normalized = normalized.transpose(*_REQUIRED_DIMS)
-
-    if normalized.values.dtype != np.float32:
-        normalized.values = normalized.values.astype(np.float32)
-
-    lower, upper, fill_value = valid_val
-    invalid = (normalized.values < lower) | (normalized.values > upper)
-    if invalid.any():
-        normalized.values[invalid] = fill_value
-
-    return normalized
+        raise ValueError(msg)
+    if is_single:
+        if len(grd.values.squeeze().shape) > 2:
+            msg = "ERROR: griddata has more effective coordinates than (lat, lon) , please check"
+            raise ValueError(msg)
+    grd0 = grd.copy()
+    if grd0.dims != ("member", "level", "time", "dtime", "lat", "lon"):
+        grd0 = grd0.transpose("member", "level", "time", "dtime", "lat", "lon")
+    if grd0.values.dtype == np.float64:
+        grd0.values = grd0.values.astype(np.float32)
+    if ((grd0.values < valid_val[0]) | (grd0.values > valid_val[1])).any():
+        msg = "WARNING: griddata values exceed VALID_VAL, setting to np.NaN"
+        print(msg)
+        grd0.values[(grd0.values < valid_val[0]) | (grd0.values > valid_val[1])] = valid_val[2]
+    return grd0
 
 
 def rebuild_to_meb_griddata(
@@ -105,9 +99,12 @@ def rebuild_to_meb_griddata(
         raise TypeError("template 必须为 xarray.DataArray。")
 
     # 模板必须是完整六维网格，禁止自动补维。
-    normalized = check_for_meb_griddata(template)
+    normalized = check_for_meb_griddata(template, valid_val=(-np.inf, np.inf, np.nan))
 
-    target_shape = tuple(normalized.sizes[dim] for dim in _REQUIRED_DIMS)
+    target_shape = tuple(
+        normalized.sizes[dim]
+        for dim in ("member", "level", "time", "dtime", "lat", "lon")
+    )
     value_array = np.asarray(values, dtype=dtype)
     if value_array.shape != target_shape:
         if value_array.size != int(np.prod(target_shape)):
@@ -122,10 +119,18 @@ def rebuild_to_meb_griddata(
 
     if not isinstance(result, xr.DataArray):
         raise TypeError("meb.grid_data 返回结果不是 xarray.DataArray")
-    if result.dims != _REQUIRED_DIMS:
-        result = result.transpose(*_REQUIRED_DIMS)
+    if result.dims != ("member", "level", "time", "dtime", "lat", "lon"):
+        result = result.transpose("member", "level", "time", "dtime", "lat", "lon")
 
-    attrs = dict(_DEFAULT_GRID_ATTRS)
+    # 构造默认属性
+    attrs = {
+        "units": units,
+        "model": None,
+        "dtime_units": "hour",
+        "level_type": "isobaric",
+        "time_type": "UT",
+        "time_bounds": [0, 0],
+    }
     attrs.update(dict(normalized.attrs))
     if units is not None:
         attrs["units"] = units

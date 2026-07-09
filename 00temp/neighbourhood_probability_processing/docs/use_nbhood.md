@@ -33,7 +33,39 @@
 折叠时会忽略无效值（如 `NaN` / `Inf` / 被掩码值）。  
 若某网格点有效权重和为 0，则该点输出为无效（`NaN` 或 masked）。
 
+### 2.3 核心处理流程
+
+```mermaid
+flowchart TD
+    A([开始]) --> B[输入数据场与分层掩码]
+    B --> C[根据掩码分层逐层执行邻域处理，结果不重掩码]
+    C --> D{是否提供折叠权重}
+    D -->|是| E[沿掩码分层维加权平均]
+    E --> F[屏蔽无效值并重归一化权重]
+    F --> G[分母为零的格点输出为无效]
+    G --> L[输出：形状与输入一致]
+    D -->|否| M[保留掩码分层维]
+    M --> N{输入是否为六维标准网格}
+    N -->|是| O[将掩码分层维并入成员维]
+    N -->|否| P[输出：含分层维的结果]
+    O --> Q[输出：六维标准网格]
+    L --> T([结束])
+    P --> T
+    Q --> T
+```
+
+
+
+要点：
+
+- 邻域处理固定**不重掩码**；各层无效格点的数值仍可能来自邻域扩散，需结合对应层掩码解读（见 §6.1）。
+- 仅当提供折叠权重时，才沿掩码分层维合并为与输入同形状的单场结果。
+
+
+
 ## 3. 组件说明
+
+
 
 ### 3.1 `ApplyNeighbourhoodProcessingWithAMask`
 
@@ -44,6 +76,8 @@
 - 在提供权重时沿掩码分层维折叠；
 - `xarray` 输入场景下尽量保持维度名与坐标信息。
 
+
+
 ### 3.2 `collapse_mask_coord`
 
 该方法用于沿掩码分层维做加权折叠，处理流程包括：
@@ -53,7 +87,11 @@
 - 计算加权分子与分母；
 - 对分母为 0 的点做无效处理。
 
+
+
 ## 4. 输入输出规范
+
+
 
 ### 4.1 初始化参数
 
@@ -69,6 +107,8 @@
 | `sum_only`             | `bool`                              | 是否输出邻域和而非邻域平均                 |
 
 
+
+
 ### 4.2 `process` 输入参数
 
 
@@ -80,6 +120,8 @@
 | `grid_spacing`     | `float` / `tuple[float, float]` / `None` | `numpy` 输入时网格分辨率 | 米             |
 
 
+
+
 ### 4.3 输出类型
 
 - 输入为 `xarray.DataArray`：
@@ -88,7 +130,11 @@
 - 输入为 `numpy.ndarray`：
   - 返回 `numpy.ndarray` 或 `numpy.ma.MaskedArray`。
 
+
+
 ## 5. 输出形状规则
+
+
 
 ### 5.1 不折叠结果
 
@@ -106,16 +152,35 @@
 - 输入 `(y, x)` -> 输出 `(y, x)`；
 - 输入 `(threshold, y, x)` -> 输出 `(threshold, y, x)`。
 
+
+
 ## 6. 掩码与权重规则
+
+
 
 ### 6.1 外部掩码语义
 
 - `mask == 1`：当前层有效，参与邻域统计；
 - `mask == 0`：当前层无效，不参与邻域统计。
 
+**输出**：各层邻域处理后，原 mask==0 格点的数值仍可能为非 NaN 的邻域统计结果；未折叠时需用对应层的 mask 判断该层无效格点；折叠后无效由 collapse_mask_coord 与权重共同决定，部分格点可能为 NaN。输出本身不携带外部 mask 的无效标记。
+
 ### 6.2 内部掩码
 
-若输入数据是 `numpy.ma.MaskedArray`，其内部掩码同样会被识别并参与无效点处理。
+概念上为数据场自带的无效格点（与外部 `mask=` 相对）。**算法层仅支持** `numpy.ma.MaskedArray` **的** `mask` **位**；与原IMPROVER方法实现一致，`DataArray` **与** `ndarray` **均不得含裸** `NaN`（未被掩码的NaN）。
+
+- `numpy.ma.MaskedArray`：以 `mask` 位识别无效格点；掩码外不得含 `NaN`。
+- **六维** `DataArray`：算法入口会拒绝裸 `NaN`；若读盘得到大填充值或需表达内部缺测，须在 **CLI/预处理** 转为 `MaskedArray` 后再调用。
+
+
+
+#### 为何 `DataArray` 不支持内部掩码
+
+1. **xarray 数据模型**：`DataArray.values` 是普通 `ndarray`，不携带 `MaskedArray.mask`。传入 `MaskedArray` 时，掩码位常被写成 `NaN`，掩码语义在 xarray 侧即丢失。
+2. **算法契约**：`DataArray` 路径禁止裸 `NaN`，无法用 `NaN` 代替内部掩码；算法也未在 `DataArray` 分支读取内部 `mask` 位。
+3. **推荐做法**：内部掩码在算法调用前转为 `MaskedArray`，并走 `grid_spacing` 的 numpy 路径；`DataArray` 仅用于外部掩码与六维网格工作流。
+
+内部掩码可与外部掩码数据同时使用（仅 `MaskedArray` 路径）；无效格点取并集（内部 `mask` 或外部 `mask==0`）。
 
 ### 6.3 权重折叠
 
@@ -137,13 +202,17 @@
 - `xarray` 输入时尽量保留维度名与坐标；
 - 不处理 Iris `PostProcessingPlugin` 的元数据更新逻辑。
 
+
+
 ## 8. 使用示例
+
+
 
 ### 8.1 `numpy.ndarray` 输入，不折叠
 
 ```python
 import numpy as np
-from nbhood.src.use_nbhood import ApplyNeighbourhoodProcessingWithAMask
+from neighbourhood_probability_processing.src.use_nbhood import ApplyNeighbourhoodProcessingWithAMask
 
 data = np.array(
     [[1, 1, 1],
@@ -170,6 +239,8 @@ plugin = ApplyNeighbourhoodProcessingWithAMask(
 result = plugin.process(data, mask, grid_spacing=1.0)
 ```
 
+
+
 ### 8.2 `xarray.DataArray` 输入
 
 该场景常用于“前导业务维 + 空间场 + 分层掩码”的生产输入。
@@ -185,7 +256,7 @@ result = plugin.process(data, mask, grid_spacing=1.0)
 ```python
 import numpy as np
 import xarray as xr
-from nbhood.src.use_nbhood import ApplyNeighbourhoodProcessingWithAMask
+from neighbourhood_probability_processing.src.use_nbhood import ApplyNeighbourhoodProcessingWithAMask
 
 # 1) 输入场（标准 meb 六维）
 data = xr.DataArray(
@@ -240,6 +311,8 @@ print(result.shape)
 #   result.coords["member_topographic_zone"]
 ```
 
+
+
 ### 8.3 带权重折叠
 
 该场景在分层处理后沿 `topographic_zone` 做加权折叠，得到与原输入同阶的输出。
@@ -253,7 +326,7 @@ print(result.shape)
 ```python
 import numpy as np
 import xarray as xr
-from nbhood.src.use_nbhood import ApplyNeighbourhoodProcessingWithAMask
+from neighbourhood_probability_processing.src.use_nbhood import ApplyNeighbourhoodProcessingWithAMask
 
 # 复用 8.2 的 data 和 mask
 
@@ -286,6 +359,8 @@ print(collapsed.dims)   # ("threshold", "y", "x")
 print(collapsed.shape)  # (2, 3, 3)
 ```
 
+
+
 ## 9. CLI 应用说明
 
 本文档相关示例脚本：
@@ -293,8 +368,10 @@ print(collapsed.shape)  # (2, 3, 3)
 
 | 脚本                                           | 说明          |
 | -------------------------------------------- | ----------- |
-| `nbhood/cli/ens_nbhood_iterate_with_mask.py` | 按分层掩码逐层邻域处理 |
-| `nbhood/cli/ens_nbhood_land_and_sea.py`      | 陆海分区邻域处理并合并 |
+| `neighbourhood_probability_processing/cli/ens_nbhood_iterate_with_mask.py` | 按分层掩码逐层邻域处理 |
+| `neighbourhood_probability_processing/cli/ens_nbhood_land_and_sea.py`      | 陆海分区邻域处理并合并 |
+
+
 
 
 ### 9.1 `ens_nbhood_iterate_with_mask.py`
@@ -307,22 +384,24 @@ print(collapsed.shape)  # (2, 3, 3)
 运行内置示例（示例使用数据为方形邻域折叠相关数据）：
 
 ```bash
-python -m nbhood.cli.ens_nbhood_iterate_with_mask
+python -m neighbourhood_probability_processing.cli.ens_nbhood_iterate_with_mask
 ```
 
 无权重（方形邻域）代码示例：
 
 ```python
-from nbhood.cli.ens_nbhood_iterate_with_mask import process
+from neighbourhood_probability_processing.cli.ens_nbhood_iterate_with_mask import process
 
-#数据存放路径
-base = "./nbhood/test_data/official_test_use_nbhood/iterate_with_mask/normalized_meb6d"
+scenario = "./nbhood/test_data/official_test_use_nbhood/iterate_with_mask"
+input_dir = f"{scenario}/cli_input"
+output_dir = f"{scenario}/cli_output"
+
 process(
-    input_data_path=f"{base}/input.nc", 
-    mask_path=f"{base}//mask.nc",
+    input_data_path=f"{input_dir}/input.nc",
+    mask_path=f"{input_dir}/mask.nc",
     coord_for_masking="topographic_zone",
     radii=[20000.0],
-    output_path=f"{base}/cli_test_unfolded_square_result.nc",
+    output_path=f"{output_dir}/cli_unfolded_square_result.nc",
     neighbourhood_shape="square",
 )
 ```
@@ -330,13 +409,20 @@ process(
 带权重折叠示例：
 
 ```python
-result = process(
-    input_data_path=f"{base}/thresholded_input.nc",
-    mask_path=f"{base}/orographic_bands_mask.nc",
+from neighbourhood_probability_processing.cli.ens_nbhood_iterate_with_mask import process
+
+scenario = "./nbhood/test_data/official_test_use_nbhood/iterate_with_mask"
+input_dir = f"{scenario}/cli_input"
+output_dir = f"{scenario}/cli_output"
+
+process(
+    input_data_path=f"{input_dir}/thresholded_input.nc",
+    mask_path=f"{input_dir}/orographic_bands_mask.nc",
     coord_for_masking="topographic_zone",
     radii=[10000.0],
-    weights_path=f"{base}/orographic_bands_weights.nc",
-    output_path=f"{base}/cli_test_iterated_result.nc",
+    weights_path=f"{input_dir}/orographic_bands_weights.nc",
+    output_path=f"{output_dir}/cli_iterated_result.nc",
+    neighbourhood_shape="square",
 )
 ```
 
@@ -369,21 +455,23 @@ result = process(
 运行内置示例：
 
 ```bash
-python -m nbhood.cli.ens_nbhood_land_and_sea
+python -m neighbourhood_probability_processing.cli.ens_nbhood_land_and_sea
 ```
 
 简单陆海掩膜代码示例：
 
 ```python
-from nbhood.cli.ens_nbhood_land_and_sea import process
+from neighbourhood_probability_processing.cli.ens_nbhood_land_and_sea import process
 
-#数据存放路径
-base = "./nbhood/test_data/official_test_use_nbhood/land_and_sea/normalized_meb6d"
+scenario = "./nbhood/test_data/official_test_use_nbhood/land_and_sea"
+input_dir = f"{scenario}/cli_input"
+output_dir = f"{scenario}/cli_output"
+
 process(
-    input_data_path=f"{base}/input.nc",
-    mask_path=f"{base}/ukvx_landmask.nc",
-    radii=[10000.0],
-    output_path=f"{base}/cli_test_circular_result.nc",
+    input_data_path=f"{input_dir}/input.nc",
+    mask_path=f"{input_dir}/ukvx_landmask.nc",
+    radii=[20000.0],
+    output_path=f"{output_dir}/cli_land_sea_result.nc",
     neighbourhood_shape="square",
 )
 ```
@@ -391,16 +479,18 @@ process(
 地形带输入示例：
 
 ```python
-from nbhood.cli.ens_nbhood_land_and_sea import process
+from neighbourhood_probability_processing.cli.ens_nbhood_land_and_sea import process
 
-#数据存放路径
-base = "./nbhood/test_data/official_test_use_nbhood/land_and_sea/normalized_meb6d"
+scenario = "./nbhood/test_data/official_test_use_nbhood/land_and_sea"
+input_dir = f"{scenario}/cli_input"
+output_dir = f"{scenario}/cli_output"
+
 process(
-    input_data_path=f"{base}/input.nc",
-    mask_path=f"{base}/topographic_bands_land.nc",
-    weights_path=f"{base}/weights_land.nc",
-    radii=[10000.0],
-    output_path=f"{base}/cli_test_topographic_bands_result.nc",
+    input_data_path=f"{input_dir}/input.nc",
+    mask_path=f"{input_dir}/topographic_bands_land.nc",
+    weights_path=f"{input_dir}/weights_land.nc",
+    radii=[20000.0],
+    output_path=f"{output_dir}/cli_topographic_bands_result.nc",
     neighbourhood_shape="square",
 )
 ```
@@ -424,12 +514,16 @@ process(
 
 ## 10. 注意事项
 
+
+
 ### 10.1 输入前提
 
 迁移版遵循“算法只处理已预处理好的输入数据”边界假设：
 
 - 不自动识别 NetCDF `_FillValue`；
-- 若输入存在填充值，应由调用方先转为 `NaN` 或 `MaskedArray`。
+- 若输入存在填充值或内部缺测，应由调用方在进算法前转为 `MaskedArray`（`DataArray` 路径不得用 `NaN` 表达内部掩码，见 §6.2）。
+
+
 
 ### 10.2 `numpy` 输入要求
 
@@ -437,15 +531,31 @@ process(
 - 若使用可变半径，需显式提供 `input_lead_times`；
 - 默认使用倒数第三维作为掩码分层维。
 
+
+
 ### 10.3 当前限制
 
 - 当前未迁移原算法“相邻相同二维切片复用结果”的缓存优化；
 - 权重数组当前要求可整理为 `(n_mask, y, x)`；
 - 不处理 Iris `PostProcessingPlugin` 的元数据更新逻辑。
 
+
+
 ### 10.4 测试数据
 
-- 当前修改算法及CLI测试使用数据均在test_data/*/normalized_meb6d目录下；
-- 只有主输入数据做了六维格式处理。但因为数据限制，为减少不必要的误差并未对原数据的投影坐标转换为经纬度；
-- 其他辅助输入数据例如掩码数据并未做维度格式化。
+`official_test_use_nbhood/` 与 `official_test_nbhood/` 目录约定：
 
+
+| 路径                                                       | 内容                                                                         |
+| -------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `*/cli_input/`                                           | Notebook 预处理后的六维输入（`member, level, time, dtime, lat, lon`），供算法与 CLI 使用     |
+| `*/cli_output/`                                          | CLI 示例脚本写出结果                                                               |
+| 场景子目录（如 `basic_collapse_bands/`、`no_topographic_bands/`） | 投影坐标下的 KGO、原算法参考；部分场景保留仅用于 `MaskedArray` 路径的原始输入（如 `mask/input_masked.nc`） |
+
+
+`pytest` 对照说明：
+
+- `neighbourhood_probability_processing/test/test_use_nbhood.py`：从 `iterate_with_mask/cli_input/` 读入，与 `basic_collapse_bands/` 中 KGO 比对
+- `neighbourhood_probability_processing/test/test_nbhood.py`：六维输入取自 `official_test_nbhood/cli_input/`，参考结果取自 `basic/`、`mask/`、`percentile/` 等子目录
+
+预处理流程见 `neighbourhood_probability_processing/nbs/use_nbhood.ipynb`。

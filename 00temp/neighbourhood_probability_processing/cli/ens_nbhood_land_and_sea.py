@@ -51,18 +51,18 @@ def process(
     xr.DataArray
         陆海合并后的邻域处理结果。
     """
-    from nbhood.cli import _read_mask_or_weights_from_nc
-    from nbhood.src.meta_nbhood_utils import radius_by_lead_time
-    from nbhood.src.nbhood import NeighbourhoodProcessing
-    from nbhood.src.use_nbhood import ApplyNeighbourhoodProcessingWithAMask
-    from nbhood.utils.utils import check_for_meb_griddata
+    from neighbourhood_probability_processing.src.utils._helpers import radius_by_lead_time
+    from neighbourhood_probability_processing.src.nbhood import NeighbourhoodProcessing
+    from neighbourhood_probability_processing.src.use_nbhood import ApplyNeighbourhoodProcessingWithAMask
+    from neighbourhood_probability_processing.cli.io import read_mask_or_weights_from_nc
+    from neighbourhood_probability_processing.utils.utils import check_for_meb_griddata
 
-    input_data = check_for_meb_griddata(meb.read_griddata_from_nc(input_data_path))
-    mask = _read_mask_or_weights_from_nc(mask_path)
+    input_data = check_for_meb_griddata(meb.read_griddata_from_nc(input_data_path), valid_val=(-np.inf, np.inf, np.nan))
+    mask = read_mask_or_weights_from_nc(mask_path)
     weights = (
         None
         if weights_path is None
-        else _read_mask_or_weights_from_nc(weights_path)
+        else read_mask_or_weights_from_nc(weights_path)
     )
 
     radius_or_radii, parsed_lead_times = radius_by_lead_time(list(radii), lead_times)
@@ -164,6 +164,7 @@ def process(
         )
 
     if output_path is not None:
+        # 无效格点已是 NaN，meb 会量化为 int32 哨兵，读回可还原。
         meb.write_griddata_to_nc(result, output_path, creat_dir=True)
 
     return result
@@ -177,20 +178,21 @@ if __name__ == "__main__":
     if str(repo_root) not in sys.path:
         sys.path.insert(0, str(repo_root))
         
-    #测试数据路径
-    data_dir = (
+    #测试数据路径：输入取自 cli_input，结果写到 cli_output
+    scenario_dir = (
         Path(__file__).resolve().parent.parent
         / "test_data"
         / "official_test_use_nbhood"
         / "land_and_sea"
-        / "normalized_meb6d"
     )
+    input_dir = scenario_dir / "cli_input"
+    output_dir = scenario_dir / "cli_output"
 
     #各输入文件的路径映射
-    input_data_path = str(data_dir / "input.nc")   #待处理输入场nc文件路径
-    mask_path = str(data_dir / "ukvx_landmask.nc")   #陆地/海洋掩码nc文件路径
+    input_data_path = str(input_dir / "input.nc")   #待处理输入场nc文件路径
+    mask_path = str(input_dir / "ukvx_landmask.nc")   #陆地/海洋掩码nc文件路径
     weights_path = None   #地形带折叠权重nc文件路径
-    output_path = str(data_dir / "cli_test_land_sea_result.nc")   #输出nc文件路径
+    output_path = str(output_dir / "cli_land_sea_result.nc")   #输出nc文件路径
 
     neighbourhood_shape = "square"   #邻域形状
     radii: List[float] = [20000.0]   #邻域半径（米）

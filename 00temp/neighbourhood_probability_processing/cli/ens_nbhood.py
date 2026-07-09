@@ -63,19 +63,18 @@ def process(
     xr.DataArray
         邻域处理结果。
     """
-    from nbhood.cli import _read_mask_or_weights_from_nc
-    from nbhood.src.meta_nbhood_utils import (
+    from neighbourhood_probability_processing.src.utils._helpers import (
         complex_to_deg,
         deg_to_complex,
         radius_by_lead_time,
         remove_dataarray_halo,
     )
-    from nbhood.src.nbhood import (
+    from neighbourhood_probability_processing.src.nbhood import (
         DEFAULT_PERCENTILES,
         GeneratePercentilesFromANeighbourhood,
         NeighbourhoodProcessing,
     )
-    from nbhood.utils.utils import check_for_meb_griddata
+    from neighbourhood_probability_processing.cli.io import read_mask_or_weights_from_nc
     
     if percentiles is None:
         percentiles = DEFAULT_PERCENTILES
@@ -95,11 +94,13 @@ def process(
     if degrees_as_complex and shape == "circular":
         raise RuntimeError("complex 角度模式不支持 circular 邻域。")
 
-    input_data = check_for_meb_griddata(meb.read_griddata_from_nc(input_data_path))
+    from neighbourhood_probability_processing.utils.utils import check_for_meb_griddata
+
+    input_data = check_for_meb_griddata(meb.read_griddata_from_nc(input_data_path), valid_val=(-np.inf, np.inf, np.nan))
     mask = (
         None
         if mask_path is None
-        else _read_mask_or_weights_from_nc(mask_path)
+        else read_mask_or_weights_from_nc(mask_path)
     )
 
     radius_or_radii, parsed_lead_times = radius_by_lead_time(list(radii), lead_times)
@@ -111,14 +112,17 @@ def process(
         )
 
     if mode == "probabilities":
-        result = NeighbourhoodProcessing(
+        nbhood = NeighbourhoodProcessing(
             shape,
             radius_or_radii,
             lead_times=parsed_lead_times,
             weighted_mode=bool(weighted_mode),
             sum_only=bool(area_sum),
             re_mask=True,
-        ).process(work_input_data, mask=mask)
+        )
+        # CLI 经 meb 读盘得到普通 DataArray，仅支持外部 mask；内部掩码需 MaskedArray
+        # 输入（见 docs/nbhood.md），不在 CLI 场景内。
+        result = nbhood.process(work_input_data, mask=mask)
     else:
         result = GeneratePercentilesFromANeighbourhood(
             radius_or_radii,
@@ -138,6 +142,7 @@ def process(
     result = result.astype(np.float32, copy=False)
 
     if output_path is not None:
+        # 无效格点已是 NaN，meb 会量化为 int32 哨兵，读回可还原（见 nbs/nbhood.ipynb）。
         meb.write_griddata_to_nc(result, output_path, creat_dir=True)
 
     return result
@@ -151,19 +156,16 @@ if __name__ == "__main__":
     if str(repo_root) not in sys.path:
         sys.path.insert(0, str(repo_root))
 
-    #测试数据路径
-    data_dir = (
-        Path(__file__).resolve().parent.parent
-        / "test_data"
-        / "official_test_nbhood"
-        / "normalized_meb6d"
-        / "basic"
-    )
+    # 测试数据路径（输入 cli_input，输出 cli_output）
+    test_root = Path(__file__).resolve().parent.parent / "test_data" / "official_test_nbhood"
+    input_dir = test_root / "cli_input" / "basic"
+    output_dir = test_root / "cli_output"
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     #各输入文件的路径映射
-    input_data_path = str(data_dir / "input.nc")   #待处理输入场nc文件路径
+    input_data_path = str(input_dir / "input.nc")   #待处理输入场nc文件路径
     mask_path = None   #外部掩码nc文件路径
-    output_path = str(data_dir / "cli_nbhood_square_result.nc")   #输出nc文件路径
+    output_path = str(output_dir / "cli_nbhood_square_result.nc")   #输出nc文件路径
 
     neighbourhood_output = "probabilities"   #邻域输出类型
     neighbourhood_shape = "square"   #邻域形状

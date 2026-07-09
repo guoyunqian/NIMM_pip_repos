@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""nbhood.cli 包的可执行入口。"""
+"""neighbourhood_probability_processing.cli 包的可执行入口。"""
 
-from nbhood.cli import main
+from neighbourhood_probability_processing.cli import main
 
 
 if __name__ == "__main__":

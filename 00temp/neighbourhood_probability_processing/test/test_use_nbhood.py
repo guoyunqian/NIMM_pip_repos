@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Copyright (c) 2019 NMC Developers.
 # Distributed under the terms of the GPL V3 License.
@@ -13,7 +13,7 @@ import xarray as xr
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from nbhood.src.use_nbhood import ApplyNeighbourhoodProcessingWithAMask
+from neighbourhood_probability_processing.src.use_nbhood import ApplyNeighbourhoodProcessingWithAMask
 
 def _resolve_existing_dir(candidates):
     for candidate in candidates:
@@ -22,29 +22,30 @@ def _resolve_existing_dir(candidates):
     raise FileNotFoundError(f"未找到可用测试目录: {candidates}")
 
 
-RESOURCE_ROOT = _resolve_existing_dir(
+TEST_DATA_ROOT = (
+    Path(__file__).resolve().parents[1]
+    / "test_data"
+    / "official_test_use_nbhood"
+    / "iterate_with_mask"
+)
+INPUT_ROOT = _resolve_existing_dir(
     [
-        Path(__file__).resolve().parents[1]
-        / "test_data"
-        / "official_test_use_nbhood"
-        / "iterate_with_mask"
-        / "basic_collapse_bands"
-        / "normalized_meb6d",
+        TEST_DATA_ROOT / "cli_input",
         Path(__file__).resolve().parents[1] / "resource" / "official_test_use_nohood",
     ]
 )
-FILL_VALUE_THRESHOLD = 1.0e20
+REFERENCE_ROOT = TEST_DATA_ROOT / "basic_collapse_bands"
 
 
 def resolve_resource_file(filename: str) -> Path:
-    """优先从当前目录读取，缺失时回退到上级目录读取。"""
-    direct = RESOURCE_ROOT / filename
-    if direct.exists():
-        return direct
-    parent = RESOURCE_ROOT.parent / filename
-    if parent.exists():
-        return parent
+    """从参考结果目录读取 KGO / 原算法对照文件。"""
+    path = REFERENCE_ROOT / filename
+    if path.exists():
+        return path
     raise FileNotFoundError(f"未找到测试文件: {filename}")
+
+
+FILL_VALUE_THRESHOLD = 1.0e20
 
 
 def make_dataarray(data):
@@ -207,6 +208,32 @@ def test_process_with_collapse_weights():
     np.testing.assert_array_equal(result.mask, expected.mask)
 
 
+def test_collapse_weights_spatial_shape_mismatch_raises():
+    """测试折叠权重空间维与数据不一致时会给出友好报错。"""
+    data = np.ones((3, 3), dtype=np.float32)
+    mask = np.ones((3, 3, 3), dtype=np.float32)
+    weights = np.ones((3, 2, 2), dtype=np.float32)  # 空间维 (2,2) 与数据 (3,3) 不符
+
+    plugin = ApplyNeighbourhoodProcessingWithAMask(
+        "topographic_zone", "square", 1.0, collapse_weights=weights
+    )
+    with pytest.raises(ValueError, match="空间形状"):
+        plugin.process(data, mask, grid_spacing=1.0)
+
+
+def test_collapse_weights_broadcastable_spatial_shape_raises():
+    """测试权重某空间维为 1 时会被拦下，避免 np.broadcast_to 静默广播算错。"""
+    data = np.ones((3, 3), dtype=np.float32)
+    mask = np.ones((3, 3, 3), dtype=np.float32)
+    weights = np.ones((3, 1, 3), dtype=np.float32)  # (1,3) 可广播到 (3,3)，但语义错误
+
+    plugin = ApplyNeighbourhoodProcessingWithAMask(
+        "topographic_zone", "square", 1.0, collapse_weights=weights
+    )
+    with pytest.raises(ValueError, match="空间形状"):
+        plugin.process(data, mask, grid_spacing=1.0)
+
+
 def test_xarray_matches_numpy_without_collapse():
     """测试 xarray 与 numpy 在等价输入下结果一致。"""
     data = np.array([[1, 1, 1], [1, 1, 0], [0, 0, 0]], dtype=np.float32)
@@ -303,10 +330,10 @@ def test_numpy_multilead_radii_are_applied_per_slice():
 
 def test_official_use_nbhood_square_matches_kgo_and_original():
     """测试官方方形 use_nbhood 样例与 KGO 和原算法折叠结果一致。"""
-    input_data = load_primary_dataarray(RESOURCE_ROOT / "thresholded_input.nc")
-    mask_data = load_primary_dataarray(RESOURCE_ROOT / "orographic_bands_mask.nc")
+    input_data = load_primary_dataarray(INPUT_ROOT / "thresholded_input.nc")
+    mask_data = load_primary_dataarray(INPUT_ROOT / "orographic_bands_mask.nc")
     weights_data = clean_fill_values_as_dataarray(
-        load_primary_dataarray(RESOURCE_ROOT / "orographic_bands_weights.nc")
+        load_primary_dataarray(INPUT_ROOT / "orographic_bands_weights.nc")
     )
 
     result = ApplyNeighbourhoodProcessingWithAMask(
@@ -328,10 +355,10 @@ def test_official_use_nbhood_square_matches_kgo_and_original():
 
 def test_official_use_nbhood_circular_matches_kgo_and_original():
     """测试官方圆形 use_nbhood 样例与 KGO 和原算法折叠结果一致。"""
-    input_data = load_primary_dataarray(RESOURCE_ROOT / "thresholded_input.nc")
-    mask_data = load_primary_dataarray(RESOURCE_ROOT / "orographic_bands_mask.nc")
+    input_data = load_primary_dataarray(INPUT_ROOT / "thresholded_input.nc")
+    mask_data = load_primary_dataarray(INPUT_ROOT / "orographic_bands_mask.nc")
     weights_data = clean_fill_values_as_dataarray(
-        load_primary_dataarray(RESOURCE_ROOT / "orographic_bands_weights.nc")
+        load_primary_dataarray(INPUT_ROOT / "orographic_bands_weights.nc")
     )
 
     result = ApplyNeighbourhoodProcessingWithAMask(

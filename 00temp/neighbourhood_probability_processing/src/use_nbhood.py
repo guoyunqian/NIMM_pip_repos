@@ -10,13 +10,16 @@ import numpy as np
 import xarray as xr
 from numpy import ndarray
 
-from .nbhood import NeighbourhoodProcessing
-from ..utils.utils import check_for_meb_griddata
+from neighbourhood_probability_processing.src.nbhood import NeighbourhoodProcessing
+from neighbourhood_probability_processing.src.utils._helpers import (
+    _extract_data_array,
+    _slice_lead_times_for_reshaped_data,
+)
+from neighbourhood_probability_processing.utils.base_plugin import BasePlugin
+from neighbourhood_probability_processing.utils.utils import check_for_meb_griddata
 
-_DEFAULT_OUTPUT_NAME = "neighbourhood_result"
 
-
-class ApplyNeighbourhoodProcessingWithAMask:
+class ApplyNeighbourhoodProcessingWithAMask(BasePlugin):
     """对每个掩码分层分别执行邻域处理，并按需折叠掩码维度。
 
     该类迁移自 Improver 的 ``ApplyNeighbourhoodProcessingWithAMask``。原算法
@@ -74,17 +77,6 @@ class ApplyNeighbourhoodProcessingWithAMask:
         self.sum_only = sum_only
         self.re_mask = False
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Union[xr.DataArray, ndarray]:
-        """调用 ``process`` 方法，保持插件式用法。"""
-        return self.process(*args, **kwargs)
-
-    @staticmethod
-    def _as_array(data: Union[xr.DataArray, ndarray]) -> ndarray:
-        """提取 xarray 或 numpy 输入的底层数组。"""
-        if isinstance(data, xr.DataArray):
-            return np.asanyarray(data.values)
-        return np.asanyarray(data)
-
     def _mask_axis(self, mask: Union[xr.DataArray, ndarray]) -> int:
         """确定掩码分层维度位置。"""
         if isinstance(mask, xr.DataArray):
@@ -95,7 +87,7 @@ class ApplyNeighbourhoodProcessingWithAMask:
 
     def _normalise_mask_array(self, mask: Union[xr.DataArray, ndarray]) -> ndarray:
         """将掩码数组调整为 ``(n_mask, y, x)`` 形式。"""
-        mask_array = self._as_array(mask)
+        mask_array = _extract_data_array(mask)
         if mask_array.ndim < 3:
             raise ValueError("mask 至少需要包含掩码分层维和二维空间维")
         mask_axis = self._mask_axis(mask)
@@ -109,10 +101,13 @@ class ApplyNeighbourhoodProcessingWithAMask:
         return mask_array
 
     def _normalise_weights_array(
-        self, weights: Union[xr.DataArray, ndarray], n_mask: int
+        self,
+        weights: Union[xr.DataArray, ndarray],
+        n_mask: int,
+        spatial_shape: Optional[Tuple[int, int]] = None,
     ) -> ndarray:
         """将折叠权重调整为 ``(n_mask, y, x)`` 形式。"""
-        weights_array = self._as_array(weights)
+        weights_array = _extract_data_array(weights)
         if isinstance(weights, xr.DataArray) and self.coord_for_masking in weights.dims:
             weights_axis = weights.get_axis_num(self.coord_for_masking)
             weights_array = np.moveaxis(weights_array, weights_axis, 0)
@@ -121,6 +116,13 @@ class ApplyNeighbourhoodProcessingWithAMask:
         if weights_array.shape[0] != n_mask:
             raise ValueError(
                 f"collapse_weights 的掩码层数 {weights_array.shape[0]} 与 mask 层数 {n_mask} 不一致"
+            )
+        # 显式校验权重空间维与结果一致：折叠时用 np.broadcast_to 广播权重，
+        # 若某空间维为 1 会被静默广播（等价于原版 iris.collapsed 会拦下的错配），
+        # 这里提前给出友好报错，避免算错或抛出隐晦的广播异常。
+        if spatial_shape is not None and weights_array.shape[-2:] != tuple(spatial_shape):
+            raise ValueError(
+                f"collapse_weights 的空间形状 {weights_array.shape[-2:]} 与数据 {tuple(spatial_shape)} 不一致"
             )
         return weights_array
 
@@ -140,8 +142,8 @@ class ApplyNeighbourhoodProcessingWithAMask:
         collapsed: bool,
     ) -> xr.DataArray:
         """将结果包装为 DataArray，保留输入维度名和空间坐标。"""
-        values = np.ma.filled(result, np.nan) if np.ma.isMaskedArray(result) else result
-        output_name = data.name if data.name else _DEFAULT_OUTPUT_NAME
+        values = np.ma.getdata(result) if np.ma.isMaskedArray(result) else result
+        output_name = data.name if data.name else "neighbourhood_result"
         if collapsed:
             dims = data.dims
             coords = {
@@ -205,7 +207,7 @@ class ApplyNeighbourhoodProcessingWithAMask:
             stacked = stacked.transpose(*target_dims)
         if stacked.name is None:
             stacked = stacked.copy()
-            stacked.name = _DEFAULT_OUTPUT_NAME
+            stacked.name = "neighbourhood_result"
         return stacked
 
     @staticmethod
@@ -218,29 +220,6 @@ class ApplyNeighbourhoodProcessingWithAMask:
         if isinstance(grid_spacing, tuple):
             return grid_spacing
         return float(grid_spacing)
-
-    @staticmethod
-    def _normalise_lead_times(
-        input_lead_times: Optional[Union[float, ndarray]],
-        leading_shape: Tuple[int, ...],
-        y_size: int,
-        x_size: int,
-    ) -> Optional[ndarray]:
-        """将 numpy 输入的时效信息整理到逐二维切片维度。"""
-        if input_lead_times is None:
-            return None
-        lead_times = np.asarray(input_lead_times, dtype=np.float64)
-        if leading_shape == ():
-            if lead_times.ndim == 0:
-                return lead_times.reshape(1)
-            if lead_times.shape == (1,):
-                return lead_times
-            raise ValueError("input_lead_times 与输入前导维度不匹配")
-        if lead_times.shape == leading_shape:
-            return lead_times.reshape(-1)
-        if lead_times.shape == (*leading_shape, y_size, x_size):
-            return lead_times.reshape(-1, y_size, x_size)[..., 0, 0]
-        raise ValueError("input_lead_times 形状与输入数据不匹配")
 
     def collapse_mask_coord(
         self,
@@ -267,7 +246,7 @@ class ApplyNeighbourhoodProcessingWithAMask:
         if weights is None:
             raise ValueError("collapse_mask_coord 需要提供 collapse_weights")
 
-        values = self._as_array(data)
+        values = _extract_data_array(data)
         if isinstance(data, xr.DataArray) and self.coord_for_masking in data.dims:
             axis = data.get_axis_num(self.coord_for_masking)
         elif mask_axis is not None:
@@ -281,7 +260,9 @@ class ApplyNeighbourhoodProcessingWithAMask:
 
         values = np.moveaxis(values, axis, -3)
         n_mask = values.shape[-3]
-        weights_array = self._normalise_weights_array(weights, n_mask)
+        weights_array = self._normalise_weights_array(
+            weights, n_mask, spatial_shape=values.shape[-2:]
+        )
         if np.ma.isMaskedArray(weights_array):
             weights_broadcast = np.ma.masked_array(
                 np.broadcast_to(np.ma.getdata(weights_array), values.shape),
@@ -344,9 +325,9 @@ class ApplyNeighbourhoodProcessingWithAMask:
             与 ``data`` 一致。
         """
         if isinstance(data, xr.DataArray):
-            data = check_for_meb_griddata(data)
+            data = check_for_meb_griddata(data, valid_val=(-np.inf, np.inf, np.nan))
 
-        values = self._as_array(data)
+        values = _extract_data_array(data)
         if values.ndim < 2:
             raise ValueError("输入数据至少需要二维空间网格")
 
@@ -388,7 +369,7 @@ class ApplyNeighbourhoodProcessingWithAMask:
 
         grid_spacing = self._normalise_grid_spacing(grid_spacing)
         flat_values = values.reshape((-1, y_size, x_size))
-        lead_values = self._normalise_lead_times(
+        lead_values = _slice_lead_times_for_reshaped_data(
             input_lead_times, leading_shape, y_size, x_size
         )
         output_slices = []
