@@ -3,10 +3,9 @@
 ## 基本信息
 
 - 算法名称：`radar_qpe_retrieval`
-- 原始工程位置：`pyart/retrieve`
+- 原始路径：`D:\workspace\pyart_nimm\qpe`
 - 算法类型：`01obs_adustment`
 - 贡献人：郭云谦、王亭波
-- 原始路径：`D:\temp\202301_zhinengwangge\20230206_unitycode\NIMM_pip_repos\TEMP\260625\算法_王\pyart\retrieve`
 
 ## 算法功能
 
@@ -25,46 +24,35 @@
 
 ## 目录说明
 
-- `src/`：核心算法源码，包含 QPE 和回波分类相关算法。
-- `cli/`：QPE 与回波分类命令行函数入口。
-- `test_data/`：QPE 和回波分类测试数据，包含雷达网格 NetCDF、CINRAD/雷达体扫样例及 CLI 输出样例。
-- `test/`：QPE、插件、CLI 和回波分类测试脚本。
-- `nbs/`：QPE 和回波分类 notebook 示例。
-- `docs/`：原始 QPE/回波分类说明和本整理说明。
-- `utils/`：雷达资料读取、投影、绘图和网格处理辅助函数。
-- `resource/`：原始目录为空，按仓库规范保留。
+| 类型 | 路径 | 说明 |
+| --- | --- | --- |
+| 核心源码 | `src/qpe.py` | QPE 插件与算法函数 |
+| 内部工具 | `src/utils/_freq.py` | 频率关系系数 |
+| 模块工具 | `utils/utils.py` | meteva_base 网格数据校验与输出封装 |
+| 插件基类 | `utils/base_plugin.py` | PostProcessingPlugin |
+| CLI | `cli/qpe.py` | QPE 统一入口 |
+| CLI 辅助 | `cli/cinrad_meb.py`、`cli/cinrad_pyart_prep.py` | CINRAD 读数与预处理 |
+| 测试 | `test/` | 单元测试与 CLI 测试 |
+| 文档 | `docs/qpe.md` | 原始算法说明 |
+| notebook | `nbs/qpe.ipynb` | 示例 |
 
 ## 插件入口
 
-统一插件类：
+统一插件类 `QPEPlugin`（`src/qpe.py`），通过 `method` 参数选择 `z`、`zpoly`、`kdp`、`a`、`zkdp`、`za`、`hydro`、`ztor` 等方法。
 
-```python
-from pyart.retrieve.src.qpe import QPEPlugin
+## 当前整理状态
 
-rain_rate = QPEPlugin(method="z").process(refl=refl_grid)
-```
+当前阶段为原始算法整理至中间目录，尚未补充至正式算法仓库目录。
 
-也提供与每个算法对应的独立插件类，如 `EstimateRainRateZ`、`EstimateRainRateKdp`、`EstimateRainRateHydro` 和 `EstimateZtoR`。
+已完成：
 
-## CLI 示例
+- 自 `D:\workspace\pyart_nimm\qpe` 同步 src/、utils/、cli/、test/、docs/、nbs/（2026-07-13）。
+- 导入路径已统一为中间目录模块名 `radar_qpe_retrieval`。
+- 移除旧中间目录中 echo_class 等无关文件。
+- 建立算法内 00log/、00temp/、NIMM_list.md、.gitignore。
 
-```python
-from pyart.retrieve.cli.qpe import qpeplugin
+待处理：
 
-qpeplugin(
-    "z",
-    refl_path="test_data/qpe/input/ACHN_CREF000_20240612_070000.nc",
-    output_path="test_data/qpe/cli_output/qpeplugin_z.nc",
-)
-```
-
-## 依赖与运行条件
-
-完整运行依赖 `numpy`、`xarray`、`meteva_base` 以及原始 `pyart` 包上下文中的 `plugin_base`、`retrieve.utils` 等模块。部分测试还依赖 CINRAD/雷达体扫样例数据和 NetCDF 文件。
-
-## 当前限制
-
-- 原始目录同时包含 `qpe` 和 `echo_class` 两类功能；本次按“雷达降水定量反演QPE”整理，回波分类代码作为相关依赖与测试上下文一并保留。
-- 源码使用 `from ...plugin_base import PostProcessingPlugin` 等相对导入，正式入库或独立运行时需保留/补齐上层 `pyart` 包结构。
-- `test_data/` 体量较大，正式入库时可筛选最小样例数据。
-- `resource/` 原始为空，当前仅按规范保留目录。
+- 补充至 NIMM/01obs_adustment/ 时需将导入路径调整为仓库正式包路径。
+- test_data 体量较大，正式入库前建议筛选必要小样例。
+- resource/ 当前为空，正式补充时确认是否保留。

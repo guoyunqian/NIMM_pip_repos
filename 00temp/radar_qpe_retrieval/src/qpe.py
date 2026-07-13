@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2019 NMC Developers.
 # Distributed under the terms of the GPL V3 License.
-"""从 ``pyart.retrieve.qpe`` 迁移来的定量降水估算算法。
+"""从 ``retrieve.qpe`` 迁移来的定量降水估算算法。
 共实现八个算法函数：
     "est_rain_rate_z"；
     "est_rain_rate_zpoly"；
@@ -17,7 +17,7 @@
 
 输入为 meteva 经纬度网格；``level`` 维可大于 1，表示多仰角叠在同一 lat/lon 上
 （与体扫逐库计算对应，需预处理将各扫网格化后写入 ``level``）。单层网格等价于
-``level=1``。对比 Py-ART 单扫结果时可使用 ``select_grid_level`` 取指定层。
+``level=1``。对比 Py-ART 单扫结果时可使用 ``radar_qpe_retrieval.cli.grid_prep.select_grid_level`` 取指定层。
 """
 
 from __future__ import annotations
@@ -28,41 +28,13 @@ from typing import Optional
 import numpy as np
 import xarray as xr
 
-from .echo_class import get_freq_band
-from ...plugin_base import PostProcessingPlugin
-from ..utils.utils import (
-    attach_sweep_level_metadata,
+from radar_qpe_retrieval.utils.base_plugin import PostProcessingPlugin
+from radar_qpe_retrieval.utils.utils import (
     build_griddata_like,
-    build_sweep_level_coordinates,
     check_for_meb_griddata,
     check_for_xy_coordinates,
-    stack_gridded_sweeps,
 )
-
-
-def _check_qpe_grid(
-    grid_data: xr.DataArray,
-    valid_val: tuple[float, float, float] = (-1000.0, 1000.0, np.nan),
-) -> xr.DataArray:
-    """QPE 输入网格：允许 ``level`` 维多层，对 ``values`` 全体逐元素运算。"""
-    return check_for_meb_griddata(
-        grid_data,
-        allow_multi_level=True,
-        valid_val=valid_val,
-    )
-
-
-RKDP_COEFF_TABLE = {
-    "S": (50.70, 0.8500),
-    "C": (29.70, 0.8500),
-    "X": (15.81, 0.7992),
-}
-
-RA_COEFF_TABLE = {
-    "S": (3100.0, 1.03),
-    "C": (250.0, 0.91),
-    "X": (45.5, 0.83),
-}
+from radar_qpe_retrieval.src.utils._freq import get_coeff_ra, get_coeff_rkdp
 
 
 class QPEPlugin(PostProcessingPlugin):
@@ -673,7 +645,7 @@ def est_rain_rate_z(
     xr.DataArray
         降水率网格数据，单位 mm/h。
     """
-    reflectivity_grid = _check_qpe_grid(refl, valid_val=(-200.0, 200.0, np.nan))
+    reflectivity_grid = check_for_meb_griddata(refl, valid_val=(-200.0, 200.0, np.nan))
 
     # 先将 dBZ 转为线性 Z，再套用幂律 Z-R 关系式。
     refl_data = reflectivity_grid.values
@@ -683,7 +655,8 @@ def est_rain_rate_z(
     )
 
     rain_rate = build_griddata_like(reflectivity_grid, rain_rate_data)
-    rain_rate.name = _get_output_field_name(rr_field, "radar_estimated_rain_rate")
+    output_name = "radar_estimated_rain_rate" if rr_field is None else rr_field
+    rain_rate.name = output_name
     rain_rate.attrs["long_name"] = "rain rate estimated from reflectivity"
     rain_rate.attrs["units"] = "mm/h"
 
@@ -709,7 +682,7 @@ def est_rain_rate_zpoly(
     xr.DataArray
         降水率网格数据，单位 mm/h。
     """
-    reflectivity_grid = _check_qpe_grid(refl, valid_val=(-200.0, 200.0, np.nan))
+    reflectivity_grid = check_for_meb_griddata(refl, valid_val=(-200.0, 200.0, np.nan))
 
     refl_data = reflectivity_grid.values
     refl2 = refl_data * refl_data
@@ -727,7 +700,8 @@ def est_rain_rate_zpoly(
     )
 
     rain_rate = build_griddata_like(reflectivity_grid, rain_rate_data)
-    rain_rate.name = _get_output_field_name(rr_field, "radar_estimated_rain_rate")
+    output_name = "radar_estimated_rain_rate" if rr_field is None else rr_field
+    rain_rate.name = output_name
     rain_rate.attrs["long_name"] = "rain rate estimated from polynomial reflectivity relation"
     rain_rate.attrs["units"] = "mm/h"
 
@@ -757,16 +731,13 @@ def est_rain_rate_kdp(
     xr.DataArray
         降水率网格数据，单位 mm/h。
     """
-    kdp_grid = _check_qpe_grid(kdp)
+    kdp_grid = check_for_meb_griddata(kdp)
 
     if alpha is None or beta is None:
         if ("frequency" in kdp_grid.attrs) and (kdp_grid.attrs.get("frequency") is not None):
-            alpha, beta = _get_coeff_from_frequency(
-                kdp_grid.attrs.get("frequency"),
-                RKDP_COEFF_TABLE,
-            )
+            alpha, beta = get_coeff_rkdp(kdp_grid.attrs.get("frequency"))
         else:
-            alpha, beta = RKDP_COEFF_TABLE["C"]
+            alpha, beta = get_coeff_rkdp(5.6e9)  #无法获取雷达频率时使用C频段系数
             warn(
                 "Radar frequency unknown. "
                 "Default coefficients for C band will be applied."
@@ -779,7 +750,8 @@ def est_rain_rate_kdp(
     rain_rate_data = alpha * np.power(kdp_data, beta)
 
     rain_rate = build_griddata_like(kdp_grid, rain_rate_data)
-    rain_rate.name = _get_output_field_name(rr_field, "radar_estimated_rain_rate")
+    output_name = "radar_estimated_rain_rate" if rr_field is None else rr_field
+    rain_rate.name = output_name
     rain_rate.attrs["long_name"] = "rain rate estimated from specific differential phase"
     rain_rate.attrs["units"] = "mm/h"
 
@@ -809,16 +781,13 @@ def est_rain_rate_a(
     xr.DataArray
         降水率网格数据，单位 mm/h。
     """
-    att_grid = _check_qpe_grid(att)
+    att_grid = check_for_meb_griddata(att)
 
     if alpha is None or beta is None:
         if ("frequency" in att_grid.attrs) and (att_grid.attrs.get("frequency") is not None):
-            alpha, beta = _get_coeff_from_frequency(
-                att_grid.attrs.get("frequency"),
-                RA_COEFF_TABLE,
-            )
+            alpha, beta = get_coeff_ra(att_grid.attrs.get("frequency"))
         else:
-            alpha, beta = RA_COEFF_TABLE["C"]
+            alpha, beta = get_coeff_ra(5.6e9)  #无法获取雷达频率时使用C频段系数
             warn(
                 "Radar frequency unknown. "
                 "Default coefficients for C band will be applied."
@@ -828,7 +797,8 @@ def est_rain_rate_a(
     rain_rate_data = alpha * np.power(att_data, beta)
 
     rain_rate = build_griddata_like(att_grid, rain_rate_data)
-    rain_rate.name = _get_output_field_name(rr_field, "radar_estimated_rain_rate")
+    output_name = "radar_estimated_rain_rate" if rr_field is None else rr_field
+    rain_rate.name = output_name
     rain_rate.attrs["long_name"] = "rain rate estimated from specific attenuation"
     rain_rate.attrs["units"] = "mm/h"
 
@@ -874,8 +844,8 @@ def est_rain_rate_zkdp(
     xr.DataArray
         降水率网格数据，单位 mm/h。
     """
-    refl_grid = _check_qpe_grid(refl, valid_val=(-200.0, 200.0, np.nan))
-    kdp_grid = _check_qpe_grid(kdp)
+    refl_grid = check_for_meb_griddata(refl, valid_val=(-200.0, 200.0, np.nan))
+    kdp_grid = check_for_meb_griddata(kdp)
     if not check_for_xy_coordinates([refl_grid, kdp_grid]):
         raise ValueError("refl and kdp grid coordinates must be same")
 
@@ -930,7 +900,8 @@ def est_rain_rate_zkdp(
     # 满足切换条件的格点使用次要关系式结果。
     main_values[is_secondary] = secondary_values[is_secondary]
 
-    rain_main.name = _get_output_field_name(rr_field, "radar_estimated_rain_rate")
+    output_name = "radar_estimated_rain_rate" if rr_field is None else rr_field
+    rain_main.name = output_name
     rain_main.attrs["long_name"] = "rain rate estimated from blended reflectivity and kdp"
     rain_main.attrs["units"] = "mm/h"
 
@@ -976,8 +947,8 @@ def est_rain_rate_za(
     xr.DataArray
         降水率网格数据，单位 mm/h。
     """
-    refl_grid = _check_qpe_grid(refl, valid_val=(-200.0, 200.0, np.nan))
-    att_grid = _check_qpe_grid(att)
+    refl_grid = check_for_meb_griddata(refl, valid_val=(-200.0, 200.0, np.nan))
+    att_grid = check_for_meb_griddata(att)
     if not check_for_xy_coordinates([refl_grid, att_grid]):
         raise ValueError("refl and att grid coordinates must be same")
 
@@ -1027,7 +998,8 @@ def est_rain_rate_za(
 
     main_values[is_secondary] = secondary_values[is_secondary]
 
-    rain_main.name = _get_output_field_name(rr_field, "radar_estimated_rain_rate")
+    output_name = "radar_estimated_rain_rate" if rr_field is None else rr_field
+    rain_main.name = output_name
     rain_main.attrs["long_name"] = "rain rate estimated from blended reflectivity and attenuation"
     rain_main.attrs["units"] = "mm/h"
 
@@ -1083,9 +1055,9 @@ def est_rain_rate_hydro(
     xr.DataArray
         降水率网格数据，单位 mm/h。
     """
-    refl_grid = _check_qpe_grid(refl, valid_val=(-200.0, 200.0, np.nan))
-    att_grid = _check_qpe_grid(att)
-    hydro_grid = _check_qpe_grid(hydro, valid_val=(0.0, 20.0, np.nan))
+    refl_grid = check_for_meb_griddata(refl, valid_val=(-200.0, 200.0, np.nan))
+    att_grid = check_for_meb_griddata(att)
+    hydro_grid = check_for_meb_griddata(hydro, valid_val=(0.0, 20.0, np.nan))
     if not check_for_xy_coordinates([refl_grid, att_grid, hydro_grid]):
         raise ValueError("refl, att and hydro grid coordinates must be same")
 
@@ -1169,7 +1141,8 @@ def est_rain_rate_hydro(
     rr_data[is_mh] = mp_factor * rain_z.values[is_mh]
 
     rain_rate = build_griddata_like(refl_grid, rr_data)
-    rain_rate.name = _get_output_field_name(rr_field, "radar_estimated_rain_rate")
+    output_name = "radar_estimated_rain_rate" if rr_field is None else rr_field
+    rain_rate.name = output_name
     rain_rate.attrs["long_name"] = "rain rate estimated from hydrometeor classification"
     rain_rate.attrs["units"] = "mm/h"
 
@@ -1199,7 +1172,7 @@ def ZtoR(
     xr.DataArray
         降水率网格数据，单位 mm/h。
     """
-    reflectivity_grid = _check_qpe_grid(refl, valid_val=(-200.0, 200.0, np.nan))
+    reflectivity_grid = check_for_meb_griddata(refl, valid_val=(-200.0, 200.0, np.nan))
 
     refl_data = reflectivity_grid.values
     ref_linear = np.power(10.0, refl_data / 10.0)
@@ -1211,34 +1184,6 @@ def ZtoR(
     rain_rate.attrs["units"] = "mm/h"
 
     return rain_rate
-
-
-def _get_coeff_from_frequency(frequency, coeff_table):
-    """根据频率或频段选择系数，无法识别时默认使用 C 波段。"""
-    frequency_array = np.asarray(frequency).ravel()
-    frequency = None if frequency_array.size == 0 else float(frequency_array[0])
-
-    freq_band = get_freq_band(frequency)
-    if (freq_band is not None) and (freq_band in coeff_table):
-        return coeff_table[freq_band]
-
-    if frequency < 2e9:
-        freq_band = "S"
-    elif frequency > 12e9:
-        freq_band = "X"
-
-    warn(
-        "Radar frequency out of range. "
-        f"{freq_band} band coefficients will be used."
-    )
-    return coeff_table[freq_band]
-
-
-def _get_output_field_name(field_name: str | None, default_name: str) -> str:
-    """返回输出网格名称。"""
-    if field_name is None:
-        return default_name
-    return field_name
 
 
 __all__ = [
@@ -1259,7 +1204,4 @@ __all__ = [
     "est_rain_rate_za",
     "est_rain_rate_hydro",
     "ZtoR",
-    "build_sweep_level_coordinates",
-    "attach_sweep_level_metadata",
-    "stack_gridded_sweeps",
 ]

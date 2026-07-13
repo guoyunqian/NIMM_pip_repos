@@ -11,12 +11,13 @@ from pathlib import Path
 
 import meteva_base as meb
 import numpy as np
+import pytest
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from pyart.retrieve.src.qpe import (
+from radar_qpe_retrieval.src.qpe import (
     ZtoR,
     est_rain_rate_a,
     est_rain_rate_hydro,
@@ -25,7 +26,6 @@ from pyart.retrieve.src.qpe import (
     est_rain_rate_za,
     est_rain_rate_zkdp,
     est_rain_rate_zpoly,
-    select_grid_level,
 )
 
 
@@ -113,18 +113,6 @@ def test_est_rain_rate_kdp_multi_level_applies_per_level():
     expected1 = 29.70 * np.power(level1, 0.8500)
     np.testing.assert_allclose(result.values[0, 0, 0, 0, :, :], expected0.astype(np.float32))
     np.testing.assert_allclose(result.values[0, 1, 0, 0, :, :], expected1.astype(np.float32))
-
-
-def test_select_grid_level_extracts_one_sweep():
-    """select_grid_level 应取出指定 level 供单扫对比。"""
-    level0 = np.array([[0.5, 1.0], [1.5, 2.0]], dtype=np.float32)
-    level1 = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float32)
-    kdp = _make_multi_level_grid([level0, level1])
-
-    one = select_grid_level(kdp, level_index=1)
-
-    assert int(one.sizes["level"]) == 1
-    np.testing.assert_allclose(one.values.squeeze(), level1)
 
 
 def test_est_rain_rate_kdp_uses_default_c_band_coefficients():
@@ -323,3 +311,21 @@ def test_z_to_r_returns_expected_values():
     assert result.name == "custom_prate"
     assert result.attrs["units"] == "mm/h"
     np.testing.assert_allclose(result.values, expected.astype(np.float32))
+
+
+def test_z_to_r_uses_default_output_name():
+    """ZtoR 未指定 save_name 时应使用默认字段名。"""
+    grid = meb.grid([100, 101, 1], [30, 31, 1])
+    refl = meb.grid_data(
+        grid,
+        data=np.array([[10.0, 20.0], [30.0, 40.0]], dtype=np.float32),
+    )
+
+    result = ZtoR(refl)
+    assert result.name == "NWS_primary_prate"
+
+
+def test_est_rain_rate_z_requires_reflectivity_input():
+    """缺少反射率输入时应抛出异常。"""
+    with pytest.raises((TypeError, ValueError)):
+        est_rain_rate_z(None)
