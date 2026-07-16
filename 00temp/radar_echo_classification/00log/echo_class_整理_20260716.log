@@ -1,0 +1,54 @@
+================================================================================
+算法整理日志 — 雷达回波分类
+================================================================================
+整理日期   : 2026-07-16
+算法代号   : echo_class
+仓库目录   : 00temp/radar_echo_classification/
+整理阶段   : NIMM 标准化目录结构整理
+贡献人     : 郭云谦、王亭波
+原始来源   : D:\workspace\pyart_nimm\echo_class（原包名 `echo_class`）
+================================================================================
+
+一、目录映射（原 → 现）
+--------------------------------------------------------------------------------
+  核心算法             → src/echo_class.py（四个插件类与分类算法函数）
+  内部工具             → src/utils/（Steiner/特征、小波、水凝物、网格辅助）
+  模块工具             → utils/utils.py（meteva_base 网格数据校验与输出封装）
+  插件基类             → utils/base_plugin.py（BasePlugin 本地提供）
+  CLI              → cli/*_main.py（四个算法示例入口）
+  CLI 工具           → cli/__init__.py（save_echo_class_grid_to_netcdf）
+  文档               → docs/echo_class.md、docs/雷达回波分类.md
+  notebook         → nbs/echo_class.ipynb
+  测试               → test/test_echo_class.py、test_echo_class_cli.py、test_echo_class_plugin.py
+  整理清单         → NIMM_list.md（本目录）
+  整理中间数据     → 00temp/echo_class/
+  整理过程日志     → 00log/echo_class_整理_20260716.log
+
+二、本次已完成
+--------------------------------------------------------------------------------
+  [x] 自 pyart_nimm/echo_class 同步 src/、utils/、cli/、test/、docs/、nbs/
+  [x] 导入路径统一为中间目录模块名 radar_echo_classification
+  [x] 建立算法内 00log/、00temp/、NIMM_list.md、.gitignore
+  [x] 未同步 test_data/（体量大，样例独立管理）
+
+三、仍存在问题 — 需人工补充
+--------------------------------------------------------------------------------
+  [ ] 入库路径：补充至 NIMM/01obs_adustment/ 时需调整为仓库正式包路径
+  [ ] BasePlugin：正式入库时评估是否改为仓库统一基类
+  [ ] test_data：体量大，CLI 测试依赖 cli_input 样例，正式入库前筛选必要样例
+  [ ] resource/：当前为空，正式补充时确认是否保留
+
+四、验证记录
+--------------------------------------------------------------------------------
+  [x] 整理人在原代码目录（`D:\workspace\pyart_nimm\echo_class`）下已运行全部测试用例，全部通过（2026-07-16）
+  [x] 含 test_echo_class.py、test_echo_class_cli.py、test_echo_class_plugin.py
+  [x] 中间目录 pytest：13 passed, 4 skipped（2026-07-16；跳过项为未同步 test_data 的 CLI 用例）
+  [x] 含 test_echo_class.py、test_echo_class_plugin.py 单元测试全部通过
+
+五、导入路径说明
+--------------------------------------------------------------------------------
+  中间目录 Python import 已统一为模块名 `radar_echo_classification`。
+  补充至 NIMM/01obs_adustment/ 时需再调整为仓库正式包路径。
+  源码文件名（如 echo_class.py）保留原包名，未改算法逻辑。
+
+================================================================================
