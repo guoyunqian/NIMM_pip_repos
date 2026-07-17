@@ -392,7 +392,7 @@ python -m neighbourhood_probability_processing.cli.ens_nbhood_iterate_with_mask
 ```python
 from neighbourhood_probability_processing.cli.ens_nbhood_iterate_with_mask import process
 
-scenario = "./nbhood/test_data/official_test_use_nbhood/iterate_with_mask"
+scenario = "./neighbourhood_probability_processing/test_data/official_test_use_nbhood/iterate_with_mask"
 input_dir = f"{scenario}/cli_input"
 output_dir = f"{scenario}/cli_output"
 
@@ -411,7 +411,7 @@ process(
 ```python
 from neighbourhood_probability_processing.cli.ens_nbhood_iterate_with_mask import process
 
-scenario = "./nbhood/test_data/official_test_use_nbhood/iterate_with_mask"
+scenario = "./neighbourhood_probability_processing/test_data/official_test_use_nbhood/iterate_with_mask"
 input_dir = f"{scenario}/cli_input"
 output_dir = f"{scenario}/cli_output"
 
@@ -463,7 +463,7 @@ python -m neighbourhood_probability_processing.cli.ens_nbhood_land_and_sea
 ```python
 from neighbourhood_probability_processing.cli.ens_nbhood_land_and_sea import process
 
-scenario = "./nbhood/test_data/official_test_use_nbhood/land_and_sea"
+scenario = "./neighbourhood_probability_processing/test_data/official_test_use_nbhood/land_and_sea"
 input_dir = f"{scenario}/cli_input"
 output_dir = f"{scenario}/cli_output"
 
@@ -481,7 +481,7 @@ process(
 ```python
 from neighbourhood_probability_processing.cli.ens_nbhood_land_and_sea import process
 
-scenario = "./nbhood/test_data/official_test_use_nbhood/land_and_sea"
+scenario = "./neighbourhood_probability_processing/test_data/official_test_use_nbhood/land_and_sea"
 input_dir = f"{scenario}/cli_input"
 output_dir = f"{scenario}/cli_output"
 

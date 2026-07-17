@@ -31,7 +31,7 @@ TEST_DATA_ROOT = (
 INPUT_ROOT = _resolve_existing_dir(
     [
         TEST_DATA_ROOT / "cli_input",
-        Path(__file__).resolve().parents[1] / "resource" / "official_test_use_nohood",
+        Path(__file__).resolve().parents[1] / "resource" / "official_test_use_nbhood",
     ]
 )
 REFERENCE_ROOT = TEST_DATA_ROOT / "basic_collapse_bands"

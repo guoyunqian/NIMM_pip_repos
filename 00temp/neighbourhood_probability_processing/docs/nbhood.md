@@ -514,8 +514,8 @@ python -m neighbourhood_probability_processing.cli.ens_nbhood
 from neighbourhood_probability_processing.cli.ens_nbhood import process
 
 # 预处理输入与 CLI 示例输出目录
-input_base = "./nbhood/test_data/official_test_nbhood/cli_input/basic"
-output_base = "./nbhood/test_data/official_test_nbhood/cli_output"
+input_base = "./neighbourhood_probability_processing/test_data/official_test_nbhood/cli_input/basic"
+output_base = "./neighbourhood_probability_processing/test_data/official_test_nbhood/cli_output"
 result = process(
     input_data_path=f"{input_base}/input.nc",
     neighbourhood_output="probabilities",

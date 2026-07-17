@@ -32,7 +32,7 @@ RESOURCE_ROOT = _resolve_existing_dir(
         Path(__file__).resolve().parents[1]
         / "test_data"
         / "official_test_nbhood",
-        Path(__file__).resolve().parents[1] / "resource" / "official_test_nohood",
+        Path(__file__).resolve().parents[1] / "resource" / "official_test_nbhood",
     ]
 )
 CLI_INPUT_ROOT = RESOURCE_ROOT / "cli_input"
