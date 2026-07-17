@@ -6,7 +6,6 @@ from typing import Sequence
 
 import numpy as np
 
-from radar_qpe_retrieval.cli.cinrad_meb import cinrad_frequency_hz
 
 
 # ==================== 雷达基数据转 Py-ART Radar 预处理函数 ====================
@@ -65,6 +64,8 @@ def _attach_radar_frequency(radar, cinrad_file):
     原算法链和插件/CLI 链因默认频段系数不同而偏离，这里统一从 cinrad 文件
     回填频率到 Py-ART ``Radar``。
     """
+    from radar_qpe_retrieval.cli.cinrad_meb import cinrad_frequency_hz
+
     freq_hz = cinrad_frequency_hz(cinrad_file)
     if freq_hz is None or not np.isfinite(freq_hz):
         return radar
