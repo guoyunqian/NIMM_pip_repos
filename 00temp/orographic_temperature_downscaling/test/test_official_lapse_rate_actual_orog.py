@@ -10,12 +10,12 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from temperature.src.lapse_rate import ApplyGriddedLapseRate, LapseRate
+from orographic_temperature_downscaling.src.lapse_rate import ApplyGriddedLapseRate, LapseRate
 
 
-ROOT = Path(__file__).resolve().parents[2]
-APPLY_DATA_DIR = ROOT / "temperature" / "test_data" / "apply_lapse_rate_data"
-LAPSE_DATA_DIR = ROOT / "temperature" / "test_data" / "temp_lapse_rate_data"
+ROOT = Path(__file__).resolve().parents[1]
+APPLY_DATA_DIR = ROOT / "test_data" / "apply_lapse_rate_data"
+LAPSE_DATA_DIR = ROOT / "test_data" / "temp_lapse_rate_data"
 APPLY_CLI_INPUT_DIR = APPLY_DATA_DIR / "cli_input"
 LAPSE_CLI_INPUT_DIR = LAPSE_DATA_DIR / "cli_input"
 

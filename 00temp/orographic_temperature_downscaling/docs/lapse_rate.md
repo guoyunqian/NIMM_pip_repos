@@ -185,7 +185,7 @@ flowchart TD
 ```python
 import numpy as np
 
-from lapse_rate import compute_lapse_rate_adjustment
+from orographic_temperature_downscaling.src.lapse_rate import compute_lapse_rate_adjustment
 
 # 示例1: 使用核心函数
 lapse_rate = np.array([0.01, 0.0065])  # K/m

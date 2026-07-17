@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from temperature.src.lapse_rate import (
+from orographic_temperature_downscaling.src.lapse_rate import (
     compute_lapse_rate_adjustment,
     ApplyGriddedLapseRate,
     LapseRate,
@@ -311,7 +311,7 @@ class TestLapseRate:
 
     def test_sliding_window_view_correctness(self):
         """测试 sliding_window_view 的正确性"""
-        from temperature.src.lapse_rate import LapseRate
+        from orographic_temperature_downscaling.src.lapse_rate import LapseRate
 
         data = np.array([[10, 20, 30],
                          [40, 50, 60],
