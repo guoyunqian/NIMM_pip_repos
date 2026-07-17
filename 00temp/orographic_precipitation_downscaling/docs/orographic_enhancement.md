@@ -385,7 +385,7 @@ flowchart TD
 
 ## 6. CLI 用法
 
-示例脚本：`orographic_enhancement/cli/dsc_orographic_enhancement.py`
+示例脚本：`orographic_precipitation_downscaling/cli/dsc_orographic_enhancement.py`
 
 ### 6.1 运行方式
 
@@ -432,10 +432,10 @@ result = process(
 使用测试数据的 PowerShell 示例（先改脚本底部路径，或直接运行内置样例）：
 
 ```powershell
-./venv/Scripts/python.exe orographic_enhancement/cli/dsc_orographic_enhancement.py
+./venv/Scripts/python.exe orographic_precipitation_downscaling/cli/dsc_orographic_enhancement.py
 ```
 
-内置测试数据目录：输入 `orographic_enhancement/test_data/orographic_enhancement_data/cli_input/`，CLI 输出 `cli_output/`。
+内置测试数据目录：输入 `orographic_precipitation_downscaling/test_data/orographic_enhancement_data/cli_input/`，CLI 输出 `cli_output/`。
 
 ---
 

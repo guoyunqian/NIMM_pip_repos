@@ -7,13 +7,14 @@ import numpy as np
 import pytest
 import xarray as xr
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+MODULE_ROOT = Path(__file__).resolve().parents[1]
+PACKAGE_ROOT = MODULE_ROOT.parent
+if str(PACKAGE_ROOT) not in sys.path:
+    sys.path.insert(0, str(PACKAGE_ROOT))
 
 from orographic_precipitation_downscaling.src.orographic_enhancement import MetaOrographicEnhancement, OrographicEnhancement
 
-DATA_ROOT = PROJECT_ROOT / "test_data" / "orographic_enhancement_data"
+DATA_ROOT = MODULE_ROOT / "test_data" / "orographic_enhancement_data"
 CLI_INPUT_DIR = DATA_ROOT / "cli_input"
 REFERENCE_DIR = DATA_ROOT
 MEB_DIMS = ("member", "level", "time", "dtime", "lat", "lon")
