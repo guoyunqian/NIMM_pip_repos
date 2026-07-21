@@ -19,6 +19,7 @@ _SINGLE_CONTEXT_DIMS = POLAR_VOLUME_DIMS[:4]
 
 __all__ = [
     "PolarVolumeInfo",
+    "extract_polar_volume_sweep",
     "process",
     "pyart_radar_to_polar_volume",
     "read_polar_volume",
@@ -244,6 +245,45 @@ def validate_polar_volume(
         nyquist_velocity=nyquist,
         fixed_angle=fixed_angle,
     )
+
+
+def extract_polar_volume_sweep(
+    volume: xr.DataArray,
+    sweep_index: int = 0,
+) -> xr.DataArray:
+    """从完整体扫中截取单个扫描层，仍保持六维极坐标约定。
+
+    截取后 ``sweep_start_ray_index/sweep_end_ray_index`` 重置为单层边界，
+    ``nyquist_velocity`` / ``fixed_angle`` 仅保留对应扫描层的值。
+    """
+    info = validate_polar_volume(volume)
+    if sweep_index < 0 or sweep_index >= info.nsweeps:
+        raise ValueError(
+            f"sweep_index must be in [0, {info.nsweeps - 1}], got {sweep_index}"
+        )
+
+    start = int(info.sweep_start_ray_index[sweep_index])
+    end = int(info.sweep_end_ray_index[sweep_index])
+    ray_slice = slice(start, end + 1)
+    nrays = end - start + 1
+
+    extracted = volume.isel(lat=ray_slice).copy(deep=True)
+    extracted = extracted.assign_coords(lat=np.arange(nrays, dtype=np.int32))
+    if "sweep_index" in extracted.coords:
+        extracted = extracted.assign_coords(
+            sweep_index=("lat", np.zeros(nrays, dtype=np.int32))
+        )
+
+    extracted.attrs["sweep_start_ray_index"] = [0]
+    extracted.attrs["sweep_end_ray_index"] = [nrays - 1]
+    extracted.attrs["nyquist_velocity"] = [
+        float(info.nyquist_velocity[sweep_index])
+    ]
+    if info.fixed_angle is not None:
+        extracted.attrs["fixed_angle"] = [float(info.fixed_angle[sweep_index])]
+
+    validate_polar_volume(extracted)
+    return extracted
 
 
 def read_polar_volume(
@@ -569,7 +609,7 @@ if __name__ == "__main__":
         validate_polar_volume,
     )
 
-    # 与 notebook 对齐：MDV → 固定 CfRadial → 极坐标速度体扫
+    # 与 notebook 对齐：固定 CfRadial → 仅写出单个扫描层样例（控制仓库体积）
     data_dir = (
         Path(__file__).resolve().parents[1]
         / "test_data"
@@ -578,7 +618,8 @@ if __name__ == "__main__":
     cli_input_dir = data_dir / "cli_input"
     mdv_file = data_dir / "095636.mdv"
     cfradial_file = cli_input_dir / "radar_fixed.cfradial.nc"
-    velocity_file = cli_input_dir / "velocity_volume.nc"
+    sweep_index = 0
+    velocity_file = cli_input_dir / f"velocity_sweep{sweep_index}.nc"
 
     if not mdv_file.is_file() and not cfradial_file.is_file():
         print(
@@ -593,7 +634,8 @@ if __name__ == "__main__":
             pyart.io.write_cfradial(str(cfradial_file), radar_mdv)
 
         radar = pyart.io.read_cfradial(str(cfradial_file))
-        volume = pyart_radar_to_polar_volume(radar, "velocity")
+        radar_sweep = radar.extract_sweeps([sweep_index])
+        volume = pyart_radar_to_polar_volume(radar_sweep, "velocity")
         validate_polar_volume(volume, require_geolocation=True)
 
         # 落盘方式与 notebook 的 save_griddata 保持一致

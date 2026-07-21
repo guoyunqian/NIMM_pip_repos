@@ -30,10 +30,11 @@
 | 1 | 入库路径 | 补充至 NIMM/01obs_adustment/ 时需调整为仓库正式包路径 |
 | 2 | BasePlugin | 正式入库时评估是否改为仓库统一基类 |
 | 3 | resource/ | 当前为空，正式补充时确认是否保留 |
+| 4 | 单层小样例 test_data | 是否纳入中间目录 / 正式仓库，后续决定 |
 
 ## region_dealias 验证记录
 
 | 环境 | 结果 | 日期 |
 | --- | --- | --- |
-| 中间目录 `00temp/radar_wind_dealiasing/` | 32 passed | 2026-07-21 |
+| 中间目录 `00temp/radar_wind_dealiasing/` | 33 passed | 2026-07-21 |
 | 原代码目录 `D:\workspace\pyart_nimm\region_dealias` | 全部测试通过 | 2026-07-21 |

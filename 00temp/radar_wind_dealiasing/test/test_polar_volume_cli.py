@@ -145,6 +145,22 @@ def test_validate_polar_volume_rejects_wrong_nyquist_count():
         validate_polar_volume(volume)
 
 
+def test_extract_polar_volume_sweep_keeps_single_layer_layout():
+    """截取单个扫描层后应重置为单层边界并保留六维约定。"""
+    from radar_wind_dealiasing.cli.polar_volume_main import extract_polar_volume_sweep
+
+    volume = pyart_radar_to_polar_volume(_FakeRadar(), "velocity")
+    sweep1 = extract_polar_volume_sweep(volume, sweep_index=1)
+    info = validate_polar_volume(sweep1, require_geolocation=True)
+
+    assert sweep1.shape == (1, 1, 1, 1, 3, 4)
+    assert info.nsweeps == 1
+    np.testing.assert_array_equal(info.sweep_start_ray_index, [0])
+    np.testing.assert_array_equal(info.sweep_end_ray_index, [2])
+    np.testing.assert_allclose(info.nyquist_velocity, [10.0])
+    np.testing.assert_allclose(sweep1.values[0, 0, 0, 0, 0], [5.0, 6.0, 7.0, 8.0])
+
+
 def test_polar_volume_netcdf_roundtrip_preserves_auxiliary_coordinates(tmp_path):
     """CLI 写入和读取后应保留体扫属性及辅助坐标。"""
     volume = pyart_radar_to_polar_volume(_FakeRadar(), "velocity")

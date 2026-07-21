@@ -36,5 +36,6 @@
 
 - 已从 `D:\workspace\pyart_nimm\region_dealias` 同步源码、CLI、测试、文档与 notebook。
 - 导入路径已统一为中间目录模块名 `radar_wind_dealiasing`。
-- 未同步 `test_data/`（仅 notebook / CLI 演示用；单元测试不依赖）。
+- 未同步 `test_data/`（含大体量 MDV/CfRadial；单层小样例是否纳入本目录后续决定）。
+- notebook / CLI `__main__` 已改为仅使用单层仰角样例（`velocity_sweep0.nc`）。
 - 补充至 `NIMM/01obs_adustment/` 时需调整为仓库正式包路径。

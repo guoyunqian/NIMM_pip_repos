@@ -187,11 +187,11 @@ if __name__ == "__main__":
 
     from radar_wind_dealiasing.cli.region_dealias import process
 
-    # 测试数据路径（中间目录默认不同步 test_data）
+    # 测试数据路径：仅使用单层仰角样例（中间目录默认不同步 test_data）
     base_dir = Path(__file__).resolve().parents[1] / "test_data" / "region_dealias"
     data_dir = base_dir / "cli_input"
-    velocity_path = data_dir / "velocity_volume.nc"
-    gatefilter_path = data_dir / "grid_gatefilter_mask_volume.npy"
+    velocity_path = data_dir / "velocity_sweep0.nc"
+    gatefilter_path = data_dir / "grid_gatefilter_mask_sweep0.npy"
     output_path = base_dir / "cli_output" / "region_dealias_cli.nc"
 
     if not velocity_path.is_file():

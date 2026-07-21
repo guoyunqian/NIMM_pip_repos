@@ -30,22 +30,24 @@
   [x] 导入路径统一为中间目录模块名 radar_wind_dealiasing
   [x] 建立算法内 00log/、00temp/、NIMM_list.md、.gitignore
   [x] CLI 直启缺 test_data 时提示而非崩溃
-  [x] 未同步 test_data/（体量大，样例独立管理）
+  [x] 未同步 test_data/（体量大；单层小样例是否纳入本目录后续决定）
   [x] 覆盖此前过时的中间目录内容（原 pyart.correct 路径残留）
   [x] 同步原目录残余相对导入清理：包内改为绝对导入 `radar_wind_dealiasing.*`
+  [x] 再同步：notebook / CLI 改为单层仰角样例（velocity_sweep0.nc 等）及 extract_polar_volume_sweep
 
 三、仍存在问题 — 需人工补充
 --------------------------------------------------------------------------------
   [ ] 入库路径：补充至 NIMM/01obs_adustment/ 时需调整为仓库正式包路径
   [ ] BasePlugin：正式入库时评估是否改为仓库统一基类
   [ ] resource/：当前为空，正式补充时确认是否保留
+  [ ] 单层小样例 test_data：是否纳入中间目录 / 正式仓库，后续决定
 
 四、验证记录
 --------------------------------------------------------------------------------
   [x] 整理人在原代码目录（`D:\workspace\pyart_nimm\region_dealias`）下已运行全部测试用例，全部通过（2026-07-21）
   [x] 含 test_region_dealias.py、test_geo_utils.py、test_polar_volume_cli.py
-  [x] 中间目录 pytest：32 passed（2026-07-21；未同步 test_data，单元测试不依赖样例文件）
-  [x] 中间目录 import：`from radar_wind_dealiasing import ...` 正常
+  [x] 中间目录 pytest：33 passed（2026-07-21 再同步后；未纳入 test_data，单元测试不依赖样例文件）
+  [x] 中间目录 import：`from radar_wind_dealiasing import ...` 正常；含 `extract_polar_volume_sweep`
 
 五、导入路径说明
 --------------------------------------------------------------------------------
