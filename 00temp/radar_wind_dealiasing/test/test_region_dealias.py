@@ -11,14 +11,14 @@ from pathlib import Path
 
 import meteva_base as meb
 import numpy as np
+import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-SRC_PATH = PROJECT_ROOT / "src"
-if str(SRC_PATH) not in sys.path:
-    sys.path.insert(0, str(SRC_PATH))
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-from pyart.correct import GridGateFilter, RegionDealiasPlugin, dealias_region_based
-from pyart.correct.src._common_dealias import _parse_rays_wrap_around
+from radar_wind_dealiasing import GridGateFilter, RegionDealiasPlugin, dealias_region_based
+from radar_wind_dealiasing.src.utils._common_dealias import _parse_rays_wrap_around
 
 
 def _build_velocity_grid(data: np.ndarray):
@@ -58,6 +58,54 @@ def _build_polar_like_velocity_grid(data: np.ndarray, name: str = "velocity"):
     return velocity
 
 
+def _build_polar_volume_grid(
+    data: np.ndarray,
+    *,
+    sweep_start_ray_index,
+    sweep_end_ray_index,
+    nyquist_velocity,
+    fixed_angle=None,
+    name: str = "velocity",
+):
+    """构造沿 ray 维拼接多个 sweep 的极坐标体扫。"""
+    nrays, ngates = data.shape
+    grid = meb.grid(
+        [0, ngates - 1, 1],
+        [0, nrays - 1, 1],
+        gtime=["2020010100"],
+        dtime_list=[0],
+        level_list=[0],
+        member_list=["radar"],
+    )
+    volume = meb.grid_data(grid=grid, data=data.astype(np.float32))
+    volume = volume.assign_coords(
+        azimuth=(
+            "lat",
+            np.linspace(0.0, 359.0, nrays, dtype=np.float64),
+        ),
+        range=(
+            "lon",
+            np.arange(ngates, dtype=np.float64) * 1000.0,
+        ),
+    )
+    volume.coords["range"].attrs["units"] = "m"
+    volume.attrs["grid_axis_type"] = "radar_volume"
+    volume.attrs["sweep_start_ray_index"] = list(
+        sweep_start_ray_index
+    )
+    volume.attrs["sweep_end_ray_index"] = list(sweep_end_ray_index)
+    volume.attrs["nyquist_velocity"] = list(nyquist_velocity)
+    volume.attrs["fixed_angle"] = (
+        list(fixed_angle)
+        if fixed_angle is not None
+        else list(range(len(sweep_start_ray_index)))
+    )
+    volume.attrs["scan_type"] = "ppi"
+    volume.attrs["units"] = "m/s"
+    volume.name = name
+    return volume
+
+
 def test_dealias_region_based_returns_griddata():
     """退模糊结果应保持 meteva_base 网格结构。"""
     velocity = _build_velocity_grid(
@@ -79,6 +127,60 @@ def test_dealias_region_based_returns_griddata():
     assert result.name == "corrected_velocity"
     assert result.attrs["units"] == "m/s"
     np.testing.assert_allclose(result.values.squeeze(), expected)
+
+
+def test_grid_gate_filter_exclude_transition_marks_whole_rays():
+    """天线过渡旗标为 1 的整条 ray 应被排除。"""
+    velocity = _build_velocity_grid(
+        np.array(
+            [[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]],
+            dtype=np.float32,
+        )
+    )
+    velocity = velocity.assign_coords(
+        antenna_transition=("lat", np.array([0, 1], dtype=np.int8))
+    )
+
+    gatefilter = GridGateFilter(velocity)
+    gatefilter.exclude_transition()
+
+    excluded = gatefilter.gate_excluded
+    assert excluded.shape == (2, 4)
+    np.testing.assert_array_equal(excluded[0], [False, False, False, False])
+    np.testing.assert_array_equal(excluded[1], [True, True, True, True])
+
+
+def test_grid_gate_filter_exclude_transition_noop_without_flags():
+    """缺少 antenna_transition 时不应排除任何格点。"""
+    velocity = _build_velocity_grid(
+        np.array(
+            [[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]],
+            dtype=np.float32,
+        )
+    )
+    gatefilter = GridGateFilter(velocity)
+    gatefilter.exclude_transition()
+    assert not np.any(gatefilter.gate_excluded)
+
+
+def test_moment_based_gatefilter_applies_antenna_transition():
+    """gatefilter=None 自动构造时应应用过渡射线排除。"""
+    from radar_wind_dealiasing.src.utils._common_dealias import _moment_based_gatefilter
+
+    velocity = _build_velocity_grid(
+        np.array(
+            [[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]],
+            dtype=np.float32,
+        )
+    )
+    velocity = velocity.assign_coords(
+        antenna_transition=("lat", np.array([1, 0], dtype=np.int8))
+    )
+
+    gatefilter = _moment_based_gatefilter(velocity)
+    excluded = gatefilter.gate_excluded
+    np.testing.assert_array_equal(excluded[0], [True, True, True, True])
+    np.testing.assert_array_equal(excluded[1], [False, False, False, False])
 
 
 def test_dealias_region_based_can_anchor_to_reference_velocity():
@@ -103,6 +205,34 @@ def test_dealias_region_based_can_anchor_to_reference_velocity():
     )
 
     np.testing.assert_allclose(result.values.squeeze(), reference_velocity.values.squeeze())
+
+
+def test_dealias_region_based_ignores_nan_in_reference_velocity():
+    """参考场 NaN 按掩膜处理（对齐 Py-ART MaskedArray.mean），锚定不崩溃。"""
+    velocity = _build_velocity_grid(
+        np.array(
+            [[4.0, 4.0, -4.0, -4.0], [4.0, 4.0, -4.0, -4.0]],
+            dtype=np.float32,
+        )
+    )
+    reference_velocity = _build_velocity_grid(
+        np.array(
+            [[4.0, np.nan, 6.0, 6.0], [4.0, 4.0, 6.0, np.nan]],
+            dtype=np.float32,
+        )
+    )
+
+    result = dealias_region_based(
+        velocity,
+        ref_velocity=reference_velocity,
+        centered=False,
+    )
+
+    assert np.isfinite(result.values).all()
+    np.testing.assert_allclose(
+        result.values.squeeze()[:, [0, 2]],
+        np.array([[4.0, 6.0], [4.0, 6.0]], dtype=np.float32),
+    )
 
 
 def test_dealias_region_based_respects_gatefilter_keep_original():
@@ -228,46 +358,73 @@ def test_dealias_region_based_false_gatefilter_disables_auto_filtering():
     np.testing.assert_allclose(result.values.squeeze(), expected)
 
 
-def test_dealias_region_based_processes_each_level_independently():
-    """多层输入应按 level 切片分别退模糊。"""
-    grid = meb.grid(
-        [100, 103, 1],
-        [30, 31, 1],
-        gtime=["2020010100"],
-        dtime_list=[0],
-        level_list=[1000, 850],
-        member_list=["m"],
-    )
+def test_dealias_region_based_processes_each_sweep_independently():
+    """不同 ray 数和 Nyquist 的 sweep 应按边界独立退模糊。"""
     data = np.array(
         [
-            [
-                [
-                    [
-                        [[4.0, 4.0, -4.0, -4.0], [4.0, 4.0, -4.0, -4.0]],
-                        [[1.0, 1.0, 2.0, 2.0], [1.0, 1.0, 2.0, 2.0]],
-                    ]
-                ]
-            ]
+            [4.0, 4.0, -4.0, -4.0],
+            [4.0, 4.0, -4.0, -4.0],
+            [9.0, 9.0, -9.0, -9.0],
+            [9.0, 9.0, -9.0, -9.0],
+            [9.0, 9.0, -9.0, -9.0],
         ],
         dtype=np.float32,
     )
-    velocity = meb.grid_data(grid=grid, data=data)
-    velocity.attrs["nyquist_velocity"] = np.array([[[[5.0]], [[5.0]]]], dtype=np.float32)
-    velocity.attrs["units"] = "m/s"
-    velocity.name = "velocity"
+    velocity = _build_polar_volume_grid(
+        data,
+        sweep_start_ray_index=[0, 2],
+        sweep_end_ray_index=[1, 4],
+        nyquist_velocity=[5.0, 10.0],
+        fixed_angle=[0.5, 1.5],
+    )
 
     result = dealias_region_based(velocity, centered=False)
 
-    expected_level0 = np.array(
+    expected_sweep0 = np.array(
         [[-6.0, -6.0, -4.0, -4.0], [-6.0, -6.0, -4.0, -4.0]],
         dtype=np.float32,
     )
-    expected_level1 = np.array(
-        [[1.0, 1.0, 2.0, 2.0], [1.0, 1.0, 2.0, 2.0]],
+    expected_sweep1 = np.array(
+        [
+            [-11.0, -11.0, -9.0, -9.0],
+            [-11.0, -11.0, -9.0, -9.0],
+            [-11.0, -11.0, -9.0, -9.0],
+        ],
         dtype=np.float32,
     )
-    np.testing.assert_allclose(result.values[0, 0, 0, 0], expected_level0)
-    np.testing.assert_allclose(result.values[0, 1, 0, 0], expected_level1)
+    np.testing.assert_allclose(
+        result.values[0, 0, 0, 0, :2],
+        expected_sweep0,
+    )
+    np.testing.assert_allclose(
+        result.values[0, 0, 0, 0, 2:],
+        expected_sweep1,
+    )
+    np.testing.assert_allclose(
+        result.attrs["nyquist_velocity"],
+        [5.0, 10.0],
+    )
+    np.testing.assert_allclose(
+        result.coords["azimuth"],
+        velocity.coords["azimuth"],
+    )
+    np.testing.assert_allclose(
+        result.coords["range"],
+        velocity.coords["range"],
+    )
+
+
+def test_dealias_region_based_rejects_non_contiguous_sweep_boundaries():
+    """体扫边界存在间隙时应拒绝输入。"""
+    velocity = _build_polar_volume_grid(
+        np.ones((5, 4), dtype=np.float32),
+        sweep_start_ray_index=[0, 3],
+        sweep_end_ray_index=[1, 4],
+        nyquist_velocity=[5.0, 10.0],
+    )
+
+    with pytest.raises(ValueError, match="contiguous"):
+        dealias_region_based(velocity)
 
 
 def test_parse_rays_wrap_around_uses_scan_type_when_none():
@@ -378,6 +535,38 @@ def test_region_dealias_plugin_can_auto_remap_from_attrs():
     result = plugin.process(velocity=velocity)
     assert result.dims == velocity.dims
     assert result.shape[-2:] == (2, 3)
+
+
+def test_region_dealias_plugin_remaps_sweeps_to_elevation_levels():
+    """完整体扫重映射后应以固定仰角作为 level 坐标。"""
+    velocity = _build_polar_volume_grid(
+        np.array(
+            [
+                [4.0, 4.0, -4.0],
+                [4.0, 4.0, -4.0],
+                [9.0, 9.0, -9.0],
+                [9.0, 9.0, -9.0],
+            ],
+            dtype=np.float32,
+        ),
+        sweep_start_ray_index=[0, 2],
+        sweep_end_ray_index=[1, 3],
+        nyquist_velocity=[5.0, 10.0],
+        fixed_angle=[0.5, 1.5],
+    )
+    velocity.attrs["radar_lon"] = 116.0
+    velocity.attrs["radar_lat"] = 40.0
+    plugin = RegionDealiasPlugin(
+        centered=False,
+        target_lon=np.array([116.0, 116.01], dtype=np.float64),
+        target_lat=np.array([40.0, 40.01], dtype=np.float64),
+    )
+
+    result = plugin.process(velocity=velocity)
+
+    assert result.sizes["level"] == 2
+    np.testing.assert_allclose(result.level.values, [0.5, 1.5])
+    assert result.attrs["grid_axis_type"] == "latlon"
 
 
 def test_region_dealias_plugin_masks_outside_radar_coverage_when_remapping():

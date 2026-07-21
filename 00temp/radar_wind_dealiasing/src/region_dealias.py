@@ -6,35 +6,31 @@
 
 from __future__ import annotations
 
-import warnings
-
 import numpy as np
-import scipy.ndimage as ndimage
 import xarray as xr
-from scipy.optimize import fmin_l_bfgs_b
 
-from ...plugin_base import BasePlugin
-from ..utils.utils import (
+from radar_wind_dealiasing.utils.base_plugin import BasePlugin
+from radar_wind_dealiasing.utils.utils import check_for_meb_griddata
+from radar_wind_dealiasing.src.utils._geo_remap import (
     attach_gate_lonlat,
     build_latlon_griddata_from_template,
-    build_griddata_like,
-    check_for_meb_griddata,
-    check_for_xy_coordinates,
     infer_radar_location_from_attrs,
     infer_target_lonlat_grid,
     mask_outside_radar_coverage,
     remap_gate_data_to_latlon_grid,
 )
-
-from ._common_dealias import (
-    _as_2d_array,
+from radar_wind_dealiasing.src.utils._common_dealias import (
+    _as_ray_gate_excluded,
+    _normalize_optional_grid,
     _parse_gatefilter,
-    _parse_nyquist_vel,
     _parse_rays_wrap_around,
     _set_limits,
 )
-from ._fast_edge_finder import _fast_edge_finder
-from .grid_gate_filter import GridGateFilter
+from radar_wind_dealiasing.src.utils._polar_volume import (
+    _replace_polar_volume_values,
+    parse_polar_volume_layout,
+)
+from radar_wind_dealiasing.src.utils._region_solver import _dealias_region_based_2d
 
 
 class RegionDealiasPlugin(BasePlugin):
@@ -93,7 +89,8 @@ class RegionDealiasPlugin(BasePlugin):
         centered : bool, optional
             是否将最终圈数整体平移到以 0 为中心。
         nyquist_velocity : float, array-like or None, optional
-            Nyquist 速度。可以是标量，也可以是与输入前四维一致的数组。
+            Nyquist 速度。可以是所有 sweep 共用的标量，也可以是逐
+            sweep 数组。
         gatefilter : None, False or GridGateFilter, optional
             门限过滤器配置。
             ``False`` 表示不使用过滤器；
@@ -290,34 +287,62 @@ class RegionDealiasPlugin(BasePlugin):
             geo_nlon=self.kwargs["geo_nlon"],
             geo_nlat=self.kwargs["geo_nlat"],
         )
-        remapped_values = remap_gate_data_to_latlon_grid(
-            values=attached.values.squeeze(),
-            gate_lon=attached.coords["gate_lon"].values,
-            gate_lat=attached.coords["gate_lat"].values,
-            target_lon=resolved_target_lon,
-            target_lat=resolved_target_lat,
-            method=self.kwargs["geo_method"],
-            missing_value=result.attrs.get("missing_value"),
-            fill_value=result.attrs.get("_FillValue", np.nan),
-        )
-        remapped_values = mask_outside_radar_coverage(
-            remapped_values,
-            target_lon=resolved_target_lon,
-            target_lat=resolved_target_lat,
-            radar_lon=float(radar_lon),
-            radar_lat=float(radar_lat),
-            gate_lon=attached.coords["gate_lon"].values,
-            gate_lat=attached.coords["gate_lat"].values,
-            fill_value=result.attrs.get("_FillValue", np.nan),
-        )
-        remapped = build_latlon_griddata_from_template(
-            attached,
-            data_2d=remapped_values,
-            target_lon=resolved_target_lon,
-            target_lat=resolved_target_lat,
-            data_name=attached.name,
-        )
+        layout = parse_polar_volume_layout(attached)
+        level_results = []
+        for sweep_slice, fixed_angle in zip(
+            layout.sweep_slices,
+            layout.fixed_angle,
+        ):
+            sweep_gate_lon = attached.coords["gate_lon"].values[
+                sweep_slice,
+                :,
+            ]
+            sweep_gate_lat = attached.coords["gate_lat"].values[
+                sweep_slice,
+                :,
+            ]
+            remapped_values = remap_gate_data_to_latlon_grid(
+                values=attached.values[0, 0, 0, 0, sweep_slice, :],
+                gate_lon=sweep_gate_lon,
+                gate_lat=sweep_gate_lat,
+                target_lon=resolved_target_lon,
+                target_lat=resolved_target_lat,
+                method=self.kwargs["geo_method"],
+                missing_value=result.attrs.get("missing_value"),
+                fill_value=result.attrs.get("_FillValue", np.nan),
+            )
+            remapped_values = mask_outside_radar_coverage(
+                remapped_values,
+                target_lon=resolved_target_lon,
+                target_lat=resolved_target_lat,
+                radar_lon=float(radar_lon),
+                radar_lat=float(radar_lat),
+                gate_lon=sweep_gate_lon,
+                gate_lat=sweep_gate_lat,
+                fill_value=result.attrs.get("_FillValue", np.nan),
+            )
+            level_result = build_latlon_griddata_from_template(
+                attached,
+                data_2d=remapped_values,
+                target_lon=resolved_target_lon,
+                target_lat=resolved_target_lat,
+                data_name=attached.name,
+            )
+            level_results.append(
+                level_result.assign_coords(level=[float(fixed_angle)])
+            )
+
+        remapped = xr.concat(level_results, dim="level")
         remapped.attrs.update(dict(attached.attrs))
+        remapped.attrs["grid_axis_type"] = "latlon"
+        remapped.attrs["level_coordinate"] = "elevation_deg"
+        remapped.coords["level"].attrs.update(
+            {
+                "units": "degrees",
+                "standard_name": "elevation_angle",
+                "long_name": "radar fixed angle",
+            }
+        )
         return remapped
 
 
@@ -349,8 +374,8 @@ def dealias_region_based(
     参数
     ----
     velocity : xr.DataArray
-        待退模糊速度场。输入应为 meteva_base 的 ``grid_data``，
-        维度前四项为 ``member/level/time/dtime``，后两项为 ``lat/lon``。
+        待退模糊的完整极坐标体扫。前四维长度均为 1，全部 sweep
+        沿 ``lat``（ray）维连续拼接，并由属性记录 sweep 边界。
     ref_velocity : xr.DataArray or None, optional
         参考速度场。可用于在参考场存在时进行全局或分区锚定。
     interval_splits : int, optional
@@ -362,7 +387,7 @@ def dealias_region_based(
     centered : bool, optional
         是否在最终结果中将各分段圈数整体居中到 0。
     nyquist_velocity : float, array-like or None, optional
-        Nyquist 速度。若为数组，其形状应与 ``velocity.shape[:4]`` 一致。
+        Nyquist 速度。可为所有 sweep 共用的标量，或逐 sweep 数组。
     gatefilter : None, False or GridGateFilter, optional
         输入门限过滤器。
         ``False`` 表示不使用过滤器；
@@ -394,7 +419,11 @@ def dealias_region_based(
     # 先规范输入网格，再统一处理缺测和填充值，避免这些元信息在
     # 后续分段展开时被误当成有效速度参与计算。
     # =====================================
-    velocity_grid = check_for_meb_griddata(velocity, is_single=False)
+    velocity_grid = check_for_meb_griddata(
+        velocity,
+        is_single=False,
+        valid_val=(-np.inf, np.inf, np.nan),
+    )
     fill_value = float(np.float32(-9999.0))
     for key in ("_FillValue", "missing_value"):
         if key not in velocity_grid.attrs:
@@ -404,56 +433,76 @@ def dealias_region_based(
             break
         except (TypeError, ValueError):
             continue
-    ref_velocity_grid = _normalize_optional_grid(ref_velocity, velocity_grid, "ref_velocity")
+    ref_velocity_grid = _normalize_optional_grid(
+        ref_velocity,
+        velocity_grid,
+        "ref_velocity",
+    )
     refl_grid = _normalize_optional_grid(refl, velocity_grid, "refl")
     ncp_grid = _normalize_optional_grid(ncp, velocity_grid, "ncp")
     rhv_grid = _normalize_optional_grid(rhv, velocity_grid, "rhv")
 
-    rays_wrap_around = _parse_rays_wrap_around(rays_wrap_around, velocity_grid)
-    nyquist_vel = _parse_nyquist_vel(
-        nyquist_velocity,
+    layout = parse_polar_volume_layout(
+        velocity_grid,
+        nyquist_velocity=nyquist_velocity,
+    )
+    rays_wrap_around = _parse_rays_wrap_around(
+        rays_wrap_around,
         velocity_grid,
     )
 
-    # 前四维用于区分不同切片，真正参与退模糊的是每个切片上的二维
-    # lat/lon 平面。
+    # 全部 sweep 沿 ray 维连续拼接，二维求解器按边界逐 sweep 调用。
     corrected_values = np.array(velocity_grid.values, dtype=np.float32, copy=True)
-    # 前四维用于区分不同切片，真正参与退模糊的是每个切片上的二维 lat/lon 平面。
-    slice_shape = velocity_grid.shape[:4]
+    volume_gatefilter = _parse_gatefilter(
+        gatefilter,
+        velocity_grid,
+        refl=refl_grid,
+        ncp=ncp_grid,
+        rhv=rhv_grid,
+        min_ncp=min_ncp,
+        min_rhv=min_rhv,
+        min_refl=min_refl,
+        max_refl=max_refl,
+    )
+    # 在体扫级排除掩码/无效速度，再取出布尔掩码供各 sweep 切片使用。
+    volume_gatefilter.exclude_masked(velocity_grid)
+    volume_gatefilter.exclude_invalid(velocity_grid)
+    gfilter = _as_ray_gate_excluded(volume_gatefilter.gate_excluded)
+    # DataArray 中的数值型填充哨兵（如 -9999）在 Py-ART 侧通常已落在 MaskedArray 中；
+    # 此处在体扫级一并并入排除掩码，避免逐 sweep 重复处理。
+    velocity_2d = np.asarray(velocity_grid.values[0, 0, 0, 0], dtype=np.float32)
+    if gfilter.shape != velocity_2d.shape:
+        raise ValueError(
+            "gatefilter mask must match velocity ray/gate shape: "
+            f"{gfilter.shape} vs {velocity_2d.shape}"
+        )
+    for key in ("_FillValue", "missing_value"):
+        if key not in velocity_grid.attrs:
+            continue
+        try:
+            fill_val = float(velocity_grid.attrs[key])
+        except (TypeError, ValueError):
+            continue
+        if np.isfinite(fill_val):
+            gfilter |= np.isclose(velocity_2d, fill_val, rtol=0.0, atol=0.0)
 
-    # =====================================
-    # 按前四维逐个切片处理。
-    # 同一套退模糊逻辑会分别作用于每个 sweep / 时次组合。
-    # =====================================
-    for slice_index in np.ndindex(slice_shape):
-        velocity_slice = _slice_griddata(velocity_grid, slice_index)
-        ref_slice = _slice_griddata(ref_velocity_grid, slice_index)
-        refl_slice = _slice_griddata(refl_grid, slice_index)
-        ncp_slice = _slice_griddata(ncp_grid, slice_index)
-        rhv_slice = _slice_griddata(rhv_grid, slice_index)
-        gatefilter_slice = _slice_gatefilter_input(
-            gatefilter,
-            slice_index,
-            velocity_grid.shape,
-            velocity_slice,
+    for sweep_index, (sweep_slice, sweep_nyquist) in enumerate(
+        zip(layout.sweep_slices, layout.nyquist_velocity)
+    ):
+        # 按体扫边界沿 ray 维截取当前 sweep；参考场未提供时保持 None。
+        velocity_slice = velocity_grid.isel(lat=sweep_slice)
+        ref_slice = (
+            None
+            if ref_velocity_grid is None
+            else ref_velocity_grid.isel(lat=sweep_slice)
         )
 
-        parsed_gatefilter = _parse_gatefilter(
-            gatefilter_slice,
-            velocity_slice,
-            refl=refl_slice,
-            ncp=ncp_slice,
-            rhv=rhv_slice,
-            min_ncp=min_ncp,
-            min_rhv=min_rhv,
-            min_refl=min_refl,
-            max_refl=max_refl,
-        )
-
+        # 与 原方法 ``sfilter = gfilter[sweep_slice]`` 对齐：直接切片布尔掩码。
+        sfilter = gfilter[sweep_slice]
         corrected_slice = _dealias_region_based_2d(
             velocity_slice=velocity_slice,
-            gatefilter=parsed_gatefilter,
-            nyquist_vel=float(nyquist_vel[slice_index]),
+            gate_excluded=sfilter,
+            nyquist_vel=float(sweep_nyquist),
             ref_velocity=ref_slice,
             interval_splits=interval_splits,
             interval_limits=interval_limits,
@@ -462,8 +511,9 @@ def dealias_region_based(
             centered=centered,
             rays_wrap_around=rays_wrap_around,
             keep_original=keep_original,
+            sweep_index=sweep_index,
         )
-        corrected_values[slice_index] = corrected_slice
+        corrected_values[0, 0, 0, 0, sweep_slice, :] = corrected_slice
 
     # 将无效值重新回填为缺测标记，便于后续写出 NetCDF。
     valid_for_limits = np.ma.masked_invalid(corrected_values)
@@ -472,15 +522,24 @@ def dealias_region_based(
     if np.any(invalid_mask):
         output_values[invalid_mask] = fill_value
 
-    corrected = build_griddata_like(velocity_grid, output_values)
+    corrected = _replace_polar_volume_values(
+        velocity_grid,
+        output_values,
+    )
     corrected.name = data_name
 
     # Nyquist 速度属性如果在所有切片中一致，直接写成标量更简洁。
-    if np.allclose(nyquist_vel, nyquist_vel.flat[0]):
-        nyquist_attr: float | np.ndarray = float(nyquist_vel.flat[0])
+    if np.allclose(
+        layout.nyquist_velocity,
+        layout.nyquist_velocity[0],
+    ):
+        nyquist_attr: float | np.ndarray = float(layout.nyquist_velocity[0])
     else:
-        # 若不同切片使用不同 Nyquist，则保留四维数组，避免属性信息丢失。
-        nyquist_attr = np.array(nyquist_vel, dtype=np.float32, copy=True)
+        nyquist_attr = np.array(
+            layout.nyquist_velocity,
+            dtype=np.float32,
+            copy=True,
+        )
 
     result_attrs = {
         "long_name": "dealiased velocity",
@@ -491,562 +550,14 @@ def dealias_region_based(
     if attrs is not None:
         result_attrs.update(attrs)
     if set_limits:
-        _set_limits(valid_for_limits, nyquist_vel, result_attrs)
+        _set_limits(
+            valid_for_limits,
+            layout.nyquist_velocity,
+            result_attrs,
+        )
     corrected.attrs.update(result_attrs)
 
     return corrected
 
 
-def _normalize_optional_grid(
-    grid_data: xr.DataArray | None,
-    velocity_grid: xr.DataArray,
-    field_name: str,
-) -> xr.DataArray | None:
-    """将可选辅助场规范为与速度场对齐的网格数据。"""
-    if grid_data is None:
-        return None
-
-    normalized = check_for_meb_griddata(grid_data, is_single=False)
-    # 辅助场虽然不直接参与展开求解，但必须与速度场严格共网格。
-    if not check_for_xy_coordinates([velocity_grid, normalized], is_time_match=True):
-        raise ValueError(f"velocity and {field_name} grid coordinates must be same")
-    return normalized
-
-
-def _slice_griddata(
-    grid_data: xr.DataArray | None,
-    slice_index: tuple[int, int, int, int],
-) -> xr.DataArray | None:
-    """按前四维切片辅助场；若未提供则保持 ``None``。"""
-    if grid_data is None:
-        return None
-
-    member_idx, level_idx, time_idx, dtime_idx = slice_index
-    return grid_data.isel(
-        member=slice(member_idx, member_idx + 1),
-        level=slice(level_idx, level_idx + 1),
-        time=slice(time_idx, time_idx + 1),
-        dtime=slice(dtime_idx, dtime_idx + 1),
-    )
-
-
-def _slice_gatefilter_input(gatefilter, slice_index, template_shape, velocity_slice):
-    """按当前 2D 切片构建或裁剪 gatefilter。"""
-    if gatefilter is None or gatefilter is False:
-        return gatefilter
-
-    if isinstance(gatefilter, GridGateFilter):
-        gate_excluded = np.asarray(gatefilter.gate_excluded, dtype=bool)
-        if gate_excluded.shape == template_shape[-2:]:
-            return GridGateFilter(
-                velocity_slice,
-                gate_excluded=gate_excluded,
-            )
-        if gate_excluded.shape == template_shape:
-            return GridGateFilter(
-                _slice_griddata(gatefilter.velocity, slice_index),
-                gate_excluded=np.asarray(gate_excluded[slice_index], dtype=bool),
-            )
-        raise ValueError(
-            "gatefilter.gate_excluded must match the 2D plane or full velocity shape"
-        )
-
-    raise TypeError("gatefilter must be None, False, or GridGateFilter")
-
-
-def _dealias_region_based_2d(
-    velocity_slice: xr.DataArray,
-    gatefilter,
-    nyquist_vel: float,
-    ref_velocity: xr.DataArray | None,
-    interval_splits: int,
-    interval_limits,
-    skip_between_rays: int,
-    skip_along_ray: int,
-    centered: bool,
-    rays_wrap_around: bool,
-    keep_original: bool,
-) -> np.ndarray:
-    """对单个 2D 切片执行区域退模糊。"""
-    # 先把输入里的 NaN / Inf / 掩码值写入 gatefilter，
-    # 这样后续的区域连通与边界统计都不会把无效点算进去。
-    gatefilter.exclude_masked(velocity_slice)
-    gatefilter.exclude_invalid(velocity_slice)
-    vdata = _as_2d_array(velocity_slice).view(np.ndarray)
-    gfilter = gatefilter.gate_excluded
-    # 再补一层对 `_FillValue` / `missing_value` 的显式识别，
-    # 避免由输入文件哨兵值转成的普通数值参与计算。
-    fillvalue_mask = np.zeros(vdata.shape, dtype=bool)
-    for key in ("_FillValue", "missing_value"):
-        if key not in velocity_slice.attrs:
-            continue
-        try:
-            fill_val = float(velocity_slice.attrs[key])
-        except (TypeError, ValueError):
-            continue
-        if np.isfinite(fill_val):
-            fillvalue_mask |= np.isclose(vdata, fill_val, rtol=0.0, atol=0.0)
-    gfilter |= fillvalue_mask
-    ref_vdata = None if ref_velocity is None else _as_2d_array(ref_velocity).view(np.ndarray)
-    data = vdata.copy()
-
-    nyquist_interval = nyquist_vel * 2.0
-    if interval_limits is None:
-        valid_sdata = vdata[~gfilter]
-        s_interval_limits = _find_sweep_interval_splits(
-            nyquist_vel,
-            interval_splits,
-            valid_sdata,
-            0,
-        )
-    else:
-        s_interval_limits = interval_limits
-
-    # 根据当前速度分段找连通区域，再统计相邻区域之间的候选边。
-    labels, nfeatures = _find_regions(vdata, gfilter, s_interval_limits)
-    if nfeatures >= 2:
-        bincount = np.bincount(labels.ravel())
-        num_masked_gates = bincount[0]
-        region_sizes = bincount[1:]
-
-        indices, edge_count, velos = _edge_sum_and_count(
-            labels,
-            num_masked_gates,
-            vdata,
-            rays_wrap_around,
-            skip_between_rays,
-            skip_along_ray,
-        )
-
-        if len(edge_count) != 0:
-            region_tracker = _RegionTracker(region_sizes)
-            edge_tracker = _EdgeTracker(
-                indices,
-                edge_count,
-                velos,
-                nyquist_interval,
-                nfeatures + 1,
-            )
-            while True:
-                if _combine_regions(region_tracker, edge_tracker):
-                    break
-
-            # 如果要求中心化，则把整幅切片的平均圈数偏移拉回到 0 附近。
-            if centered:
-                gates_dealiased = region_sizes.sum()
-                total_folds = np.sum(region_sizes * region_tracker.unwrap_number[1:])
-                sweep_offset = int(round(float(total_folds) / gates_dealiased))
-                if sweep_offset != 0:
-                    region_tracker.unwrap_number -= sweep_offset
-
-            nwrap = np.take(region_tracker.unwrap_number, labels)
-            data += nwrap * nyquist_interval
-
-            # =====================================
-            # 若提供参考速度场，则进一步做全局或分区锚定。
-            # 这一步会尽量让退模糊结果与参考场在整体上对齐。
-            # =====================================
-            if ref_vdata is not None:
-                gfold = (ref_vdata - data).mean() / nyquist_interval
-                gfold = round(gfold)
-
-                new_interval_limits = np.linspace(data.min(), data.max(), 10)
-                labels_corr, nfeatures_corr = _find_regions(
-                    data,
-                    gfilter,
-                    new_interval_limits,
-                )
-
-                if nfeatures_corr < 2:
-                    data = data + gfold * nyquist_interval
-                else:
-                    bounds_list = [
-                        (x, y)
-                        for (x, y) in zip(
-                            -6 * np.ones(nfeatures_corr),
-                            5 * np.ones(nfeatures_corr),
-                        )
-                    ]
-                    data_means = np.zeros(nfeatures_corr)
-                    ref_means = np.zeros(nfeatures_corr)
-                    for reg in range(1, nfeatures_corr + 1):
-                        data_means[reg - 1] = np.ma.mean(data[labels_corr == reg])
-                        ref_means[reg - 1] = np.ma.mean(ref_vdata[labels_corr == reg])
-
-                    def cost_function(x):
-                        return _cost_function(
-                            x,
-                            data_means,
-                            ref_means,
-                            nyquist_interval,
-                            nfeatures_corr,
-                        )
-
-                    def gradient(x):
-                        return _gradient(
-                            x,
-                            data_means,
-                            ref_means,
-                            nyquist_interval,
-                            nfeatures_corr,
-                        )
-
-                    nyq_adjustments = fmin_l_bfgs_b(
-                        cost_function,
-                        gfold * np.ones(nfeatures_corr),
-                        disp=False,
-                        fprime=gradient,
-                        bounds=bounds_list,
-                        maxiter=200,
-                        pgtol=nyquist_interval,
-                    )
-
-                    i = 0
-                    for reg in range(1, nfeatures_corr):
-                        # 将优化得到的整数圈数偏移回写到对应区域。
-                        data[labels == reg] += nyquist_interval * np.round(
-                            nyq_adjustments[0][i]
-                        )
-                        i += 1
-
-    # =====================================
-    # 过滤结果回填
-    #
-    # keep_original=False: 过滤格点输出缺测值。
-    # keep_original=True : 过滤格点保留原始输入值。
-    # =====================================
-    if np.any(gfilter):
-        data = np.ma.array(data, mask=gfilter, fill_value=np.nan)
-
-    if keep_original:
-        data[gfilter] = vdata[gfilter]
-
-    values = np.ma.asarray(data, dtype=np.float32)
-    if np.ma.isMaskedArray(values):
-        return values.filled(np.nan)
-    return np.asarray(values, dtype=np.float32)
-
-
-def _find_sweep_interval_splits(nyquist, interval_splits, velocities, nsweep):
-    """根据当前 sweep 的速度范围，决定是否需要扩展 Nyquist 分段。"""
-    add_start = add_end = 0
-    interval = (2.0 * nyquist) / interval_splits
-    if len(velocities) != 0:
-        max_vel = velocities.max()
-        min_vel = velocities.min()
-        if max_vel > nyquist or min_vel < -nyquist:
-            msg = f"Velocities outside of the Nyquist interval found in sweep {nsweep}."
-            warnings.warn(msg, UserWarning)
-
-            # 输入偶尔可能已经部分越过当前 Nyquist 区间，需临时扩展分段范围以免漏标。
-            add_start = int(np.ceil((max_vel - nyquist) / interval))
-            add_end = int(np.ceil(-(min_vel + nyquist) / interval))
-
-    start = -nyquist - add_start * interval
-    end = nyquist + add_end * interval
-    num = interval_splits + 1 + add_start + add_end
-    return np.linspace(start, end, num, endpoint=True)
-
-
-def _find_regions(vel, gfilter, limits):
-    """根据速度分段和门限掩码提取 2D 连通区域。"""
-    mask = ~gfilter
-    label = np.zeros(vel.shape, dtype=np.int32)
-    nfeatures = 0
-    for lmin, lmax in zip(limits[:-1], limits[1:]):
-        # 仅在当前速度分段内做连通域标记，再累计到全局标签空间。
-        inp = (lmin <= vel) & (vel < lmax) & mask
-        limit_label, limit_nfeatures = ndimage.label(inp)
-        limit_label[np.nonzero(limit_label)] += nfeatures
-        label += limit_label
-        nfeatures += limit_nfeatures
-
-    return label, nfeatures
-
-
-def _edge_sum_and_count(
-    labels,
-    num_masked_gates,
-    data,
-    rays_wrap_around,
-    max_gap_x,
-    max_gap_y,
-):
-    """统计候选边的数量和对应速度和。"""
-    total_nodes = labels.shape[0] * labels.shape[1] - num_masked_gates
-    if rays_wrap_around:
-        total_nodes += labels.shape[0] * 2
-
-    indices, velocities = _fast_edge_finder(
-        labels.astype("int32"),
-        data.astype("float32"),
-        rays_wrap_around,
-        max_gap_x,
-        max_gap_y,
-        total_nodes,
-    )
-    index1, index2 = indices
-    vel1, vel2 = velocities
-    count = np.ones_like(vel1, dtype=np.int32)
-
-    if len(vel1) == 0:
-        return ([], []), [], ([], [])
-
-    # 快速边查找可能返回重复边，这里统一排序并合并。
-    order = np.lexsort((index1, index2))
-    index1 = index1[order]
-    index2 = index2[order]
-    vel1 = vel1[order]
-    vel2 = vel2[order]
-    count = count[order]
-
-    unique_mask = (index1[1:] != index1[:-1]) | (index2[1:] != index2[:-1])
-    unique_mask = np.append(True, unique_mask)
-    index1 = index1[unique_mask]
-    index2 = index2[unique_mask]
-
-    (unique_inds,) = np.nonzero(unique_mask)
-    vel1 = np.add.reduceat(vel1, unique_inds, dtype=vel1.dtype)
-    vel2 = np.add.reduceat(vel2, unique_inds, dtype=vel2.dtype)
-    count = np.add.reduceat(count, unique_inds, dtype=count.dtype)
-
-    return (index1, index2), count, (vel1, vel2)
-
-
-def _combine_regions(region_tracker, edge_tracker):
-    """尝试根据当前最优边继续合并区域。"""
-    status, extra = edge_tracker.pop_edge()
-    if status:
-        return True
-    node1, node2, weight, diff, edge_number = extra
-    del weight
-    rdiff = int(np.round(diff))
-
-    node1_size = region_tracker.get_node_size(node1)
-    node2_size = region_tracker.get_node_size(node2)
-
-    if node1_size > node2_size:
-        base_node, merge_node = node1, node2
-    else:
-        base_node, merge_node = node2, node1
-        rdiff = -rdiff
-
-    # 优先把小区域合并到大区域，可减少后续图更新开销。
-    if rdiff != 0:
-        region_tracker.unwrap_node(merge_node, rdiff)
-        edge_tracker.unwrap_node(merge_node, rdiff)
-
-    region_tracker.merge_nodes(base_node, merge_node)
-    edge_tracker.merge_nodes(base_node, merge_node, edge_number)
-
-    return False
-
-
-def _cost_function(
-    nyq_vector,
-    vels_slice_means,
-    svels_slice_means,
-    v_nyq_vel,
-    nfeatures,
-):
-    """计算目标函数值。"""
-    cost = 0
-    i = 0
-
-    for reg in range(nfeatures):
-        add_value = (
-            vels_slice_means[reg]
-            + np.round(nyq_vector[i]) * v_nyq_vel
-            - svels_slice_means[reg]
-        ) ** 2
-
-        if np.isfinite(add_value):
-            cost += add_value
-        i += 1
-
-    return cost
-
-
-def _gradient(nyq_vector, vels_slice_means, svels_slice_means, v_nyq_vel, nfeatures):
-    """计算优化目标的梯度。"""
-    gradient_vector = np.zeros(len(nyq_vector))
-    i = 0
-    for reg in range(nfeatures):
-        add_value = (
-            vels_slice_means[reg]
-            + np.round(nyq_vector[i]) * v_nyq_vel
-            - svels_slice_means[reg]
-        )
-        if np.isfinite(add_value):
-            gradient_vector[i] = 2 * add_value * v_nyq_vel
-
-        vels_without_cur = np.delete(vels_slice_means, reg)
-        diffs = np.square(vels_slice_means[reg] - vels_without_cur)
-        if len(diffs) > 0:
-            the_min = np.argmin(diffs)
-        else:
-            the_min = 0
-
-        if the_min < v_nyq_vel:
-            gradient_vector[i] = 0
-
-        i += 1
-
-    return gradient_vector
-
-
-class _RegionTracker:
-    """追踪区域合并和展开圈数的状态。"""
-
-    def __init__(self, region_sizes):
-        nregions = len(region_sizes) + 1
-        self.node_size = np.zeros(nregions, dtype="int32")
-        self.node_size[1:] = region_sizes[:]
-
-        self.regions_in_node = np.zeros(nregions, dtype="object")
-        for i in range(nregions):
-            self.regions_in_node[i] = [i]
-
-        self.unwrap_number = np.zeros(nregions, dtype="int32")
-
-    def merge_nodes(self, node_a, node_b):
-        """将节点 ``node_b`` 合并到 ``node_a``。"""
-        regions_to_merge = self.regions_in_node[node_b]
-        self.regions_in_node[node_a].extend(regions_to_merge)
-        self.regions_in_node[node_b] = []
-
-        self.node_size[node_a] += self.node_size[node_b]
-        self.node_size[node_b] = 0
-
-    def unwrap_node(self, node, nwrap):
-        """为节点内所有区域增加展开圈数。"""
-        if nwrap == 0:
-            return
-        regions_to_unwrap = self.regions_in_node[node]
-        self.unwrap_number[regions_to_unwrap] += nwrap
-
-    def get_node_size(self, node):
-        """返回节点包含的格点数。"""
-        return self.node_size[node]
-
-
-class _EdgeTracker:
-    """追踪边的关系、权重和优先级。"""
-
-    def __init__(self, indices, edge_count, velocities, nyquist_interval, nnodes):
-        nedges = int(len(indices[0]) / 2)
-
-        self.node_alpha = np.zeros(nedges, dtype=np.int32)
-        self.node_beta = np.zeros(nedges, dtype=np.int32)
-        self.sum_diff = np.zeros(nedges, dtype=np.float32)
-        self.weight = np.zeros(nedges, dtype=np.int32)
-
-        self._common_finder = np.zeros(nnodes, dtype=np.bool_)
-        self._common_index = np.zeros(nnodes, dtype=np.int32)
-        self._last_base_node = -1
-
-        self.edges_in_node = np.zeros(nnodes, dtype="object")
-        for i in range(nnodes):
-            self.edges_in_node[i] = []
-
-        edge = 0
-        idx1, idx2 = indices
-        vel1, vel2 = velocities
-        for i, j, count, vel, nvel in zip(idx1, idx2, edge_count, vel1, vel2):
-            if i < j:
-                continue
-            self.node_alpha[edge] = i
-            self.node_beta[edge] = j
-            self.sum_diff[edge] = (vel - nvel) / nyquist_interval
-            self.weight[edge] = count
-            self.edges_in_node[i].append(edge)
-            self.edges_in_node[j].append(edge)
-            edge += 1
-
-        self.priority_queue = []
-
-    def merge_nodes(self, base_node, merge_node, foo_edge):
-        """合并两个节点对应的边信息。"""
-        self.weight[foo_edge] = -999
-        self.edges_in_node[merge_node].remove(foo_edge)
-        self.edges_in_node[base_node].remove(foo_edge)
-        self._common_finder[merge_node] = False
-
-        edges_in_merge = list(self.edges_in_node[merge_node])
-
-        if self._last_base_node != base_node:
-            self._common_finder[:] = False
-            edges_in_base = list(self.edges_in_node[base_node])
-            for edge_num in edges_in_base:
-                if self.node_beta[edge_num] == base_node:
-                    self._reverse_edge_direction(edge_num)
-                assert self.node_alpha[edge_num] == base_node
-
-                neighbor = self.node_beta[edge_num]
-                self._common_finder[neighbor] = True
-                self._common_index[neighbor] = edge_num
-
-        for edge_num in edges_in_merge:
-            if self.node_beta[edge_num] == merge_node:
-                self._reverse_edge_direction(edge_num)
-            assert self.node_alpha[edge_num] == merge_node
-
-            self.node_alpha[edge_num] = base_node
-
-            neighbor = self.node_beta[edge_num]
-            if self._common_finder[neighbor]:
-                base_edge_num = self._common_index[neighbor]
-                self._combine_edges(base_edge_num, edge_num, merge_node, neighbor)
-            else:
-                self._common_finder[neighbor] = True
-                self._common_index[neighbor] = edge_num
-
-        edges = self.edges_in_node[merge_node]
-        self.edges_in_node[base_node].extend(edges)
-        self.edges_in_node[merge_node] = []
-        self._last_base_node = int(base_node)
-
-    def _combine_edges(self, base_edge, merge_edge, merge_node, neighbor_node):
-        """合并重复边。"""
-        self.weight[base_edge] += self.weight[merge_edge]
-        self.weight[merge_edge] = -999.0
-        self.sum_diff[base_edge] += self.sum_diff[merge_edge]
-
-        self.edges_in_node[merge_node].remove(merge_edge)
-        self.edges_in_node[neighbor_node].remove(merge_edge)
-
-    def _reverse_edge_direction(self, edge):
-        """反转边的方向。"""
-        old_alpha = int(self.node_alpha[edge])
-        old_beta = int(self.node_beta[edge])
-        self.node_alpha[edge] = old_beta
-        self.node_beta[edge] = old_alpha
-        self.sum_diff[edge] = -1.0 * self.sum_diff[edge]
-
-    def unwrap_node(self, node, nwrap):
-        """节点展开后，更新相关边的差值。"""
-        if nwrap == 0:
-            return
-
-        for edge in self.edges_in_node[node]:
-            weight = self.weight[edge]
-            if node == self.node_alpha[edge]:
-                self.sum_diff[edge] += weight * nwrap
-            else:
-                assert self.node_beta[edge] == node
-                self.sum_diff[edge] += -weight * nwrap
-
-    def pop_edge(self):
-        """取出当前权重最高的边。"""
-        edge_num = np.argmax(self.weight)
-        node1 = self.node_alpha[edge_num]
-        node2 = self.node_beta[edge_num]
-        weight = self.weight[edge_num]
-        diff = self.sum_diff[edge_num] / float(weight)
-
-        if weight < 0:
-            return True, None
-        return False, (node1, node2, weight, diff, edge_num)
-
-
-__all__ = ["dealias_region_based", "RegionDealiasPlugin", "GridGateFilter"]
+__all__ = ["dealias_region_based", "RegionDealiasPlugin"]

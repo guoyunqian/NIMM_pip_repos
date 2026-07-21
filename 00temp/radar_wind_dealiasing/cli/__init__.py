@@ -2,11 +2,10 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2019 NMC Developers.
 # Distributed under the terms of the GPL V3 License.
-"""Common helpers for correct CLI."""
+"""region_dealias 模块 CLI 入口与读写辅助。"""
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Optional, Sequence
 
@@ -15,119 +14,125 @@ import xarray as xr
 
 
 _CLI_SCRIPTS = (
-    "pyart/correct/cli/region_dealias.py",
+    "radar_wind_dealiasing/cli/region_dealias.py",
 )
 
-
-def maybe_coerce_with(func, value):
-    """Apply func only when value is a string."""
-    return func(value) if isinstance(value, str) else value
+# netCDF 库对 float32 的默认填充值（NC_FILL_FLOAT），与 netCDF4.default_fillvals['f4'] 相同。
+_CF_NETCDF_FILL = np.float32(9.969209968386869e36)
 
 
 def _read_griddata(path: str, value_name: Optional[str] = None) -> xr.DataArray:
-    """Read one grid field from NetCDF with meteva_base."""
+    """读取六维网格字段，并保留极坐标体扫辅助坐标。"""
     try:
-        import meteva_base as meb
-
-        data = meb.read_griddata_from_nc(path, value_name=value_name)
-        if data is None:
-            if value_name:
-                raise ValueError(f"Cannot read value_name={value_name!r} from {path}")
-            raise ValueError("meteva_base.read_griddata_from_nc returned None")
-        return data
+        with xr.open_dataset(path) as dataset:
+            if value_name is not None:
+                if value_name not in dataset.data_vars:
+                    raise ValueError(
+                        f"Cannot read value_name={value_name!r} from {path}"
+                    )
+                data = dataset[value_name].load()
+            else:
+                required_dims = {
+                    "member",
+                    "level",
+                    "time",
+                    "dtime",
+                    "lat",
+                    "lon",
+                }
+                candidates = [
+                    name
+                    for name, variable in dataset.data_vars.items()
+                    if required_dims.issubset(variable.dims)
+                ]
+                if len(candidates) != 1:
+                    raise ValueError(
+                        "input file must contain exactly one six-dimensional "
+                        "field when value_name is not specified"
+                    )
+                data = dataset[candidates[0]].load()
+        return data.transpose("member", "level", "time", "dtime", "lat", "lon")
     except Exception as exc:
         raise RuntimeError(f"Failed to read input file: {path}") from exc
 
 
 def _read_npy_array(path: str) -> np.ndarray:
-    """Read one numpy array from a .npy file."""
+    """从 ``.npy`` 文件读取一个 numpy 数组。"""
     file_path = Path(path)
     if file_path.suffix.lower() != ".npy":
         raise ValueError("input file must be a .npy file")
     return np.load(file_path)
 
 
+def _sanitize_grid_values_for_nc(values: np.ndarray) -> np.ndarray:
+    """将 NaN/异常极值统一为 NetCDF 缺测填充值（float32）。
+
+    与 ``qpe.cli.cinrad_meb`` 策略一致：避免 ``meteva_base.write_griddata_to_nc``
+    的 int32 缩放把 NaN 写成约 ``-2147483.6``，并把常用 ``-9999`` 哨兵一并归入缺测。
+    """
+    arr = np.asarray(values, dtype=np.float32).copy()
+    invalid = ~np.isfinite(arr)
+    invalid |= np.abs(arr) >= np.float32(1e19)
+    invalid |= arr <= np.float32(-1e6)
+    invalid |= np.abs(arr + 2147483.648) < np.float32(1.0)
+    arr[invalid] = _CF_NETCDF_FILL
+    return arr
+
+
 def _write_griddata_to_nc(
-    data: xr.DataArray | xr.Dataset,
-    path: str,
-    compression_level: int = 1,
-    least_significant_digit: int = None,
-) -> None:
-    """Write DataArray or Dataset result to NetCDF."""
-    if not isinstance(data, (xr.DataArray, xr.Dataset)):
-        raise TypeError("_write_griddata_to_nc only supports xarray.DataArray or xarray.Dataset")
+    data: xr.DataArray,
+    output_path: str | Path,
+    *,
+    compression: bool = True,
+) -> Path:
+    """保存 region_dealias 网格结果为 NetCDF（float32 + CF 缺测值）。
 
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    compression_level = 1 if compression_level is None else int(compression_level)
-    if compression_level < 0 or compression_level > 9:
-        raise ValueError("compression_level must be between 0 and 9")
+    对齐 ``qpe.cli.cinrad_meb.save_meteva_grid_to_netcdf`` 的核心落盘策略。
+    本模块 attrs 以 str/数值/ndarray 为主，无需 echo_class 那套嵌套 attrs 序列化。
+    """
+    if not isinstance(data, xr.DataArray):
+        raise TypeError("_write_griddata_to_nc only supports xarray.DataArray")
 
-    if isinstance(data, xr.DataArray):
-        var_name = data.name if data.name else "data"
-        dataset = data.to_dataset(name=var_name)
-    else:
-        dataset = data
-        var_name = None
+    path_obj = Path(output_path)
+    path_obj.parent.mkdir(parents=True, exist_ok=True)
 
-    def _sanitize_attr_value(value):
-        if value is None:
-            return ""
-        if isinstance(value, (bool, np.bool_)):
-            return int(value)
-        if isinstance(value, np.generic):
-            return value.item()
-        if isinstance(value, dict):
-            return json.dumps(value, ensure_ascii=False)
-        if isinstance(value, (list, tuple)):
-            if all(isinstance(v, (int, float, np.integer, np.floating, bool, np.bool_)) for v in value):
-                return [int(v) if isinstance(v, (bool, np.bool_)) else (v.item() if isinstance(v, np.generic) else v) for v in value]
-            return json.dumps(value, ensure_ascii=False)
-        return value
+    var_name = data.name if data.name else "data"
+    out = data.copy()
+    out.values = _sanitize_grid_values_for_nc(out.values)
+    out.attrs.pop("_FillValue", None)
+    out.attrs.pop("missing_value", None)
 
-    dataset.attrs = {k: _sanitize_attr_value(v) for k, v in dict(dataset.attrs).items()}
+    dataset = out.to_dataset(name=var_name)
+    encoding: dict = {}
     for data_var in dataset.data_vars:
-        dataset[data_var].attrs = {
-            k: _sanitize_attr_value(v)
-            for k, v in dict(dataset[data_var].attrs).items()
+        dataset[data_var].attrs.pop("_FillValue", None)
+        dataset[data_var].attrs.pop("missing_value", None)
+        enc = {
+            "dtype": "float32",
+            "_FillValue": _CF_NETCDF_FILL,
+            "missing_value": _CF_NETCDF_FILL,
         }
-
-    encoding = {}
-    if compression_level == 0:
-        encoding["zlib"] = False
-    else:
-        encoding["zlib"] = True
-        encoding["complevel"] = compression_level
-    encoding["_FillValue"] = None
-    if least_significant_digit is not None:
-        encoding["least_significant_digit"] = int(least_significant_digit)
-
-    if var_name is not None:
-        encoding_map = {var_name: encoding}
-    else:
-        encoding_map = {data_var: dict(encoding) for data_var in dataset.data_vars}
+        if compression:
+            enc["zlib"] = True
+            enc["complevel"] = 4
+        encoding[data_var] = enc
 
     try:
-        dataset.to_netcdf(path, mode="w", encoding=encoding_map)
+        dataset.to_netcdf(str(path_obj), mode="w", encoding=encoding)
     except PermissionError as exc:
         raise PermissionError(
-            f"Cannot write output file: {path}. "
+            f"Cannot write output file: {path_obj}. "
             "The file may be open in another process (for example, Jupyter). "
             "Please close dataset handles or use a different output path."
         ) from exc
 
-
-def parse_comma_separated_list_of_float(value) -> list[float]:
-    """Convert comma-separated text or sequence to a float list."""
-    return maybe_coerce_with(
-        lambda s: [float(item) for item in s.split(",")],
-        value,
-    )
+    return path_obj
 
 
 def main(argv: Optional[Sequence[str]] = None):
     """列出可直接运行的 CLI 示例脚本。"""
     lines = [
-        "pyart.correct CLI 已改为示例脚本，请直接运行：",
+        "region_dealias CLI 已改为示例脚本，请直接运行：",
         *(f"  python {script}" for script in _CLI_SCRIPTS),
         "",
         "在脚本底部的 if __name__ == '__main__' 中修改路径与参数后执行。",
