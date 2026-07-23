@@ -7,9 +7,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional, Sequence
-
-from warnings import warn
+from typing import Literal, Optional, Sequence
 
 import numpy as np
 import xarray as xr
@@ -19,12 +17,13 @@ def process(
     velocity_path: str,
     *,
     ref_velocity_path: str = None,
+    gatefilter: Literal[False] | None = False,
     gatefilter_path: str = None,
     refl_path: str = None,
     ncp_path: str = None,
     rhv_path: str = None,
     interval_splits: int = 3,
-    interval_limits: Sequence[float] | str = None,
+    interval_limits: Sequence[float] = None,
     skip_between_rays: int = 100,
     skip_along_ray: int = 100,
     centered: bool = True,
@@ -46,47 +45,93 @@ def process(
     auto_remap_to_latlon: bool = False,
     output_path: Optional[str] = None,
 ) -> xr.DataArray:
-    """执行基于区域连通关系的径向速度退模糊 CLI。"""
-    from . import (
+    """从文件路径执行基于区域连通关系的径向速度退模糊。
+
+    读取六维网格 NetCDF / 可选掩码后，构造 ``RegionDealiasPlugin`` 并写出结果。
+    门控三态与 Py-ART 对齐：``gatefilter_path`` 优先；否则 ``gatefilter=False``
+    关闭自动过滤；``gatefilter=None`` 时按 ``refl/ncp/rhv`` 做 moment 过滤
+    （缺字段则跳过对应规则，不报错）。
+
+    参数
+    ----
+    velocity_path : str
+        待退模糊速度场 NetCDF 路径。
+    ref_velocity_path : str, optional
+        参考速度场路径，用于区域合并后的结果锚定。
+    gatefilter : False or None, optional
+        ``False``（默认）关闭自动过滤；``None`` 启用 moment 自动过滤。
+        若同时提供 ``gatefilter_path``，以掩码为准。
+    gatefilter_path : str, optional
+        布尔掩码 ``.npy`` 路径，读取后构造显式 ``GridGateFilter``。
+    refl_path, ncp_path, rhv_path : str, optional
+        moment 自动过滤所用反射率 / NCP / RhoHV 场路径。
+    interval_splits : int, optional
+        Nyquist 区间初始分段数；``interval_limits`` 非空时不使用。
+    interval_limits : sequence of float, optional
+        自定义速度分段边界。
+    skip_between_rays, skip_along_ray : int, optional
+        跨射线 / 沿径向连接区域时允许跨越的最大过滤间隔。
+    centered : bool, optional
+        是否将整体展开圈数居中到 0 附近。
+    nyquist_velocity : float, optional
+        显式 Nyquist 速度；为空时从速度场属性读取。
+    min_ncp, min_rhv, min_refl, max_refl : float, optional
+        moment 自动过滤阈值；对应字段缺失时跳过。
+    rays_wrap_around : bool, optional
+        是否将方位向首尾视为相邻；``None`` 时按 ``scan_type`` 推断。
+    keep_original : bool, optional
+        被过滤格点是否保留原始速度；``False`` 时输出缺测。
+    set_limits : bool, optional
+        是否写入输出 ``valid_min`` / ``valid_max``。
+    data_name : str, optional
+        输出 DataArray 名称。
+    radar_lon, radar_lat : float, optional
+        雷达站点经纬度（地理后处理 / 重映射用）。
+    elevation_deg : float, optional
+        仰角（度）。
+    geo_resolution_deg : float, optional
+        自动规则经纬网格分辨率（度）。
+    geo_nlon, geo_nlat : int, optional
+        自动规则经纬网格格点数。
+    auto_remap_to_latlon : bool, optional
+        是否将结果重映射到规则经纬网格。
+    output_path : str, optional
+        输出 NetCDF 路径；为空则只返回内存结果。
+
+    返回
+    ----
+    xr.DataArray
+        退模糊后的速度场（``float32``）；若开启重映射则为规则经纬网格。
+    """
+    from radar_wind_dealiasing.cli import (
         _read_griddata,
         _read_npy_array,
         _write_griddata_to_nc,
-        parse_comma_separated_list_of_float,
     )
-    from ..src import GridGateFilter
-    from ..src.region_dealias import RegionDealiasPlugin
+    from radar_wind_dealiasing.src import GridGateFilter
+    from radar_wind_dealiasing.src.region_dealias import RegionDealiasPlugin
 
     velocity = _read_griddata(velocity_path)
     ref_velocity = (
         _read_griddata(ref_velocity_path) if ref_velocity_path is not None else None
     )
-    gatefilter = (
-        _read_npy_array(gatefilter_path) if gatefilter_path is not None else None
-    )
     refl = _read_griddata(refl_path) if refl_path is not None else None
     ncp = _read_griddata(ncp_path) if ncp_path is not None else None
     rhv = _read_griddata(rhv_path) if rhv_path is not None else None
 
-    if interval_limits is not None and isinstance(interval_limits, str):
-        interval_limits = parse_comma_separated_list_of_float(interval_limits)
-
-    if gatefilter is False:
-        gatefilter_arg = False
-    elif gatefilter is not None:
+    # 与 Py-ART 三态对齐（路径优先，便于默认 gatefilter=False 时仍可传掩码）：
+    # - 掩码路径：显式 GridGateFilter
+    # - False：关闭自动过滤
+    # - None：moment 自动过滤（缺 refl/ncp/rhv 也不报错）
+    if gatefilter_path is not None:
         gatefilter_arg = GridGateFilter.from_mask(
             velocity,
-            np.asarray(gatefilter, dtype=bool),
+            np.asarray(_read_npy_array(gatefilter_path), dtype=bool),
         )
-    elif any(grid is not None for grid in (refl, ncp, rhv)):
-        gatefilter_arg = None
-    else:
-        warn(
-            "No gatefilter or moment fields were provided. "
-            "An empty gatefilter will be used.",
-            UserWarning,
-            stacklevel=2,
-        )
+    elif gatefilter is False:
         gatefilter_arg = False
+    else:
+        gatefilter_arg = None
 
     plugin = RegionDealiasPlugin(
         interval_splits=interval_splits,
@@ -120,8 +165,6 @@ def process(
         ncp=ncp,
         rhv=rhv,
     )
-    if not isinstance(result, xr.DataArray):
-        raise TypeError("RegionDealiasPlugin.process() must return xarray.DataArray")
 
     if (
         not np.issubdtype(result.values.dtype, np.floating)
@@ -138,29 +181,28 @@ def process(
 if __name__ == "__main__":
     import sys
 
-    repo_root = Path(__file__).resolve().parents[3]
+    repo_root = Path(__file__).resolve().parents[2]
     if str(repo_root) not in sys.path:
         sys.path.insert(0, str(repo_root))
 
-    from pyart.correct.cli.region_dealias import process as run_process
+    from radar_wind_dealiasing.cli.region_dealias import process
 
-    data_dir = Path(__file__).resolve().parents[1] / "test_data" / "region_dealias" / "input"
-    velocity_path = str(data_dir / "velocity_sweep0.nc")
-    refl_path = str(data_dir / "reflectivity_sweep0.nc")
-    ncp_path = str(data_dir / "ncp_sweep0.nc")
-    rhv_path = str(data_dir / "rhv_sweep0.nc")
-    output_path = str(
-        Path(__file__).resolve().parents[1]
-        / "test_data"
-        / "region_dealias"
-        / "cli_output"
-        / "region_dealias_cli_run.nc"
-    )
+    # 测试数据路径：仅使用单层仰角样例（中间目录默认不同步 test_data）
+    base_dir = Path(__file__).resolve().parents[1] / "test_data" / "region_dealias"
+    data_dir = base_dir / "cli_input"
+    velocity_path = data_dir / "velocity_sweep0.nc"
+    gatefilter_path = data_dir / "grid_gatefilter_mask_sweep0.npy"
+    output_path = base_dir / "cli_output" / "region_dealias_cli.nc"
 
-    run_process(
-        velocity_path,
-        refl_path=refl_path,
-        ncp_path=ncp_path,
-        rhv_path=rhv_path,
-        output_path=output_path,
-    )
+    if not velocity_path.is_file():
+        print(
+            f"示例输入不存在：{velocity_path}\n"
+            "请补充 test_data 后重试，或在此处配置自己的输入与输出路径。"
+        )
+    else:
+        process(
+            str(velocity_path),
+            gatefilter_path=str(gatefilter_path) if gatefilter_path.is_file() else None,
+            data_name="corrected_velocity_cli",
+            output_path=str(output_path),
+        )

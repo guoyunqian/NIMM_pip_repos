@@ -10,11 +10,10 @@ from pathlib import Path
 import numpy as np
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-SRC_PATH = PROJECT_ROOT / "src"
-if str(SRC_PATH) not in sys.path:
-    sys.path.insert(0, str(SRC_PATH))
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-from pyart.correct.utils.utils import (
+from radar_wind_dealiasing.src.utils._geo_remap import (
     mask_outside_radar_coverage,
     polar_to_lonlat,
     remap_gate_data_to_latlon_grid,
