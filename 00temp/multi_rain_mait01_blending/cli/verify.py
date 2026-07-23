@@ -13,11 +13,10 @@ from pathlib import Path
 
 
 def _bootstrap_paths():
-    """将 ``src``、仓库 ``utils`` 插件目录与项目根加入 ``sys.path``（``src`` 优先）。"""
+    """项目根优先（加载本地 ``utils/__init__`` 合并 ``00temp/utils``），再 ``src``。"""
     _root = Path(__file__).resolve().parent.parent
     _src = _root / "src"
-    _root_utils = _root / "utils"
-    ordered = (str(_src), str(_root_utils), str(_root))
+    ordered = (str(_root), str(_src))
     for p in ordered:
         while p in sys.path:
             sys.path.remove(p)
@@ -256,7 +255,7 @@ def _load_sta_all(h5_file, key="sta_all", rename=None):
 
 def process_prepare(*, para_file, recover=True):
     """从配置脚本读取 ``para`` 并调用 ``prepare_dataset`` 生成检验数据集。"""
-    from data_prepare_plugin import prepare_dataset
+    from utils.data_prepare_plugin import prepare_dataset
 
     spec = importlib.util.spec_from_file_location("verify_para", para_file)
     mod = importlib.util.module_from_spec(spec)

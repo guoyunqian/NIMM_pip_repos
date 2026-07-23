@@ -1,24 +1,35 @@
 # -*- coding: utf-8 -*-
 """FFTMergePlugin 核心算法单元测试。"""
-import os
 import sys
+from pathlib import Path
 
 import numpy as np
 import pytest
 
-_REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _REPO not in sys.path:
-    sys.path.insert(0, _REPO)
+_REPO = Path(__file__).resolve().parents[1]
+_SRC = _REPO / "src"
+_TEST_DATA = (
+    _REPO.parents[1].parent
+    / "NIMM_pip_testdata"
+    / "multi_wind_fft_blending"
+    / "test_data"
+)
 
-from src import fft_merge
-from meteva import base as meb
+for _p in (str(_REPO), str(_SRC)):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
-_RES = os.path.join(_REPO, "resource")
+from src import fft_merge  # noqa: E402
+from meteva import base as meb  # noqa: E402
 
 
 def _load_sample_uv(sample: str = "a"):
-    uv1 = meb.read_gridwind_from_micaps11(os.path.join(_RES, f"sample_{sample}1_uv.m11"))
-    uv2 = meb.read_gridwind_from_micaps11(os.path.join(_RES, f"sample_{sample}2_uv.m11"))
+    uv1_path = _TEST_DATA / f"sample_{sample}1_uv.m11"
+    uv2_path = _TEST_DATA / f"sample_{sample}2_uv.m11"
+    if not (uv1_path.is_file() and uv2_path.is_file()):
+        pytest.skip(f"缺少示例数据: {uv1_path} / {uv2_path}")
+    uv1 = meb.read_gridwind_from_micaps11(str(uv1_path))
+    uv2 = meb.read_gridwind_from_micaps11(str(uv2_path))
     return uv1, uv2
 
 

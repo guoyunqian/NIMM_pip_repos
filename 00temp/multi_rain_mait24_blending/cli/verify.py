@@ -12,13 +12,16 @@ from pathlib import Path
 
 
 def _bootstrap_paths():
-    """将 ``src`` 与项目根加入 ``sys.path``。"""
+    """项目根优先（加载本地 ``utils/__init__`` 合并 ``00temp/utils``），再 ``src``。"""
     _cli = Path(__file__).resolve().parent
     _root = _cli.parent
     _src = _root / "src"
-    for p in (str(_src), str(_root)):
-        if p not in sys.path:
-            sys.path.insert(0, p)
+    ordered = (str(_root), str(_src))
+    for p in ordered:
+        while p in sys.path:
+            sys.path.remove(p)
+    for p in reversed(ordered):
+        sys.path.insert(0, p)
 
 
 _bootstrap_paths()

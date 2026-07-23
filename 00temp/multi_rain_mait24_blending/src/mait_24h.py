@@ -4,7 +4,7 @@
 
 流程概要
 --------
-1. ``process`` — 合并 CLI/ini 默认参数，单进程或多进程派发 ``time_inputs``。
+1. ``process`` — 合并参数与 ini 默认值，单进程或多进程派发 ``time_inputs``。
 2. ``RunProcess._setup_context`` — 读 ``mait_24.ini`` 路径、``para_24.ini``、站点表、背景 ini，
    初始化日志，调用 ``build_run_context`` 得到 ``ctx``。
 3. ``RunProcess._process_single`` — 读掩码后按 ``predict_valid_list`` 循环：
@@ -13,22 +13,26 @@
 
 多进程时每个 ``time_input`` 独立日志文件（子进程文件名含 pid），避免并发写冲突。
 
-命令行
-------
-- 独立运行：``python src/mait_24h.py --time-inputs=...``
-- 模块入口：``python -m cli --time-inputs=...``（项目根目录）
+调用方式
+--------
+- 模块调用：``from mait_24h import process`` → ``process(time_inputs=[...], ...)``
+- 直接运行：``python src/mait_24h.py``（在 ``__main__`` 中改传参）
+- 命令行：``python -m cli --time-inputs=...``（项目根目录）
 """
 import sys
 from pathlib import Path
 
 
 def _bootstrap_paths():
-    """将 ``src`` 与项目根加入 ``sys.path``，保证 ``utils`` 与同目录模块可导入。"""
+    """项目根优先（加载本地 ``utils/__init__`` 合并 ``00temp/utils``），再 ``src``。"""
     _src = Path(__file__).resolve().parent
     _root = _src.parent
-    for p in (str(_src), str(_root)):
-        if p not in sys.path:
-            sys.path.insert(0, p)
+    ordered = (str(_root), str(_src))
+    for p in ordered:
+        while p in sys.path:
+            sys.path.remove(p)
+    for p in reversed(ordered):
+        sys.path.insert(0, p)
 
 
 _bootstrap_paths()
@@ -257,118 +261,17 @@ def process(*,
         process_multi(params, pro_count, para_path, beta_path, is_obs_bjt, clip_coords, split_lat, split_lon, predict_valid_list)
 
 
-# ---------------------------------------------------------------------------
-# 命令行（Clize）
-# ---------------------------------------------------------------------------
-
-def _cli_converters():
-    from clize.parser import value_converter
-
-    @value_converter
-    def comma_str_list(s):
-        if s is None or not str(s).strip():
-            return None
-        return [x.strip() for x in str(s).split(",") if x.strip()]
-
-    @value_converter
-    def comma_int_list(s):
-        if s is None or not str(s).strip():
-            return None
-        return [int(x.strip()) for x in str(s).split(",") if x.strip()]
-
-    @value_converter
-    def comma_float_list(s):
-        if s is None or not str(s).strip():
-            return None
-        return [float(x.strip()) for x in str(s).split(",") if x.strip()]
-
-    @value_converter
-    def optional_str(s):
-        if s is None or not str(s).strip():
-            return None
-        return str(s)
-
-    @value_converter
-    def optional_bool_cli(s):
-        if s is None:
-            return None
-        if isinstance(s, bool):
-            return s
-        t = str(s).strip().lower()
-        if t in ("", "none"):
-            return None
-        if t in ("1", "true", "yes", "y", "on"):
-            return True
-        if t in ("0", "false", "no", "n", "off"):
-            return False
-        raise ValueError("期望布尔：true/false/1/0 等")
-
-    @value_converter
-    def optional_int_cli(s):
-        if s is None:
-            return None
-        t = str(s).strip()
-        if not t:
-            return None
-        return int(t)
-
-    return comma_str_list, comma_int_list, comma_float_list, optional_str, optional_bool_cli, optional_int_cli
-
-
-def _make_cli_entry():
-    from clize.runner import Clize
-
-    (
-        comma_str_list, comma_int_list, comma_float_list,
-        optional_str, optional_bool_cli, optional_int_cli,
-    ) = _cli_converters()
-
-    def run_cli(
-        *,
-        time_inputs: comma_str_list,
-        predict_valid_list: comma_int_list = None,
-        para_path: optional_str = None,
-        beta_path: optional_str = None,
-        is_obs_bjt: optional_bool_cli = None,
-        is_multi: optional_bool_cli = None,
-        clip_coords: comma_float_list = None,
-        pro_count: optional_int_cli = None,
-        split_lat: optional_int_cli = None,
-        split_lon: optional_int_cli = None,
-    ):
-        """
-        24 小时气象预报集成处理（Clize 命令行）
-
-        :param time_inputs: 起报时间列表，逗号分隔，如 202401010800,202401011200
-        :param predict_valid_list: 预报时效（小时）；省略则从 ``resource/mait_24.ini`` 读取
-        :param para_path: para_24.ini；省略则用 ini 中的 ``para_ini``
-        :param beta_path: beta 模板；省略则用 ini 中的 ``bate_file`` 等
-        :param is_obs_bjt: ``--is-obs-bjt=true|false``；省略则用 ini 的 ``is_obs_bj``
-        :param is_multi: ``--is-multi=true|false``；省略则用 ini 的 ``is_multi``
-        :param clip_coords: 六浮点逗号分隔；省略则用 ini 的 ``clip_coords``
-        :param pro_count / split_lat / split_lon: 省略则读 ``mait_24.ini`` 中对应项
-        """
-        process(
-            time_inputs=time_inputs,
-            predict_valid_list=predict_valid_list,
-            para_path=para_path,
-            beta_path=beta_path,
-            is_obs_bjt=is_obs_bjt,
-            is_multi=is_multi,
-            clip_coords=clip_coords,
-            pro_count=pro_count,
-            split_lat=split_lat,
-            split_lon=split_lon,
-        )
-
-    return Clize(run_cli)
-
-
-def main():
-    """Clize 命令行入口。"""
-    from clize.runner import run
-    run(_make_cli_entry())
-
-
 if __name__ == "__main__":
-    main()
+    # 直接运行：在此修改 process 传参即可；命令行请用 python -m cli ...
+    process(
+        time_inputs=["202605240800"],
+        predict_valid_list=[36, 60, 84, 108, 132, 156, 180, 204, 228, 252],
+        para_path=None,
+        beta_path=None,
+        is_obs_bjt=True,
+        is_multi=False,
+        clip_coords=[70.0, 140.0, 0.0, 60.0, 0.1, 0.1],
+        pro_count=4,
+        split_lat=1,
+        split_lon=1,
+    )

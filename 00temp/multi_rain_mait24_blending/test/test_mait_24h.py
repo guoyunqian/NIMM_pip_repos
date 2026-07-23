@@ -5,9 +5,12 @@ import sys
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _SRC = os.path.join(_ROOT, "src")
-for _p in (_SRC, _ROOT):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+_ordered = (_ROOT, _SRC)
+for _p in _ordered:
+    while _p in sys.path:
+        sys.path.remove(_p)
+for _p in reversed(_ordered):
+    sys.path.insert(0, _p)
 
 import pandas as pd
 

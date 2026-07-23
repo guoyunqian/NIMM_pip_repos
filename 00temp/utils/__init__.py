@@ -1,14 +1,9 @@
 # -*- coding: utf-8 -*-
-"""MAIT 24h 工具与共享模块包。
+"""NIMM 共享插件工具包。
 
-根目录 ``utils/`` 与 ``src/utils/`` 合并为同一 ``utils`` 包（``extend_path``）；
-``src/utils/`` 下仅放模块文件，不要添加 ``__init__.py``。
+提供 ``base_plugin``、``multipro_plugin``、``data_prepare_plugin``、
+``data_distribute_pulgin`` 等跨算法通用模块。
+
+各算法项目通过本地 ``utils/__init__.py`` 将本目录并入 ``utils`` 包后，
+统一使用 ``from utils.xxx import ...``。
 """
-import os
-from pkgutil import extend_path
-
-__path__ = extend_path(__path__, __name__)
-
-_src_utils = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "src", "utils"))
-if _src_utils not in __path__:
-    __path__.append(_src_utils)

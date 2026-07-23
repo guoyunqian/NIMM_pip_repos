@@ -21,12 +21,19 @@
 | 类型 | 文件 | 说明 |
 | --- | --- | --- |
 | 核心源码 | `src/fft_merge.py` | `FFTMergePlugin` 核心算法 |
-| CLI | `cli/fft_merge_cli.py` | 示例命令行脚本，原始文件名 `ftt_merge_cli.py` 已修正 |
-| CLI入口 | `cli/__main__.py` | `python -m cli` 入口 |
+| 执行入口 | `src/main.py` | `process(..., is_multi=..., pro_count=...)`；命令行可直接运行 |
+| CLI入口 | `cli/__main__.py` | `python -m cli` → `src/main.py` |
+| 共享多进程 | `../../utils/multipro_plugin.py` | `SimpleParallelTool` |
 | 文档 | `docs/FFT_MERGE_程序说明.md` | 原始程序说明 |
 | 测试 | `test/test_fft_merge.py` | 核心算法测试 |
-| 测试 | `test/test_fft_merge_cli.py` | CLI 示例流程测试，原始测试文件名已修正 |
-| 资源 | `resource/sample_*` | Micaps11 和 NetCDF 样例数据及参考输出 |
+| 测试 | `test/test_main.py` | 调用 `src/main.process` 的集成测试 |
+| 样例数据 | `NIMM_pip_testdata/multi_wind_fft_blending/test_data/` | 与 `NIMM_pip_repos` 同级；Micaps11 样例输入 |
+| 整理清单 | `NIMM_list.md` | 算法目录与待办 |
+| 整理日志 | `00log/fft_merge_整理_20260722.log` | 一次整理对应一份日志 |
+| 中间数据 | `00temp/fft_merge/` | 整理过程临时数据 |
+
+> **已废弃**：`cli/fft_merge_cli.py`。命令行用 `python -m cli`；直跑用 `python src/main.py`（在 `__main__` 中改 `process` 传参）。  
+> **数据位置**：不再从算法包内 `resource/` 读取样例，统一从同级 `NIMM_pip_testdata/.../test_data` 读取。
 
 ## 输入输出
 
@@ -49,13 +56,16 @@
 已完成：
 
 - 将原始根目录源码 `fft_merge.py` 整理到 `src/`。
-- 将原始 CLI `ftt_merge_cli.py` 改名为 `cli/fft_merge_cli.py`，并修正入口与测试引用。
-- 复制原始文档、notebook、测试和样例资源。
-- 未复制 `__pycache__` 编译产物。
+- `src/main.py`：可调度 `process`；`__main__` 直接传参运行。
+- `cli/__main__.py`：命令行 argparse → `main.process`。
+- `process` / CLI 支持 `is_multi`、`pro_count`。
+- 废弃并删除 `cli/fft_merge_cli.py`。
+- 补齐算法包内 `00temp/`、`00log/`、`NIMM_list.md`（见 `00log/fft_merge_整理_20260723.log`）。
 
 待处理：
 
-- 正式补充到仓库时需要统一导入路径和 CLI 调度命名。
-- CLI 示例会写入或覆盖 `resource/sample_*_fft_*` 与 `sample_*_line_*` 输出文件，正式测试前应区分输入样例和生成结果。
-- 当前核心类 `FFTMergePlugin` 已提供 `process` 方法，但未继承仓库已有 `NIMM.utilities.base_plugin.BasePlugin`，后续可按仓库规范评估是否补充。
+- 向 `NIMM_pip_testdata/multi_wind_fft_blending/test_data/` 补齐样例后跑通完整测试。
+- 同步 nbs 中旧 `resource/` / CLI 文件名遗漏。
+- 正式补充到 `NIMM/05blending/` 时统一包路径。
+- 评估是否继承仓库 `BasePlugin`。
 

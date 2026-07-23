@@ -6,9 +6,12 @@ from types import ModuleType
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _SRC = os.path.join(_ROOT, "src")
-for _p in (_SRC, _ROOT):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+_ordered = (_ROOT, _SRC)
+for _p in _ordered:
+    while _p in sys.path:
+        sys.path.remove(_p)
+for _p in reversed(_ordered):
+    sys.path.insert(0, _p)
 
 # 单元测试不跑完整 Micaps 栈；缺 meteva 时提供空模块以便 import 链通过
 if "meteva" not in sys.modules:

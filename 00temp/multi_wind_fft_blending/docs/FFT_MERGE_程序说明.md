@@ -64,8 +64,11 @@
 ### 3.1 调用链
 
 ```
-python -m cli / python cli/fft_merge_cli.py
-    → fft_merge_cli.process()
+python -m cli
+    → cli 解析参数 → main.process(..., is_multi=..., pro_count=...)
+python src/main.py
+    → __main__ 中直接给 process 传参
+    → main._run_one()（单任务；多任务时串行或 SimpleParallelTool）
     → fft_merge.FFTMergePlugin.__call__()
     → FFTMergePlugin.process()
     → _move_arr_with_several()
@@ -122,17 +125,14 @@ flowchart TD
 
 | 路径 | 作用 |
 |------|------|
-| `fft_merge.py` | 核心算法，`FFTMergePlugin` 类 |
-| `cli/fft_merge_cli.py` | 示例 CLI，读取 resource 样例并输出融合/线性对比结果 |
-| `cli/__main__.py` | `python -m cli` 入口，转发至 `cli/fft_merge_cli.py` |
-| `resource/sample_*_uv.m11` | Micaps11 格式示例 UV 风场 |
-| `resource/sample_*_fft_uv.m11` | FFT 融合结果参考输出 |
-| `resource/sample_*_line_uv.m11` | 线性平均结果参考输出 |
+| `src/fft_merge.py` | 核心算法，`FFTMergePlugin` 类 |
+| `src/main.py` | 可调度 `process` + 命令行入口 |
+| `cli/__main__.py` | `python -m cli` 入口，转发至 `src/main.py` |
+| `NIMM_pip_testdata/multi_wind_fft_blending/test_data/sample_*_uv.m11` | 与仓库同级的 Micaps11 示例 UV 风场 |
 | `docs/FFT_MERGE_程序说明.md` | 程序说明文档 |
 | `nbs/fft_merge_说明.ipynb` | 算法说明 Notebook |
 | `test/test_fft_merge.py` | 核心算法单元测试 |
-| `test/test_fft_merge_cli.py` | CLI 示例流程测试 |
-| `requirements.txt` | Python 依赖 |
+| `test/test_main.py` | `src/main.process` 集成测试 |
 
 ---
 
@@ -181,35 +181,63 @@ merged_ensemble = plugin(main_da, [ass1_da, ass2_da], feature_border=128, max_it
 pip install -r requirements.txt
 ```
 
-依赖：`numpy`、`scipy`、`meteva`、`click`、`xarray`。
+依赖：`numpy`、`scipy`、`meteva`、`xarray`。
 
 ### 6.2 命令行示例
 
+样例数据位于与 `NIMM_pip_repos` **同级**目录：
+
+`NIMM_pip_testdata/multi_wind_fft_blending/test_data/`
+
 ```bash
-# 查看帮助
+# 查看帮助（epilog 中会打印本机 test_data 绝对路径与多进程示例）
 python -m cli --help
-python cli/fft_merge_cli.py --help
 
-# 运行示例 a
-python -m cli --sample a
+# 直接运行 main.py：在 src/main.py 的 __main__ 中改 process 传参
+# python src/main.py
 
-# 运行示例 b（默认）
-python -m cli
-python cli/fft_merge_cli.py --sample b
+# 单任务（请将 TEST_DATA 换为本机绝对路径）
+python -m cli \
+  --main-uv %TEST_DATA%/sample_a1_uv.m11 \
+  --ass-uv %TEST_DATA%/sample_a2_uv.m11 \
+  --output-dir %TEST_DATA% \
+  --output-prefix sample_a
+
+# 多任务 + 多进程（路径列表 + --is-multi）
+python -m cli \
+  --main-uv %TEST_DATA%/sample_a1_uv.m11 %TEST_DATA%/sample_b1_uv.m11 \
+  --ass-uv %TEST_DATA%/sample_a2_uv.m11 %TEST_DATA%/sample_b2_uv.m11 \
+  --output-prefix sample_a sample_b \
+  --output-dir %TEST_DATA% \
+  --is-multi --pro-count 2
+```
+
+模块调度（``is_multi`` 控制是否多进程）::
+
+```python
+from main import process
+process(
+    main_uv_path=[".../a1.m11", ".../b1.m11"],
+    ass_uv_path=[".../a2.m11", ".../b2.m11"],
+    output_dir=".../test_data",
+    output_prefix=["a", "b"],
+    is_multi=True,
+    pro_count=2,
+)
 ```
 
 ### 6.3 示例输出
 
-示例程序在 `resource/` 目录生成以下文件：
+将 `--output-dir` 指向 `test_data`（或其它目录）时，可生成：
 
 | 文件 | 内容 |
 |------|------|
-| `sample_{a\|b}_fft_uv.nc` | FFT 融合 UV 风 NetCDF |
-| `sample_{a\|b}_fft_uv.m11` | FFT 融合 UV 风 Micaps11 |
-| `sample_{a\|b}_line_uv.nc` | 线性平均 UV 风 NetCDF（对比用） |
-| `sample_{a\|b}_line_uv.m11` | 线性平均 UV 风 Micaps11（对比用） |
+| `{prefix}_fft_uv.nc` | FFT 融合 UV 风 NetCDF |
+| `{prefix}_fft_uv.m11` | FFT 融合 UV 风 Micaps11 |
+| `{prefix}_line_uv.nc` | 线性平均 UV 风 NetCDF（对比用） |
+| `{prefix}_line_uv.m11` | 线性平均 UV 风 Micaps11（对比用） |
 
-输入数据：`sample_{a\|b}1_uv.m11`（主数据）、`sample_{a\|b}2_uv.m11`（辅助数据）。
+输入数据：`test_data/sample_{a|b}1_uv.m11`（主数据）、`test_data/sample_{a|b}2_uv.m11`（辅助数据）。
 
 ### 6.4 运行测试
 
@@ -221,5 +249,5 @@ python -m pytest test/ -v
 
 ```bash
 python test/test_fft_merge.py
-python test/test_fft_merge_cli.py
+python test/test_main.py
 ```

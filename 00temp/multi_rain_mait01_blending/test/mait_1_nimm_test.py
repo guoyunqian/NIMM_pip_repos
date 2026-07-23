@@ -4,8 +4,7 @@ import sys
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _SRC = os.path.join(_ROOT, "src")
-_ROOT_UTILS = os.path.join(_ROOT, "utils")
-_ordered = (_SRC, _ROOT_UTILS, _ROOT)
+_ordered = (_ROOT, _SRC)
 for _p in _ordered:
     while _p in sys.path:
         sys.path.remove(_p)

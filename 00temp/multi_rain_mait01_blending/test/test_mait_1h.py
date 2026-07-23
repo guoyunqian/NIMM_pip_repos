@@ -5,8 +5,7 @@ import sys
 
 _REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _SRC = os.path.join(_REPO, "src")
-_ROOT_UTILS = os.path.join(_REPO, "utils")
-_ordered = (_SRC, _ROOT_UTILS, _REPO)
+_ordered = (_REPO, _SRC)
 for _p in _ordered:
     while _p in sys.path:
         sys.path.remove(_p)
