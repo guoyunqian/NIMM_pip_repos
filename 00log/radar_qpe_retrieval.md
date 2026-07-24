@@ -1,51 +1,56 @@
-# 雷达降水定量反演QPE整理日志
+# radar_qpe_retrieval 整理日志
 
-## 原始算法信息
+## 基本信息
 
-- 算法名称：`radar_qpe_retrieval`
-- 中文名称：雷达降水定量反演QPE
-- 原始工程位置：`pyart/retrieve`
-- 原始路径：`D:\temp\202301_zhinengwangge\20230206_unitycode\NIMM_pip_repos\TEMP\260625\算法_王\pyart\retrieve`
-- 算法类型：`01obs_adustment`
-- 贡献人：郭云谦、王亭波
-- 整理日期：2026-06-29
+| 字段 | 内容 |
+| --- | --- |
+| 算法名称 | `radar_qpe_retrieval` |
+| 中文名称 | 雷达降水定量反演QPE |
+| 原始路径 | `D:\workspace\pyart_nimm\qpe`（原包名 `qpe`） |
+| 路径说明 | 原目录曾含回波分类，已拆分为独立模块 `radar_echo_classification` |
+| 整理日期 | 2026-06-29（初整）；2026-07-13（NIMM 标准化）；2026-07-17（文档路径再同步） |
+| 算法贡献人 | 郭云谦、王亭波 |
+| 算法分类 | `01obs_adustment` |
+| 当前状态 | 已整理至中间目录；导入已统一为模块名；待正式入库 |
 
 ## 算法理解
 
-原始算法从 Py-ART 的 QPE 逻辑迁移而来，用于基于雷达反射率、KDP、比衰减和水凝物分类等网格数据估算降水率。核心模块 `src/qpe.py` 已提供统一插件类 `QPEPlugin.process()` 和多个独立插件类，支持 `z`、`zpoly`、`kdp`、`a`、`zkdp`、`za`、`hydro`、`ztor` 等方法。
+该算法基于雷达反射率、KDP、比衰减和水凝物分类等网格数据，使用 Z-R、KDP-R、A-R、融合和水凝物分类等方法估算降水率。面向 `meteva_base.grid_data` 风格输入输出。
 
-原始目录还包含回波分类 `echo_class` 相关代码、文档、notebook、测试和样例数据。本次按“雷达降水定量反演QPE”归档，回波分类相关内容作为 QPE 的依赖和相关功能上下文一并保留。
+核心能力包括：
 
-## 本次整理操作
+- `QPEPlugin` 与多类 `EstimateRainRate*` / `est_rain_rate_*` 入口。
+- CLI `cli/qpe.py` 统一调度；`cinrad_*` 辅助读数与预处理。
 
-- 在 `00temp/radar_qpe_retrieval/` 下创建统一中间目录。
-- 将原始 `src/`、`cli/`、`resource/`、`test/`、`test_data/`、`nbs/`、`docs/`、`utils/` 复制到中间目录。
-- 复制根目录 `__init__.py`，保留原始 `retrieve` 包入口。
-- 过滤 `__pycache__`、`.pyc` 和 `.ipynb_checkpoints` 生成缓存，未删除或修改原始目录文件。
-- 新增 `docs/雷达降水定量反演QPE.md`，补充算法功能、主要方法、目录结构、插件入口、CLI 示例和当前限制。
-- 更新 `NIMM_list.md`，追加该算法整理记录。
+## 目录对应关系
 
-## 验证记录
+| 中间目录 | 内容说明 |
+| --- | --- |
+| `00temp/radar_qpe_retrieval/src/qpe.py` | QPE 核心算法与插件 |
+| `00temp/radar_qpe_retrieval/src/utils/` | 频率关系等辅助 |
+| `00temp/radar_qpe_retrieval/cli/` | QPE CLI 与 CINRAD 辅助 |
+| `00temp/radar_qpe_retrieval/utils/` | 网格校验与本地插件基类 |
+| `00temp/radar_qpe_retrieval/test/`、`docs/`、`nbs/` | 测试、文档与 notebook |
+| `00temp/radar_qpe_retrieval/00temp/`、`00log/` | 中间数据与包内整理日志 |
+| `00temp/radar_qpe_retrieval/NIMM_list.md` | 算法包内整理清单 |
 
-- 使用 Codex 捆绑 Python 对中间目录全部 Python 文件执行 `compileall` 语法编译，结果通过。
-- 尝试导入 `src.qpe`，当前环境未安装 `xarray`，报 `ModuleNotFoundError: No module named 'xarray'`；同时检查到当前环境也缺少 `meteva_base`。
-- 本次验证生成的 `__pycache__` 已清理。
+## 2026-07-17 更新
 
-## 中间目录结构
+- 自原目录再同步 `docs/qpe.md`，并统一中间目录模块路径表述。
 
-- 源码位置：`00temp/radar_qpe_retrieval/src/`
-- CLI位置：`00temp/radar_qpe_retrieval/cli/`
-- 资源位置：`00temp/radar_qpe_retrieval/resource/`
-- 测试数据位置：`00temp/radar_qpe_retrieval/test_data/`
-- 测试位置：`00temp/radar_qpe_retrieval/test/`
-- Notebook位置：`00temp/radar_qpe_retrieval/nbs/`
-- 文档位置：`00temp/radar_qpe_retrieval/docs/`
-- 工具位置：`00temp/radar_qpe_retrieval/utils/`
+## 2026-07-13 更新
 
-## 仍存在问题
+- NIMM 标准化：自 `pyart_nimm/qpe` 同步；导入统一为 `radar_qpe_retrieval`；移除已拆出的 echo_class。
+- 未同步 `test_data/`；原目录测试通过；中间目录 pytest 32 passed, 6 skipped（缺样例 CLI）。
+- 详细过程见：`00temp/radar_qpe_retrieval/00log/qpe_整理_20260713.log`。
 
-- 源码依赖原始上层 `pyart` 包上下文，特别是 `pyart.plugin_base` 和 `pyart.retrieve.utils` 等相对导入；正式入库时需调整包结构或导入路径。
-- 原始目录同时包含 `echo_class` 回波分类功能，后续可确认是否拆分为独立算法。
-- `resource/` 原始为空，当前仅按规范保留目录。
-- `test_data/` 体量较大，正式入库时可筛选最小测试样例。
-- 尚未运行完整测试。
+## 2026-06-29 更新
+
+- 初整至中间目录；当时仍混有回波分类等内容。
+
+## 仍存在问题（需人工补充）
+
+1. 补充至正式 `NIMM/01obs_adustment/` 时需调整为仓库正式包路径。
+2. `PostProcessingPlugin` / 基类正式入库时评估是否改为仓库统一基类。
+3. 测试样例在 `NIMM_pip_testdata/radar_qpe_retrieval/`（体量较大，含 CLI 输出），中间目录未同步；正式入库前筛选必要样例。
+4. `resource/` 当前为空，正式补充时确认是否保留。
