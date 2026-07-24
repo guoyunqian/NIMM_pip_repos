@@ -1,6 +1,6 @@
 | 算法名称 | 算法种类 | 算法功能 | 更新时间 | 贡献人 | 仍存在问题 |
 | --- | --- | --- | --- | --- | --- |
-| `orographic_temperature_downscaling` / 气温降尺度(地形) | `00space_downscale` | 基于层结递减率和地形高度差进行气温空间降尺度与地形订正 | 2026-06-29 | 郭云谦、王亭波 | 导入路径仍为原始 `temperature` 包名；原目录含体感温度算法，建议后续拆分或确认归档；尚未运行完整测试 |
+| `orographic_temperature_downscaling` / 气温降尺度(地形) | `00space_downscale` | 基于层结递减率和地形高度差进行气温空间降尺度与地形订正 | 2026-07-06 | 郭云谦、王亭波 | 中间目录导入已统一为 `orographic_temperature_downscaling`（体感温度已拆出）；原目录 pytest 已通过；正式入库需改 `NIMM` 包路径并评估统一 `BasePlugin`；样例在 `NIMM_pip_testdata`；`resource/` 为空 |
 | `orographic_wind_downscaling` / 风降尺度(地形) | `00space_downscale` | 基于地形粗糙度、地形高度标准差和地形高度差进行风速空间降尺度与订正 | 2026-07-06 | 郭云谦、王亭波 | 中间目录导入已统一为 `orographic_wind_downscaling`；原目录 pytest 已通过；正式入库需改 `NIMM` 包路径并评估统一 `BasePlugin`；`resource/` 为空 |
 | `neighbourhood_probability_processing` / 邻域(nbhood)处理及概率生成 | `07probability` | 进行邻域概率处理、邻域百分位生成、陆海/地形带分区和分层掩码概率处理 | 2026-06-29 | 郭云谦、王亭波 | 导入路径仍为原始 `nbhood` 包名；测试数据体量较大且含 CLI 输出结果；尚未运行完整测试 |
 | `orographic_precipitation_downscaling` / 降水降尺度(地形) | `00space_downscale` | 基于温湿压、风场和地形抬升效应计算降水地形增强项，并支持叠加或扣除到降水场 | 2026-06-29 | 郭云谦、王亭波 | 导入路径仍为原始 `orographic_enhancement` 包名；测试数据含结果或临时文件；尚未运行完整测试 |
