@@ -6,11 +6,11 @@
 | --- | --- |
 | 算法名称 | `orographic_precipitation_downscaling` |
 | 中文名称 | 降水降尺度(地形) |
-| 原始路径 | `D:\temp\202301_zhinengwangge\20230206_unitycode\NIMM_pip_repos\TEMP\260625\算法_王\improve\orographic_enhancement` |
-| 整理日期 | 2026-06-29 |
+| 原始路径 | `D:\workspace\improver\orographic_enhancement`（原包名 `orographic_enhancement`） |
+| 整理日期 | 2026-06-29（初整）；2026-07-06（NIMM 标准化目录结构整理） |
 | 算法贡献人 | 郭云谦、王亭波 |
 | 算法分类 | `00space_downscale` |
-| 当前状态 | 已整理至中间目录，待补充至算法仓库 |
+| 当前状态 | 已整理至中间目录；导入已统一为模块名；待正式入库 |
 
 ## 算法理解
 
@@ -24,50 +24,37 @@
   - `OrographicEnhancement`：计算迎风抬升项、地形增强格点贡献和上游贡献，输出地形增强结果。
 - `src/apply_orographic_enhancement.py`
   - `ApplyOrographicEnhancement`：将地形增强项以 `add` 或 `subtract` 模式应用到降水场，并处理时间匹配和最小降水率保护。
+- `src/utils/`
+  - 网格处理、数值计算、饱和水汽压等内部辅助函数。
 
 CLI 入口 `cli/dsc_orographic_enhancement.py` 读取温度、相对湿度、气压、风速、风向和地形 `nc` 文件，调用 `MetaOrographicEnhancement` 输出地形增强项。
-
-## 本次整理操作
-
-已将原始目录内容复制到中间目录：
-
-`00temp/orographic_precipitation_downscaling/`
-
-复制内容包括：
-
-- `src/`：核心算法源码。
-- `cli/`：示例调度脚本。
-- `docs/`：原始算法说明文档，并新增 `orographic_precipitation_downscaling.md`。
-- `nbs/`：notebook 示例。
-- `test/`：pytest 测试脚本。
-- `test_data/`：样例 `nc` 测试数据。
-- `utils/`：原始工具函数。
-- `resource/`：原始资源目录。
-
-未执行操作：
-
-- 未删除或移动任何原始文件。
-- 未补充到正式 `NIMM/00space_downscale/` 目录。
-- 未修改原始算法逻辑。
 
 ## 目录对应关系
 
 | 中间目录 | 内容说明 |
 | --- | --- |
-| `00temp/orographic_precipitation_downscaling/src/` | 核心算法源码 |
-| `00temp/orographic_precipitation_downscaling/cli/` | CLI 调度与示例脚本 |
-| `00temp/orographic_precipitation_downscaling/resource/` | 资源目录 |
-| `00temp/orographic_precipitation_downscaling/test/` | 单元测试 |
-| `00temp/orographic_precipitation_downscaling/test_data/` | 测试数据 |
-| `00temp/orographic_precipitation_downscaling/nbs/` | notebook 示例 |
-| `00temp/orographic_precipitation_downscaling/docs/` | 文档 |
-| `00temp/orographic_precipitation_downscaling/utils/` | 算法内部工具函数 |
+| `00temp/orographic_precipitation_downscaling/src/orographic_enhancement.py` | 核心增强算法 |
+| `00temp/orographic_precipitation_downscaling/src/apply_orographic_enhancement.py` | 增强项应用 |
+| `00temp/orographic_precipitation_downscaling/src/utils/` | 网格、数值与水汽辅助 |
+| `00temp/orographic_precipitation_downscaling/cli/` | CLI 调度 |
+| `00temp/orographic_precipitation_downscaling/utils/` | 网格校验工具与本地 `BasePlugin` |
+| `00temp/orographic_precipitation_downscaling/test/`、`docs/`、`nbs/` | 测试、文档与 notebook |
+| `00temp/orographic_precipitation_downscaling/00temp/`、`00log/` | 中间数据与包内整理日志 |
+| `00temp/orographic_precipitation_downscaling/NIMM_list.md` | 算法包内整理清单 |
 
-## 已发现问题与后续建议
+## 2026-07-06 更新
 
-1. 原始代码导入路径仍使用 `orographic_enhancement.src...` 和 `orographic_enhancement.utils...`。当前中间目录保持原样，后续补充至正式仓库时需要统一调整为 `NIMM` 下的实际包路径。
-2. 当前未运行完整 pytest 测试。正式补充前应确认环境依赖，包括 `numpy`、`xarray`、`cf_units`、`scipy`、`pyproj`、`meteva_base`、`pytest`、`netcdf4`。
-3. `src/orographic_enhancement.py` 中 `MetaOrographicEnhancement` 和 `OrographicEnhancement` 已提供类和 `process` 方法，`src/apply_orographic_enhancement.py` 中 `ApplyOrographicEnhancement` 也提供插件式接口；但均未继承仓库已有 `NIMM.utilities.base_plugin.BasePlugin`，后续可按仓库规范评估是否补充。
-4. 测试数据中包含 `cli_test_result.nc`、`_test_orog.nc` 等结果或临时文件，正式入库前建议筛选必要样例并清理临时输出。
-5. `resource/` 目录当前为空或无算法必要资源，正式补充时可确认是否保留空目录。
+- NIMM 标准化：自 improver 重新同步源码与文档；导入统一为 `orographic_precipitation_downscaling`。
+- 原代码目录 pytest 全部通过（2026-07-06）。
+- 详细过程见：`00temp/orographic_precipitation_downscaling/00log/orographic_enhancement_整理_20260706.log`。
 
+## 2026-06-29 更新
+
+- 初整至中间目录；当时导入仍为原始 `orographic_enhancement` 包名。
+
+## 仍存在问题（需人工补充）
+
+1. 补充至正式 `NIMM/00space_downscale/` 时需调整为仓库正式包路径。
+2. `BasePlugin` 正式入库时评估是否改为仓库统一基类。
+3. 测试样例在 `NIMM_pip_testdata/orographic_precipitation_downscaling/`（含 CLI 输出对照），中间目录未同步；正式入库前筛选必要样例。
+4. `resource/` 当前为空，正式补充时确认是否保留。
