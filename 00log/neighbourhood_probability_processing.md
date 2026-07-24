@@ -6,11 +6,11 @@
 | --- | --- |
 | 算法名称 | `neighbourhood_probability_processing` |
 | 中文名称 | 邻域(nbhood)处理及概率生成 |
-| 原始路径 | `D:\temp\202301_zhinengwangge\20230206_unitycode\NIMM_pip_repos\TEMP\260625\算法_王\improve\nbhood` |
-| 整理日期 | 2026-06-29 |
+| 原始路径 | `D:\workspace\improver\nbhood`（原包名 `nbhood`） |
+| 整理日期 | 2026-06-29（初整）；2026-07-09（NIMM 标准化目录结构整理） |
 | 算法贡献人 | 郭云谦、王亭波 |
 | 算法分类 | `07probability` |
-| 当前状态 | 已整理至中间目录，待补充至算法仓库 |
+| 当前状态 | 已整理至中间目录；导入已统一为模块名；待正式入库 |
 
 ## 算法理解
 
@@ -25,56 +25,42 @@
   - `circular_kernel`、`check_radius_against_distance` 等邻域工具函数。
 - `src/use_nbhood.py`
   - `ApplyNeighbourhoodProcessingWithAMask`：按掩码分层逐层执行邻域处理，并支持按权重折叠。
-- `src/meta_nbhood_utils.py`
-  - 提供 `radius_by_lead_time`、角度复数转换和 halo 裁剪等元处理工具。
+- `src/utils/`
+  - 提供 `radius_by_lead_time`、角度复数转换和 halo 裁剪等辅助工具（原 `meta_nbhood_utils` 已拆入此目录）。
 
 CLI 入口包括：
 
 - `cli/ens_nbhood.py`：普通邻域概率和邻域百分位。
 - `cli/ens_nbhood_iterate_with_mask.py`：按分层掩码迭代处理。
 - `cli/ens_nbhood_land_and_sea.py`：陆海/地形带分区邻域处理并合并输出。
-
-## 本次整理操作
-
-已将原始目录内容复制到中间目录：
-
-`00temp/neighbourhood_probability_processing/`
-
-复制内容包括：
-
-- `src/`：核心算法源码。
-- `cli/`：示例调度脚本。
-- `docs/`：原始算法说明文档，并新增 `neighbourhood_probability_processing.md`。
-- `nbs/`：notebook 示例。
-- `test/`：pytest 测试脚本。
-- `test_data/`：官方样例和对照 `nc` 测试数据。
-- `utils/`：原始工具函数。
-- `resource/`：原始资源目录。
-
-未执行操作：
-
-- 未删除或移动任何原始文件。
-- 未补充到正式 `NIMM/07probability/` 目录。
-- 未修改原始算法逻辑。
+- `cli/io.py`：掩码/权重 NetCDF 读取辅助。
 
 ## 目录对应关系
 
 | 中间目录 | 内容说明 |
 | --- | --- |
-| `00temp/neighbourhood_probability_processing/src/` | 核心算法源码 |
-| `00temp/neighbourhood_probability_processing/cli/` | CLI 调度与示例脚本 |
-| `00temp/neighbourhood_probability_processing/resource/` | 资源目录 |
-| `00temp/neighbourhood_probability_processing/test/` | 单元测试 |
-| `00temp/neighbourhood_probability_processing/test_data/` | 测试数据 |
-| `00temp/neighbourhood_probability_processing/nbs/` | notebook 示例 |
-| `00temp/neighbourhood_probability_processing/docs/` | 文档 |
-| `00temp/neighbourhood_probability_processing/utils/` | 算法内部工具函数 |
+| `00temp/neighbourhood_probability_processing/src/nbhood.py` | 邻域概率与百分位 |
+| `00temp/neighbourhood_probability_processing/src/use_nbhood.py` | 掩码邻域处理 |
+| `00temp/neighbourhood_probability_processing/src/utils/` | 网格、核与重网格辅助 |
+| `00temp/neighbourhood_probability_processing/cli/` | 三类 CLI 与 `io.py` |
+| `00temp/neighbourhood_probability_processing/utils/` | 网格校验工具与本地 `BasePlugin` |
+| `00temp/neighbourhood_probability_processing/test/`、`docs/`、`nbs/` | 测试、文档与 notebook |
+| `00temp/neighbourhood_probability_processing/00temp/`、`00log/` | 中间数据与包内整理日志 |
+| `00temp/neighbourhood_probability_processing/NIMM_list.md` | 算法包内整理清单 |
 
-## 已发现问题与后续建议
+## 2026-07-09 更新
 
-1. 原始代码导入路径仍使用 `nbhood.src...`、`nbhood.cli...` 和 `nbhood.utils...`。当前中间目录保持原样，后续补充至正式仓库时需要统一调整为 `NIMM` 下的实际包路径。
-2. 当前未运行完整 pytest 测试。正式补充前应确认环境依赖，包括 `numpy`、`xarray`、`cf_units`、`meteva_base`、`pytest`。
-3. `src/nbhood.py` 和 `src/use_nbhood.py` 中核心类已提供 `process` 方法，符合插件式整理方向；但未继承仓库已有 `NIMM.utilities.base_plugin.BasePlugin`，后续可按仓库规范评估是否补充。
-4. `test_data/` 中包含较多官方对照结果和 CLI 输出结果文件，正式入库前建议筛选必要小样例，避免测试数据过重。
-5. `resource/` 目录当前为空或无算法必要资源，正式补充时可确认是否保留空目录。
+- NIMM 标准化：自 `improver/nbhood` 同步；导入统一为 `neighbourhood_probability_processing`。
+- 未同步 `test_data/`（样例独立管理）；原代码目录 pytest 全部通过（2026-07-09）。
+- 详细过程见：`00temp/neighbourhood_probability_processing/00log/nbhood_整理_20260709.log`。
 
+## 2026-06-29 更新
+
+- 初整至中间目录；当时导入仍为原始 `nbhood` 包名。
+
+## 仍存在问题（需人工补充）
+
+1. 补充至正式 `NIMM/07probability/` 时需调整为仓库正式包路径。
+2. `BasePlugin` 正式入库时评估是否改为仓库统一基类。
+3. 测试样例在 `NIMM_pip_testdata/neighbourhood_probability_processing/`（含多组 CLI 输出），中间目录未同步；正式入库前筛选必要样例。
+4. `resource/` 当前为空，正式补充时确认是否保留。
