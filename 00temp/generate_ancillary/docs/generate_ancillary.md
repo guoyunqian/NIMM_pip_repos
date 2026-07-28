@@ -24,22 +24,20 @@
 
 ### 2.1 `CorrectLandSeaMask.process`
 
-#### 函数签名
+#### CorrectLandSeaMask 函数签名
 
 ```python
 @staticmethod
 def process(standard_landmask: Union[xr.DataArray, ndarray]) -> Union[xr.DataArray, ndarray]:
 ```
 
-#### 参数说明
+#### CorrectLandSeaMask 参数说明
 
-
-| 参数名                 | 类型                            | 含义        | 单位               |
-| ------------------- | ----------------------------- | --------- | ---------------- |
+| 参数名 | 类型 | 含义 | 单位 |
+| --- | --- | --- | --- |
 | `standard_landmask` | `xr.DataArray` 或 `np.ndarray` | 插值后的海陆掩码场 | 无量纲（通常值域在 0 到 1） |
 
-
-#### 返回值说明
+#### CorrectLandSeaMask 返回值说明
 
 - 类型：与输入同类型（`xr.DataArray` 或 `np.ndarray`）
 - 数据结构：
@@ -47,19 +45,19 @@ def process(standard_landmask: Union[xr.DataArray, ndarray]) -> Union[xr.DataArr
   - 数值类型为 `int8`
   - 若输入为 `xr.DataArray`，保留原 `dims/coords/attrs`，变量名重命名为 `land_binary_mask`
 
-#### 功能逻辑简述
+#### CorrectLandSeaMask 功能逻辑简述
 
 1. 将输入转为可计算数组（浮点）。
 2. 执行阈值判断：
-  - `< 0.5` 置为 `0`
-  - `>= 0.5` 置为 `1`
+   - `< 0.5` 置为 `0`
+   - `>= 0.5` 置为 `1`
 3. 转换为 `int8` 并按输入类型返回。
 
 ---
 
 ### 2.2 `GenerateOrographyBandAncils.process`
 
-#### 函数签名
+#### GenerateOrographyBandAncils 函数签名
 
 ```python
 def process(
@@ -70,17 +68,15 @@ def process(
 ) -> Union[xr.DataArray, ndarray]:
 ```
 
-#### 参数说明
+#### GenerateOrographyBandAncils 参数说明
 
+| 参数名 | 类型 | 含义 | 单位 |
+| --- | --- | --- | --- |
+| `orography` | `Union[xr.DataArray, ndarray]` | 地形高度场 | 由地形场自身定义（`xarray` 取 `attrs["units"]`） |
+| `thresholds_dict` | `Dict[str, Any]` | 地形带配置，必须包含 `bounds` 与 `units` | `units` 指定阈值单位 |
+| `landmask` | `Optional[Union[xr.DataArray, ndarray]]` | 海陆掩码，可选 | 无量纲 |
 
-| 参数名               | 类型                                       | 含义                            | 单位                                    |
-| ----------------- | ---------------------------------------- | ----------------------------- | ------------------------------------- |
-| `orography`       | `Union[xr.DataArray, ndarray]`           | 地形高度场                         | 由地形场自身定义（`xarray` 取 `attrs["units"]`） |
-| `thresholds_dict` | `Dict[str, Any]`                         | 地形带配置，必须包含 `bounds` 与 `units` | `units` 指定阈值单位                        |
-| `landmask`        | `Optional[Union[xr.DataArray, ndarray]]` | 海陆掩码，可选                       | 无量纲                                   |
-
-
-#### 返回值说明
+#### GenerateOrographyBandAncils 返回值说明
 
 - 类型：
   - `xarray` 输入返回 `xr.DataArray`
@@ -88,20 +84,20 @@ def process(
 - 数据结构：
   - `numpy` 路径下沿地形带轴堆叠，形状为 `(n_band, y, x)`
   - `xarray` 路径下会将地形带维映射到 `level`，并组织为六维：
-  `("member", "level", "time", "dtime", 空间维1, 空间维2)`
+    `("member", "level", "time", "dtime", 空间维1, 空间维2)`
   - 地形带上下界坐标写为：
     - `level_lower_bound`
     - `level_upper_bound`
 
-#### 功能逻辑简述
+#### GenerateOrographyBandAncils 功能逻辑简述
 
 1. 校验 `thresholds_dict`：
-  - `bounds` 必须存在且非空；
-  - `units` 必须存在。
+   - `bounds` 必须存在且非空；
+   - `units` 必须存在。
 2. 循环每个地形带上下界，调用 `gen_orography_masks` 生成单带结果。
 3. 将所有单带结果堆叠输出：
-  - `xarray` 先 `xr.concat(..., dim="level")`，每个单带结果的`level`维长度为 1
-  - `numpy` 使用 `np.concatenate(..., axis=0)`。
+   - `xarray` 先 `xr.concat(..., dim="level")`，每个单带结果的 `level` 维长度为 1
+   - `numpy` 使用 `np.concatenate(..., axis=0)`。
 
 ---
 
@@ -122,8 +118,6 @@ flowchart TD
     G -- 否 --> H[输出 二值化海陆掩码]
 ```
 
-
-
 ### 3.2 GenerateOrographyBandAncils 处理流程图
 
 ```mermaid
@@ -143,28 +137,44 @@ flowchart TD
     K --> L[将地形带维映射到高度层维并组织为六维输出]
 ```
 
-
-
 ---
 
 ## 4. 调用示例
 
-### 4.1 使用 meteva_base 读取 NetCDF
+### 4.1 CorrectLandSeaMask：使用 meteva_base 读取 NetCDF
+
+```python
+import meteva_base as meb
+
+from generate_ancillary.src.generate_ancillary import CorrectLandSeaMask
+
+landmask = meb.read_griddata_from_nc(
+    "generate_ancillary/test_data/generate-landmask/basic/cli_inputs/input_landmask_meb.nc"
+)
+
+result = CorrectLandSeaMask().process(landmask)
+
+print(result.name)
+print(result.dims)
+print(result.dtype)
+print(result.attrs)
+```
+
+### 4.2 GenerateOrographyBandAncils：使用 meteva_base 读取 NetCDF
 
 ```python
 import meteva_base as meb
 
 from generate_ancillary.src.generate_ancillary import (
-    CorrectLandSeaMask,
     GenerateOrographyBandAncils,
     THRESHOLDS_DICT,
 )
 
 orography = meb.read_griddata_from_nc(
-    "generate_ancillary/test_data/official_test_generate_ancillary/basic/cli_inputs/input_orog_meb.nc"
+    "generate_ancillary/test_data/generate-topography-bands-mask/basic/cli_inputs/input_orog_meb.nc"
 )
 landmask = meb.read_griddata_from_nc(
-    "generate_ancillary/test_data/official_test_generate_ancillary/basic/cli_inputs/input_land_meb.nc"
+    "generate_ancillary/test_data/generate-topography-bands-mask/basic/cli_inputs/input_land_meb.nc"
 )
 
 result = GenerateOrographyBandAncils().process(
@@ -187,25 +197,39 @@ print(result.attrs)
 
 参考脚本：
 
-- `generate_ancillary/cli/dsc_generate_topography_bands_mask.py`
 - `generate_ancillary/cli/anc_generate_landmask_ancillary.py`
+- `generate_ancillary/cli/dsc_generate_topography_bands_mask.py`
 
 ### 5.1 直接运行脚本内置示例路径
 
 ```bash
-python generate_ancillary/cli/dsc_generate_topography_bands_mask.py
 python generate_ancillary/cli/anc_generate_landmask_ancillary.py
+python generate_ancillary/cli/dsc_generate_topography_bands_mask.py
 ```
 
-### 5.2 在 Python 中调用 topography bands CLI 的 `process` 入口
+### 5.2 在 Python 中调用 landmask CLI 的 `process` 入口
+
+```python
+from generate_ancillary.cli.anc_generate_landmask_ancillary import process
+
+result = process(
+    landmask_path="generate_ancillary/test_data/generate-landmask/basic/cli_inputs/input_landmask_meb.nc",
+    output_path="generate_ancillary/test_data/generate-landmask/basic/cli_outputs/cli_landmask_result.nc",
+)
+
+print(result)
+```
+
+### 5.3 在 Python 中调用 topography bands CLI 的 `process` 入口
 
 ```python
 from generate_ancillary.cli.dsc_generate_topography_bands_mask import process
 
 result = process(
-orography_path="generate_ancillary/test_data/official_test_generate_ancillary/basic/cli_inputs/input_orog_meb.nc",
-landmask_path="generate_ancillary/test_data/official_test_generate_ancillary/basic/cli_inputs/input_land_meb.nc",
-thresholds_path="generate_ancillary/test_data/official_test_generate_ancillary/basic/bounds.json",    output_path="generate_ancillary/test_data/official_test_generate_ancillary/basic/cli_outputs/cli_topography_bands_mask_result.nc",
+    orography_path="generate_ancillary/test_data/generate-topography-bands-mask/basic/cli_inputs/input_orog_meb.nc",
+    landmask_path="generate_ancillary/test_data/generate-topography-bands-mask/basic/cli_inputs/input_land_meb.nc",
+    thresholds_path="generate_ancillary/test_data/generate-topography-bands-mask/basic/bounds.json",
+    output_path="generate_ancillary/test_data/generate-topography-bands-mask/basic/cli_outputs/cli_topography_bands_mask_result.nc",
 )
 
 print(result)
@@ -223,7 +247,7 @@ print(result)
 meb.write_griddata_to_nc(result.astype("float32"), output_path, creat_dir=True)
 ```
 
-- 当前 `generate_ancillary/cli/generate_topography_bands_mask.py` 与 `generate_ancillary/cli/generate_landmask_ancillary.py` 已内置该转换。
+- 当前 `generate_ancillary/cli/dsc_generate_topography_bands_mask.py` 与 `generate_ancillary/cli/anc_generate_landmask_ancillary.py` 已内置该转换。
 
 ---
 
@@ -233,14 +257,14 @@ meb.write_griddata_to_nc(result.astype("float32"), output_path, creat_dir=True)
   - `CorrectLandSeaMask`：`numpy/xarray` 输入二值化、`__call__` 与 `process` 一致性、六维格式校验。
   - `GenerateOrographyBandAncils`：单带/多带生成、单位换算、海陆掩码广播、`xarray/numpy` 等价性、阈值配置异常分支。
   - CLI smoke：`anc_generate_landmask_ancillary` 与 `dsc_generate_topography_bands_mask` 的 `process` 入口可运行、可写出、结果可读。
-- 回归数据：
-  - 使用 `generate_ancillary/test_data/official_test_generate_ancillary` 下官方样例。
-  - 覆盖默认阈值、JSON 阈值、无海陆掩码三类官方场景。
+- 回归数据（对应上游 `improver_test_data-master/data/`）：
+  - `CorrectLandSeaMask`：`generate_ancillary/test_data/generate-landmask`
+  - `GenerateOrographyBandAncils`：`generate_ancillary/test_data/generate-topography-bands-mask`
+    （覆盖默认阈值、JSON 阈值、无海陆掩码三类官方场景）
 - 结果一致性结论：
-  - 迁移实现与 KGO、原实现结果一致（按测试断言通过）。
+  - 迁移实现与 KGO、原实现结果一致（测试内现场调用原算法对照，按断言通过）。
   - 当前 `generate_ancillary/test` 全量测试通过。
 - 边界条件测试：
   - `thresholds_dict` 缺少 `units`、缺少或空 `bounds`。
   - 非六维 `xarray` 输入拒绝。
   - 海陆掩码形状广播失败抛出明确错误。
-

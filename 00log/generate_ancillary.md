@@ -7,7 +7,7 @@
 | 算法名称 | `generate_ancillary` |
 | 中文名称 | 地形辅助场生成 |
 | 原始路径 | `D:\workspace\improver\generate_ancillary`（原包名 `generate_ancillary`） |
-| 整理日期 | 2026-07-25（NIMM 标准化目录结构整理） |
+| 整理日期 | 2026-07-25 初整；2026-07-28 补齐 CorrectLandSeaMask 测试数据并刷新中间目录 |
 | 算法贡献人 | 郭云谦、王亭波 |
 | 算法分类 | `ancillaries` |
 | 当前状态 | 已整理至中间目录；导入已统一为模块名；待正式入库 |
@@ -37,13 +37,21 @@
 
 - NIMM 标准化：自 improver/generate_ancillary 同步 `src/`、`utils/`、`cli/`、`test/`、`docs/`、`nbs/`。
 - 导入路径保持 `generate_ancillary`（包内绝对导入）；建立算法内脚手架。
-- 未同步 `test_data/`（约 1.5MB）；缺样例时官方回归测试 skip；CLI 直启缺样例时提示而非崩溃。
+- 未同步 `test_data/`；缺样例时官方回归测试 skip；CLI 直启缺样例时提示而非崩溃。
 - 原代码目录 pytest：29 passed；中间目录：26 passed / 3 skipped（2026-07-25）。
 - 详细过程见：`00temp/generate_ancillary/00log/generate_ancillary_整理_20260725.log`。
+
+## 2026-07-28 更新
+
+- 本次以测试数据更新为主：此前未找到 `CorrectLandSeaMask` 官方样例，notebook 仅覆盖 `GenerateOrographyBandAncils` 验证；海陆掩码 CLI（`anc_generate_landmask_ancillary.py`）的 `__main__` 也未实际调用处理流程。
+- 现已补齐 `CorrectLandSeaMask` 测试数据，并调整 `test_data` 目录结构为 `generate-landmask/`、`generate-topography-bands-mask/`（约 0.41MB，16 文件）；同步更新 notebook、文档、CLI 示例与相关测试引用。中间目录仍未同步 `test_data/`。
+- 按原目录刷新中间包源码（保留脚手架）；官方对照用例在缺官方样例或找不到包旁 `improver-1.18.7` 时会跳过。
+- 原代码目录 pytest：29 passed；中间目录：26 passed, 3 skipped（2026-07-28）。
+- 详细过程见：`00temp/generate_ancillary/00log/generate_ancillary_整理_20260728.log`。
 
 ## 仍存在问题（需人工补充）
 
 1. 补充至正式 `NIMM/ancillaries/` 时需调整为仓库正式包路径。
 2. `BasePlugin` 正式入库时评估是否改为仓库统一基类。
-3. `test_data` 样例约 1.5MB，中间目录未同步；是否纳入 `NIMM_pip_testdata` / 正式仓库后续决定。
+3. `test_data` 样例约 0.41MB，中间目录未同步；是否纳入 `NIMM_pip_testdata` / 正式仓库后续决定。
 4. `resource/` 当前为空，正式补充时确认是否保留。

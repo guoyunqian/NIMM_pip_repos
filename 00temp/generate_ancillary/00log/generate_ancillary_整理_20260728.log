@@ -1,0 +1,60 @@
+================================================================================
+算法整理日志 — 地形辅助场生成
+================================================================================
+整理日期   : 2026-07-28
+算法代号   : generate_ancillary
+仓库目录   : 00temp/generate_ancillary/
+整理阶段   : 补齐 CorrectLandSeaMask 测试数据后按原目录刷新中间目录
+贡献人     : 郭云谦、王亭波
+原始来源   : D:\workspace\improver\generate_ancillary（原包名 `generate_ancillary`）
+================================================================================
+
+一、背景说明
+--------------------------------------------------------------------------------
+  初整时未找到 CorrectLandSeaMask 官方测试数据：
+  - notebook 仅覆盖 GenerateOrographyBandAncils 验证；
+  - 海陆掩码 CLI（anc_generate_landmask_ancillary.py）的 __main__ 未实际调用处理流程。
+  本次在原目录补齐 CorrectLandSeaMask 样例，并调整 test_data 目录结构与相关引用，
+  再刷新同步至中间目录。
+
+二、目录映射（原 → 新）
+--------------------------------------------------------------------------------
+  核心算法             → src/generate_ancillary.py（CorrectLandSeaMask、GenerateOrographyBandAncils）
+  模块工具             → utils/utils.py（meteva_base 网格数据校验与输出封装）
+  插件基类             → utils/base_plugin.py（BasePlugin 本地提供）
+  CLI              → cli/anc_generate_landmask_ancillary.py、cli/dsc_generate_topography_bands_mask.py
+  文档               → docs/generate_ancillary.md、docs/generate_ancillary_overview.md
+  notebook         → nbs/generate_ancillary.ipynb（现含海陆掩码与地形带两类验证）
+  测试               → test/（单元测试与官方样例对照）
+  算法清单         → NIMM_list.md（本目录）
+  算法中间数据     → 00temp/generate_ancillary/
+  算法整理日志     → 00log/generate_ancillary_整理_20260728.log
+
+三、本次完成项
+--------------------------------------------------------------------------------
+  [x] 补齐 CorrectLandSeaMask 测试数据；test_data 调整为 generate-landmask/、generate-topography-bands-mask/
+  [x] 更新 notebook、文档、CLI __main__ 示例与相关测试引用（海陆掩码 CLI 现可按样例调用处理）
+  [x] 保留脚手架，自原目录覆盖同步源码/CLI/测试/文档/notebook
+  [x] 未同步 test_data/（约 0.41MB，16 文件，样例独立管理）
+  [x] 官方对照用例：缺官方样例或无包旁 improver-1.18.7 时跳过
+  [x] 原代码目录 pytest：29 passed（2026-07-28）
+  [x] 中间目录 pytest：26 passed, 3 skipped（2026-07-28）
+
+四、仍存在问题（需人工补充）
+--------------------------------------------------------------------------------
+  [ ] 入库路径：补充至 NIMM/ancillaries/ 时需调整为仓库正式包路径
+  [ ] BasePlugin：正式入库时评估是否改为仓库统一基类
+  [ ] test_data：样例是否纳入 NIMM_pip_testdata / 正式仓库，后续决定
+  [ ] resource/：当前为空，正式补充时确认是否保留
+
+五、验证记录
+--------------------------------------------------------------------------------
+  [x] 原代码目录：`D:\workspace\improver\generate_ancillary` pytest：29 passed（2026-07-28）
+  [x] 中间目录：`00temp/generate_ancillary/` pytest：26 passed, 3 skipped（2026-07-28）
+
+六、导入路径说明
+--------------------------------------------------------------------------------
+  中间目录 Python import 模块名为 `generate_ancillary`（与原包名一致）。
+  补充至 NIMM/ancillaries/ 时再调整为仓库正式包路径。
+
+================================================================================

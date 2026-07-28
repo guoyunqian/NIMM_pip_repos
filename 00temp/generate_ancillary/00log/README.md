@@ -12,4 +12,5 @@
 
 | 文件 | 算法 | 说明 |
 | --- | --- | --- |
-| `generate_ancillary_整理_20260725.log` | 地形辅助场生成 | NIMM 标准化目录结构整理 |
+| `generate_ancillary_整理_20260725.log` | 地形辅助场生成 | NIMM 标准化目录结构初整（历史） |
+| `generate_ancillary_整理_20260728.log` | 地形辅助场生成 | 补齐 CorrectLandSeaMask 测试数据并刷新中间目录 |

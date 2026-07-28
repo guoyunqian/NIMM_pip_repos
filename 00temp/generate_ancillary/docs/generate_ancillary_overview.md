@@ -32,7 +32,7 @@
 
 ## 当前整理状态
 
-- 已从 `D:\workspace\improver\generate_ancillary` 同步源码、CLI、测试、文档与 notebook。
-- 模块名保持 `generate_ancillary`；未同步 `test_data/`（约 1.5MB，样例独立管理）。
-- 原目录 pytest 29 passed；中间目录 26 passed / 3 skipped（2026-07-25）。
+- 已从原目录同步源码、CLI、测试、文档与 notebook；模块名保持 `generate_ancillary`。
+- 2026-07-28：补齐 `CorrectLandSeaMask` 测试数据；`test_data` 现为 `generate-landmask/`、`generate-topography-bands-mask/`（约 0.41MB，中间目录未同步）；notebook / 海陆掩码 CLI 示例已覆盖该方法。
+- 原目录 pytest 29 passed；中间目录 26 passed, 3 skipped（2026-07-28）。
 - 补充至 `NIMM/ancillaries/` 时需调整为仓库正式包路径。

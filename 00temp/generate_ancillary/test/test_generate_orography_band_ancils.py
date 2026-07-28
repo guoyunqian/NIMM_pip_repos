@@ -6,11 +6,14 @@ from pathlib import Path
 import json
 import sys
 
+import iris
 import numpy as np
 import pytest
 import xarray as xr
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_REPO_ROOT))
+sys.path.insert(0, str(_REPO_ROOT / "improver-1.18.7"))
 
 from generate_ancillary.src.generate_ancillary import (  # noqa: E402
     THRESHOLDS_DICT,
@@ -18,7 +21,29 @@ from generate_ancillary.src.generate_ancillary import (  # noqa: E402
 )
 
 RESOURCE_ROOT = (
-    Path(__file__).resolve().parents[1] / "test_data" / "official_test_generate_ancillary"
+    Path(__file__).resolve().parents[1]
+    / "test_data"
+    / "generate-topography-bands-mask"
+)
+
+_requires_official_data = pytest.mark.skipif(
+    not (RESOURCE_ROOT / "basic" / "input_orog.nc").is_file(),
+    reason="未同步 test_data/generate-topography-bands-mask",
+)
+
+
+def _improver_available() -> bool:
+    try:
+        import improver  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+_requires_improver = pytest.mark.skipif(
+    not _improver_available(),
+    reason="未提供 improver-1.18.7（包旁路径）",
 )
 
 
@@ -210,6 +235,43 @@ def assert_matches_reference(result: xr.DataArray, expected: xr.DataArray) -> No
             result.coords[upper_name].values,
             expected.coords["topographic_zone_bnds"].values[:, 1],
         )
+
+
+def run_original_bands(thresholds_dict: dict, *, use_landmask: bool):
+    """现场调用原算法（与 run_generate_ancillary_to_result.py 一致：process → concatenate_cube）。"""
+    from improver.generate_ancillaries.generate_ancillary import (
+        GenerateOrographyBandAncils as OrigBandsPlugin,
+    )
+
+    orography = iris.load_cube(
+        str(RESOURCE_ROOT / "basic" / "input_orog.nc"), "surface_altitude"
+    )
+    landmask = None
+    if use_landmask:
+        landmask = iris.load_cube(
+            str(RESOURCE_ROOT / "basic" / "input_land.nc"), "land_binary_mask"
+        )
+    return (
+        OrigBandsPlugin()
+        .process(
+            orography.copy(),
+            thresholds_dict,
+            landmask=landmask.copy() if landmask is not None else None,
+        )
+        .concatenate_cube()
+    )
+
+def assert_matches_original_cube(result: xr.DataArray, original_cube) -> None:
+    """比较迁移版结果与原算法 Iris Cube 的数值与地形带中心。"""
+    result_core = result.squeeze(drop=True)
+    if "level" in result_core.dims and "topographic_zone" not in result_core.dims:
+        result_core = result_core.rename({"level": "topographic_zone"})
+
+    np.testing.assert_array_equal(result_core.values, np.asarray(original_cube.data))
+    np.testing.assert_allclose(
+        result_core.coords["topographic_zone"].values,
+        np.asarray(original_cube.coord("topographic_zone").points),
+    )
 
 
 # 基础单元测试
@@ -448,13 +510,7 @@ def test_xarray_and_numpy_results_are_equivalent():
 
 # 官方数据回归测试
 
-_OFFICIAL_BASIC = RESOURCE_ROOT / "basic" / "input_orog.nc"
-_requires_official_data = pytest.mark.skipif(
-    not _OFFICIAL_BASIC.is_file(),
-    reason="未同步 test_data/official_test_generate_ancillary",
-)
-
-
+@_requires_improver
 @_requires_official_data
 def test_official_basic_matches_kgo_and_original():
     """测试默认阈值加海陆掩码场景与 KGO、原算法结果一致。"""
@@ -465,16 +521,17 @@ def test_official_basic_matches_kgo_and_original():
         load_primary_dataarray(RESOURCE_ROOT / "basic" / "input_land.nc")
     )
     kgo = load_primary_dataarray(RESOURCE_ROOT / "basic" / "kgo.nc")
-    original = load_primary_dataarray(RESOURCE_ROOT / "basic" / "original.nc")
+    original = run_original_bands(THRESHOLDS_DICT, use_landmask=True)
 
     result = GenerateOrographyBandAncils().process(
         orography, THRESHOLDS_DICT, landmask=landmask
     )
 
     assert_matches_reference(result, kgo)
-    assert_matches_reference(result, original)
+    assert_matches_original_cube(result, original)
 
 
+@_requires_improver
 @_requires_official_data
 def test_official_json_bounds_matches_kgo_and_original():
     """测试 JSON 阈值加海陆掩码场景与 KGO、原算法结果一致。"""
@@ -486,18 +543,17 @@ def test_official_json_bounds_matches_kgo_and_original():
     )
     thresholds = load_thresholds_from_json(RESOURCE_ROOT / "basic" / "bounds.json")
     kgo = load_primary_dataarray(RESOURCE_ROOT / "basic" / "kgo_from_json_bounds.nc")
-    original = load_primary_dataarray(
-        RESOURCE_ROOT / "basic" / "original_from_json_bounds.nc"
-    )
+    original = run_original_bands(thresholds, use_landmask=True)
 
     result = GenerateOrographyBandAncils().process(
         orography, thresholds, landmask=landmask
     )
 
     assert_matches_reference(result, kgo)
-    assert_matches_reference(result, original)
+    assert_matches_original_cube(result, original)
 
 
+@_requires_improver
 @_requires_official_data
 def test_official_without_landmask_matches_kgo_and_original():
     """测试默认阈值且不传海陆掩码时与 KGO、原算法结果一致。"""
@@ -505,14 +561,12 @@ def test_official_without_landmask_matches_kgo_and_original():
         load_primary_dataarray(RESOURCE_ROOT / "basic" / "input_orog.nc")
     )
     kgo = load_primary_dataarray(RESOURCE_ROOT / "basic_no_landsea_mask" / "kgo.nc")
-    original = load_primary_dataarray(
-        RESOURCE_ROOT / "basic_no_landsea_mask" / "original.nc"
-    )
+    original = run_original_bands(THRESHOLDS_DICT, use_landmask=False)
 
     result = GenerateOrographyBandAncils().process(
         orography, THRESHOLDS_DICT, landmask=None
     )
 
     assert_matches_reference(result, kgo)
-    assert_matches_reference(result, original)
+    assert_matches_original_cube(result, original)
     assert result.attrs["topographic_zones_include_seapoints"] == "True"

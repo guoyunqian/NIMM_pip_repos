@@ -91,7 +91,7 @@ if __name__ == "__main__":
     test_data_root = (
         Path(__file__).resolve().parents[1]
         / "test_data"
-        / "official_test_generate_ancillary"
+        / "generate-topography-bands-mask"
     )
     cli_input_root = test_data_root / "basic" / "cli_inputs"
     cli_output_root = test_data_root / "basic" / "cli_outputs"
@@ -104,7 +104,7 @@ if __name__ == "__main__":
     if not orography_path.is_file():
         print(
             f"示例输入不存在：{orography_path}\n"
-            "请补充 test_data 后重试，或在此处配置自己的输入与输出路径。"
+            "请补充 test_data 后重试，或在此处改为自己的输入/输出路径。"
         )
     else:
         process(

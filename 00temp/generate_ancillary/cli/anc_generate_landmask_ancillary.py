@@ -56,14 +56,22 @@ if __name__ == "__main__":
         sys.path.insert(0, str(repo_root))
 
     # Notebook 预处理后、可被 meb.read_griddata_from_nc 直接读取的数据
-    # test_data_root = (
-    #     Path(__file__).resolve().parents[1]
-    #     / "test_data"
-    #     / "official_test_generate_ancillary"
-    # )
-    # cli_input_root = test_data_root / "basic" / "cli_inputs"
-    # cli_output_root = test_data_root / "basic" / "cli_outputs"
-    # landmask_path = str(cli_input_root / "input_land_meb.nc")
-    # output_path = str(cli_output_root / "cli_landmask_result.nc")
+    test_data_root = (
+        Path(__file__).resolve().parents[1]
+        / "test_data"
+        / "generate-landmask"
+        / "basic"
+    )
+    cli_input_root = test_data_root / "cli_inputs"
+    cli_output_root = test_data_root / "cli_outputs"
 
-    # process(landmask_path=landmask_path, output_path=output_path)
+    landmask_path = cli_input_root / "input_landmask_meb.nc"
+    output_path = cli_output_root / "cli_landmask_result.nc"
+
+    if not landmask_path.is_file():
+        print(
+            f"示例输入不存在：{landmask_path}\n"
+            "请补充 test_data 后重试，或在此处改为自己的输入/输出路径。"
+        )
+    else:
+        process(landmask_path=str(landmask_path), output_path=str(output_path))
