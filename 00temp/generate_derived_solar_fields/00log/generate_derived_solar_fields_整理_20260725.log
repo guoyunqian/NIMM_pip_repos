@@ -1,0 +1,54 @@
+================================================================================
+算法整理日志 — 太阳衍生场生成
+================================================================================
+整理日期   : 2026-07-25
+算法代号   : generate_derived_solar_fields
+仓库目录   : 00temp/generate_derived_solar_fields/
+整理阶段   : NIMM 标准化目录结构整理
+贡献人     : 郭云谦、王亭波
+原始来源   : D:\workspace\improver\generate_derived_solar_fields（原包名 `generate_derived_solar_fields`）
+================================================================================
+
+一、目录映射（原 → 现）
+--------------------------------------------------------------------------------
+  核心算法             → src/generate_derived_solar_fields.py（GenerateSolarTime、GenerateClearskySolarRadiation）
+  模块工具             → src/utils/grid_mapping.py、src/utils/solar.py
+  通用工具             → utils/utils.py（meteva_base 网格数据校验与输出封装）
+  插件基类             → utils/base_plugin.py（BasePlugin 本地提供）
+  CLI                  → cli/cal_generate_solar_time.py、cli/cal_generate_clearsky_solar_radiation.py
+  文档                 → docs/generate_derived_solar_fields.md、docs/generate_derived_solar_fields_overview.md
+  notebook             → nbs/generate_derived_solar_fields.ipynb
+  测试                 → test/（单元测试；不依赖 test_data）
+  资源目录             → resource/（空，含 .gitkeep）
+  整理清单             → NIMM_list.md（本目录）
+  整理中间数据         → 00temp/generate_derived_solar_fields/
+  整理过程日志         → 00log/generate_derived_solar_fields_整理_20260725.log
+
+二、本次已完成
+--------------------------------------------------------------------------------
+  [x] 自 improver/generate_derived_solar_fields 同步 src/、utils/、cli/、test/、docs/、nbs/
+  [x] 模块名保持 generate_derived_solar_fields；src/__init__.py 改为包内绝对导入
+  [x] 建立算法内 00log/、00temp/、NIMM_list.md、.gitignore、空 resource/
+  [x] 未同步 test_data/（约 0.67MB，样例独立管理；单元测试不依赖该目录）
+  [x] CLI 直启缺 test_data 时提示而非崩溃
+  [x] 原代码目录 pytest：10 passed（2026-07-25）
+  [x] 中间目录 pytest：10 passed（2026-07-25）
+
+三、仍存在问题 — 需人工补充
+--------------------------------------------------------------------------------
+  [ ] 入库路径：补充至 NIMM/ancillaries/ 时需调整为仓库正式包路径
+  [ ] BasePlugin：正式入库时评估是否改为仓库统一基类
+  [ ] test_data：样例约 0.67MB，中间目录未同步；是否纳入 NIMM_pip_testdata / 正式仓库后续决定
+  [ ] resource/：当前为空，正式补充时确认是否保留
+
+四、验证记录
+--------------------------------------------------------------------------------
+  [x] 原代码目录（`D:\workspace\improver\generate_derived_solar_fields`）pytest：10 passed（2026-07-25）
+  [x] 中间目录（`00temp/generate_derived_solar_fields/`）pytest：10 passed（2026-07-25）
+
+五、导入路径说明
+--------------------------------------------------------------------------------
+  中间目录 Python import 模块名为 `generate_derived_solar_fields`（与原包名一致）。
+  补充至 NIMM/ancillaries/ 时需再调整为仓库正式包路径。
+
+================================================================================
