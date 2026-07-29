@@ -18,7 +18,7 @@
 
 - `OrographicSmoothingCoefficients`：由地形邻接梯度与幂次、限幅参数生成 x/y 平滑系数场（中点坐标）。
 - 可选掩码：按 `use_mask_boundary` / `invert_mask` 将掩码区域或边界处系数置零。
-- CLI `cli/anc_generate_orographic_smoothing_coefficients.py`：文件式示例调度。
+- CLI `cli/dsc_generate_orographic_smoothing_coefficients.py`：文件式示例调度。
 
 ## 目录对应关系
 
@@ -40,6 +40,15 @@
 - 与原 Improver 对照的用例依赖包旁 `improver-1.18.7`；中间目录通常不具备时 skip（不硬编码本机路径）。
 - 原代码目录 pytest：19 passed；中间目录：8 passed, 11 skipped（2026-07-28）。
 - 详细过程见：`00temp/generate_orographic_smoothing_coefficients/00log/generate_orographic_smoothing_coefficients_整理_20260728.log`。
+
+
+## 2026-07-29 更新
+
+- 聚焦刷新：CLI 示例脚本由 `cli/anc_generate_orographic_smoothing_coefficients.py` 重命名为 `cli/dsc_generate_orographic_smoothing_coefficients.py`，并同步测试/文档/notebook 路径导入。
+- 自原目录覆盖同步 `src/`、`utils/`、`cli/`、`test/`、`nbs/` 与算法说明文档；保留算法内脚手架。
+- CLI 直启缺示例输入时中文提示；缺 test_data 或缺包旁 improver-1.18.7 时相关用例会跳过。
+- 原代码目录 pytest：19 passed；中间目录：8 passed, 11 skipped（缺 test_data 或缺包旁 improver-1.18.7 时会跳过）。
+- 详细过程见：`00temp/generate_orographic_smoothing_coefficients/00log/generate_orographic_smoothing_coefficients_整理_20260729.log`。
 
 ## 仍存在问题（需人工补充）
 

@@ -96,7 +96,7 @@ coeff_x, coeff_y = OrographicSmoothingCoefficients().process(orography)
 示例脚本：
 
 ```bash
-python generate_orographic_smoothing_coefficients/cli/anc_generate_orographic_smoothing_coefficients.py
+python generate_orographic_smoothing_coefficients/cli/dsc_generate_orographic_smoothing_coefficients.py
 ```
 
 默认读取：
@@ -107,7 +107,7 @@ python generate_orographic_smoothing_coefficients/cli/anc_generate_orographic_sm
 业务调用示例：
 
 ```python
-from generate_orographic_smoothing_coefficients.cli.anc_generate_orographic_smoothing_coefficients import process
+from generate_orographic_smoothing_coefficients.cli.dsc_generate_orographic_smoothing_coefficients import process
 
 coeff_x, coeff_y = process(
     orography_path=".../input_orography_meb.nc",

@@ -13,3 +13,4 @@
 | 文件 | 算法 | 说明 |
 | --- | --- | --- |
 | `generate_orographic_smoothing_coefficients_整理_20260728.log` | 地形平滑系数生成 | NIMM 标准化目录结构整理 |
+| `generate_orographic_smoothing_coefficients_整理_20260729.log` | 地形平滑系数生成 | CLI 示例脚本重命名（anc→dsc）与路径导入同步 |

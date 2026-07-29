@@ -95,10 +95,10 @@ if __name__ == "__main__":
     if str(repo_root) not in sys.path:
         sys.path.insert(0, str(repo_root))
 
-    # 默认使用 notebook/预处理后的标准 meb 六维输入；可按需改路径与参数
+    # 默认使用 notebook/预处理导出的 meb 六维输入；可按需改路径与参数。
     test_data_root = Path(__file__).resolve().parents[1] / "test_data"
     orography_path = test_data_root / "cli_inputs" / "input_orography_meb.nc"
-    # mask 按需启用：
+    # mask 场景可改用：
     # mask_path = test_data_root / "cli_inputs" / "input_landmask_meb.nc"
     output_path = test_data_root / "cli_outputs" / "cli_basic_result.nc"
 

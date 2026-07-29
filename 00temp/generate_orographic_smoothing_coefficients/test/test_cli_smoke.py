@@ -14,7 +14,7 @@ import xarray as xr
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from generate_orographic_smoothing_coefficients.cli.anc_generate_orographic_smoothing_coefficients import (  # noqa: E402
+from generate_orographic_smoothing_coefficients.cli.dsc_generate_orographic_smoothing_coefficients import (  # noqa: E402
     process,
 )
 
@@ -68,6 +68,7 @@ def _make_meb6d(
 
 
 
+
 _CLI_DEFAULT_OROG = (
     Path(__file__).resolve().parents[1]
     / "test_data"
@@ -80,7 +81,7 @@ _requires_cli_default_inputs = pytest.mark.skipif(
 )
 
 
-def test_anc_generate_orographic_smoothing_coefficients_process_smoke(
+def test_dsc_generate_orographic_smoothing_coefficients_process_smoke(
     tmp_path: Path,
 ):
     """测试 CLI process 入口可跑通并写出 x/y 系数。"""
@@ -134,6 +135,7 @@ def test_cli_default_inputs_exist_and_runnable():
         Path(__file__).resolve().parents[1] / "test_data" / "cli_inputs"
     )
     orog_path = test_data / "input_orography_meb.nc"
+
     output_path = (
         Path(__file__).resolve().parents[1]
         / "test_data"
@@ -147,4 +149,3 @@ def test_cli_default_inputs_exist_and_runnable():
     assert coeff_x.sizes["lat"] == 100 and coeff_x.sizes["lon"] == 99
     assert coeff_y.sizes["lat"] == 99 and coeff_y.sizes["lon"] == 100
     assert output_path.exists()
-
