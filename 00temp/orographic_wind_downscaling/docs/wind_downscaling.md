@@ -18,22 +18,18 @@
 
 #### 输入参数
 
-
-| 参数名      | 类型               | 描述                    | 单位                 |
-| -------- | ---------------- | --------------------- | ------------------ |
-| `u_href` | 二维浮点型数组（float32） | 参考高度 h_ref 处的风速       | 与输入风速单位一致（通常为 m/s） |
-| `h_ref`  | 二维浮点型数组（float32） | 参考高度                  | 长度单位（通常为米）         |
-| `z_0`    | 二维浮点型数组（float32） | 植被粗糙度长度，反映地表粗糙程度      | 长度单位（通常为米）         |
-| `mask`   | 二维布尔型数组（bool）    | True 表示对应格点需计算摩擦速度 u* | 无                  |
-
+| 参数名 | 类型 | 描述 | 单位 |
+| --- | --- | --- | --- |
+| `u_href` | 二维浮点型数组（float32） | 参考高度 h_ref 处的风速 | 与输入风速单位一致（通常为 m/s） |
+| `h_ref` | 二维浮点型数组（float32） | 参考高度 | 长度单位（通常为米） |
+| `z_0` | 二维浮点型数组（float32） | 植被粗糙度长度，反映地表粗糙程度 | 长度单位（通常为米） |
+| `mask` | 二维布尔型数组（bool） | True 表示对应格点需计算摩擦速度 u* | 无 |
 
 #### 输出参数
 
-
-| 返回值         | 类型               | 描述                  | 单位                 |
-| ----------- | ---------------- | ------------------- | ------------------ |
+| 返回值 | 类型 | 描述 | 单位 |
+| --- | --- | --- | --- |
 | `process()` | 二维浮点型数组（float32） | 摩擦速度场，未计算的格点值为 RMDI | 与输入风速单位一致（通常为 m/s） |
-
 
 #### 算法原理
 
@@ -91,44 +87,47 @@ print(ustar.dtype)      # float32
 
 #### 输入参数
 
-
-| 参数名        | 类型               | 描述               | 单位   |
-| ---------- | ---------------- | ---------------- | ---- |
-| `a_over_s` | 二维浮点型数组（float32） | 地形轮廓粗糙度场（无量纲）    | 无    |
-| `sigma`    | 二维浮点型数组（float32） | 网格单元内的高度标准差场     | 长度单位 |
-| `z_0`      | 二维浮点型数组（float32） | 植被粗糙度长度场         | 长度单位 |
-| `pporo`    | 二维浮点型数组（float32） | 后处理网格地形高度场       | 长度单位 |
-| `modoro`   | 二维浮点型数组（float32） | 插值至后处理网格的模式地形高度场 | 长度单位 |
-| `ppres`    | 浮点型（float）       | 后处理网格的网格单元边长     | 长度单位 |
-| `modres`   | 浮点型（float）       | 模式网格的网格单元边长      | 长度单位 |
-
+| 参数名 | 类型 | 描述 | 单位 |
+| --- | --- | --- | --- |
+| `a_over_s` | 二维浮点型数组（float32） | 地形轮廓粗糙度场（无量纲） | 无 |
+| `sigma` | 二维浮点型数组（float32） | 网格单元内的高度标准差场 | 长度单位 |
+| `z_0` | 二维浮点型数组（float32） | 植被粗糙度长度场 | 长度单位 |
+| `pporo` | 二维浮点型数组（float32） | 后处理网格地形高度场 | 长度单位 |
+| `modoro` | 二维浮点型数组（float32） | 插值至后处理网格的模式地形高度场 | 长度单位 |
+| `ppres` | 浮点型（float） | 后处理网格的网格单元边长 | 长度单位 |
+| `modres` | 浮点型（float） | 模式网格的网格单元边长 | 长度单位 |
 
 #### 主要方法及输出
 
-
-| 方法名                         | 输入参数                                          | 输出参数    | 描述             |
-| --------------------------- | --------------------------------------------- | ------- | -------------- |
-| `sigma2hover2`              | sigma: 二维浮点型数组                                | 二维浮点型数组 | 计算半峰谷高度        |
-| `calc_roughness_correction` | hgrid: 三维或一维浮点型数组 uold: 三维浮点型数组 mask: 二维布尔型数组 | 三维浮点型数组 | 执行粗糙度订正        |
-| `do_rc_hc_all`              | hgrid: 一维或三维浮点型数组 uorig: 三维浮点型数组              | 三维浮点型数组 | 同时执行粗糙度订正和高度订正 |
-
+| 方法名 | 输入参数 | 输出参数 | 描述 |
+| --- | --- | --- | --- |
+| `sigma2hover2` | sigma: 二维浮点型数组 | 二维浮点型数组 | 计算半峰谷高度 |
+| `calc_roughness_correction` | hgrid: 三维或一维浮点型数组 uold: 三维浮点型数组 mask: 二维布尔型数组 | 三维浮点型数组 | 执行粗糙度订正 |
+| `do_rc_hc_all` | hgrid: 一维或三维浮点型数组 uorig: 三维浮点型数组 | 三维浮点型数组 | 同时执行粗糙度订正和高度订正 |
 
 #### 算法原理
 
 1. **半峰谷高度计算**：
+
   ```math
    h_{over2} = \sqrt{2} \times \sigma
   ```
-2. **波数计算**：
+
+1. **波数计算**：
+
   ```math
    k = \frac{a_{over_s} \times \pi}{h_{over2}}
   ```
-3. **参考高度计算**：
+
+1. **参考高度计算**：
+
   ```math
    h_{ref} = \frac{tunable\_param}{wavenum}
   ```
-4. **粗糙度订正**：将参考高度以下的风速廓线替换为随高度对数增长的廓线。
-5. **高度订正**：考虑地形高度差对风速的影响，随高度呈指数衰减：
+
+1. **粗糙度订正**：将参考高度以下的风速廓线替换为随高度对数增长的廓线。
+2. **高度订正**：考虑地形高度差对风速的影响，随高度呈指数衰减：
+
   ```math
    hc\_add = \exp(-height \times wavenumber) \times u(href) \times h\_at\_0 \times wavenumber
   ```
@@ -168,41 +167,35 @@ final_wind = rc_utils.do_rc_hc_all(height_grid, wind_speed)
 
 #### 输入参数
 
-
-| 参数名        | 类型                            | 是否必填 | 说明                                                       | 单位       |
-| ---------- | ----------------------------- | ---- | -------------------------------------------------------- | -------- |
-| `a_over_s` | `np.ndarray` 或 `xr.DataArray` | 是    | 地形轮廓粗糙度单场；若为 `xr.DataArray`，会先做网格校验并压缩为二维 `(lat, lon)`   | 无量纲（`1`） |
-| `sigma`    | `np.ndarray` 或 `xr.DataArray` | 是    | 网格内地形高度标准差单场；`xr.DataArray` 输入会先校验并压缩                    | `m`      |
-| `pporo`    | `np.ndarray` 或 `xr.DataArray` | 是    | 目标网格地形高度单场；若为 `xr.DataArray` 且未传 `ppres`，自动由坐标推断 `ppres` | `m`      |
-| `modoro`   | `np.ndarray` 或 `xr.DataArray` | 是    | 标准网格（模式）地形高度单场；`xr.DataArray` 输入会先校验并压缩                  | `m`      |
-| `modres`   | `float`                       | 是    | 模式原始分辨率                                                  | `m`      |
-| `ppres`    | `float`                       | 条件必填 | 后处理网格分辨率；当 `pporo` 为 `np.ndarray` 时必须显式传入                | `m`      |
-| `z0`       | `np.ndarray` 或 `xr.DataArray` | 否    | 植被粗糙度长度单场；不传则跳过植被粗糙度订正分支                                 | `m`      |
-
+| 参数名 | 类型 | 是否必填 | 说明 | 单位 |
+| --- | --- | --- | --- | --- |
+| `a_over_s` | `np.ndarray` 或 `xr.DataArray` | 是 | 地形轮廓粗糙度单场；若为 `xr.DataArray`，会先做网格校验并压缩为二维 `(lat, lon)` | 无量纲（`1`） |
+| `sigma` | `np.ndarray` 或 `xr.DataArray` | 是 | 网格内地形高度标准差单场；`xr.DataArray` 输入会先校验并压缩 | `m` |
+| `pporo` | `np.ndarray` 或 `xr.DataArray` | 是 | 目标网格地形高度单场；若为 `xr.DataArray` 且未传 `ppres`，自动由坐标推断 `ppres` | `m` |
+| `modoro` | `np.ndarray` 或 `xr.DataArray` | 是 | 标准网格（模式）地形高度单场；`xr.DataArray` 输入会先校验并压缩 | `m` |
+| `modres` | `float` | 是 | 模式原始分辨率 | `m` |
+| `ppres` | `float` | 条件必填 | 后处理网格分辨率；当 `pporo` 为 `np.ndarray` 时必须显式传入 | `m` |
+| `z0` | `np.ndarray` 或 `xr.DataArray` | 否 | 植被粗糙度长度单场；不传则跳过植被粗糙度订正分支 | `m` |
 
 #### 方法及输出
 
-
-| 方法名                                 | 输入参数                                                             | 输出结果                      | 描述                                     |
-| ----------------------------------- | ---------------------------------------------------------------- | ------------------------- | -------------------------------------- |
-| `process`                           | wind_speed: np.ndarray 或 xr.DataArray height_grid: np.ndarray，可选 | np.ndarray 或 xr.DataArray | 对风速进行地形粗糙度订正和高度订正                      |
-| `infer_grid_resolution_from_coords` | `data: xr.DataArray`                                             | `float`                   | 从坐标估算网格分辨率（优先 `bounds`，其次 `points` 差分） |
-
+| 方法名 | 输入参数 | 输出结果 | 描述 |
+| --- | --- | --- | --- |
+| `process` | wind_speed: np.ndarray 或 xr.DataArray height_grid: np.ndarray，可选 | np.ndarray 或 xr.DataArray | 对风速进行地形粗糙度订正和高度订正 |
+| `infer_grid_resolution_from_coords` | `data: xr.DataArray` | `float` | 从坐标估算网格分辨率（优先 `bounds`，其次 `points` 差分） |
 
 #### 输出表（当前版本）
 
-
-| 输入类型                          | 输出类型           | 输出维度约定                                                    |
-| ----------------------------- | -------------- | --------------------------------------------------------- |
-| `wind_speed` 为 `np.ndarray`   | `np.ndarray`   | 与输入风速数组同结构（批次维 + `level, lat, lon`）                       |
+| 输入类型 | 输出类型 | 输出维度约定 |
+| --- | --- | --- |
+| `wind_speed` 为 `np.ndarray` | `np.ndarray` | 与输入风速数组同结构（批次维 + `level, lat, lon`） |
 | `wind_speed` 为 `xr.DataArray` | `xr.DataArray` | 按 meteva_base 六维重组：`member, level, time, dtime, lat, lon` |
-
 
 #### 算法原理
 
 1. 识别输入类型并规范风速数据结构。
-  - 数组输入默认最后三维为 `(level, lat, lon)`；  
-  - DataArray 输入会先规范为 meteva_base 约定维度顺序。
+    - 数组输入默认最后三维为 `(level, lat, lon)`；
+    - DataArray 输入会先规范为 meteva_base 约定维度顺序。
 2. 校验辅助场 `a_over_s / sigma / pporo / modoro / z0` 与风速场空间形状一致。
 3. 若 `pporo` 为 DataArray 且未显式提供 `ppres`，自动按坐标估算后处理网格分辨率。
 4. 组织高度网格（支持一维公共高度层或三维空间变化高度层）。
@@ -402,7 +395,7 @@ result = process(
 内置测试数据目录：`orographic_wind_downscaling/test_data/wind_calculations_data/`。
 
 | 路径 | 说明 |
-| ---- | ---- |
+| --- | --- |
 | `cli_input/` | CLI 与插件输入（六维 meb 网格 nc，由 notebook 预处理写出） |
 | `cli_output/` | CLI 示例输出目录 |
 | `kgo.nc` | 官方 KGO（投影坐标，位于数据根目录） |
@@ -419,20 +412,18 @@ pytest orographic_wind_downscaling/test/test_official_wind_downscaling.py
 
 ### 8.2 `process()` 参数说明
 
-
-| 参数                          | 是否必填 | 说明               | 单位/格式      |
-| --------------------------- | ---- | ---------------- | ---------- |
-| `wind_speed_path`           | 是    | 待订正风速场 nc 路径     | NC 文件      |
-| `sigma_path`                | 是    | 网格内地形高度标准差 nc 路径 | `m`        |
-| `target_orography_path`     | 是    | 目标网格地形高度 nc 路径   | `m`        |
-| `standard_orography_path`   | 是    | 标准网格地形高度 nc 路径   | `m`        |
-| `silhouette_roughness_path` | 是    | 地形轮廓粗糙度 nc 路径    | 无量纲（`1`）   |
-| `model_resolution`          | 是    | 模式原始分辨率          | `m`        |
-| `vegetative_roughness_path` | 否    | 植被粗糙度长度 nc 路径    | `m`        |
-| `output_path`               | 否    | 输出 nc 路径         | NC 文件      |
-| `output_height_level`       | 否    | 提取指定高度层          | 数值         |
-| `output_height_level_units` | 否    | 高度层单位，默认 `m`     | 如 `m`、`km` |
-
+| 参数 | 是否必填 | 说明 | 单位/格式 |
+| --- | --- | --- | --- |
+| `wind_speed_path` | 是 | 待订正风速场 nc 路径 | NC 文件 |
+| `sigma_path` | 是 | 网格内地形高度标准差 nc 路径 | `m` |
+| `target_orography_path` | 是 | 目标网格地形高度 nc 路径 | `m` |
+| `standard_orography_path` | 是 | 标准网格地形高度 nc 路径 | `m` |
+| `silhouette_roughness_path` | 是 | 地形轮廓粗糙度 nc 路径 | 无量纲（`1`） |
+| `model_resolution` | 是 | 模式原始分辨率 | `m` |
+| `vegetative_roughness_path` | 否 | 植被粗糙度长度 nc 路径 | `m` |
+| `output_path` | 否 | 输出 nc 路径 | NC 文件 |
+| `output_height_level` | 否 | 提取指定高度层 | 数值 |
+| `output_height_level_units` | 否 | 高度层单位，默认 `m` | 如 `m`、`km` |
 
 ### 使用注意
 

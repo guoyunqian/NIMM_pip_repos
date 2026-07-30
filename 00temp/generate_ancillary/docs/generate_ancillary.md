@@ -49,8 +49,8 @@ def process(standard_landmask: Union[xr.DataArray, ndarray]) -> Union[xr.DataArr
 
 1. 将输入转为可计算数组（浮点）。
 2. 执行阈值判断：
-   - `< 0.5` 置为 `0`
-   - `>= 0.5` 置为 `1`
+    - `< 0.5` 置为 `0`
+    - `>= 0.5` 置为 `1`
 3. 转换为 `int8` 并按输入类型返回。
 
 ---
@@ -84,7 +84,9 @@ def process(
 - 数据结构：
   - `numpy` 路径下沿地形带轴堆叠，形状为 `(n_band, y, x)`
   - `xarray` 路径下会将地形带维映射到 `level`，并组织为六维：
+
     `("member", "level", "time", "dtime", 空间维1, 空间维2)`
+
   - 地形带上下界坐标写为：
     - `level_lower_bound`
     - `level_upper_bound`
@@ -92,12 +94,12 @@ def process(
 #### GenerateOrographyBandAncils 功能逻辑简述
 
 1. 校验 `thresholds_dict`：
-   - `bounds` 必须存在且非空；
-   - `units` 必须存在。
+    - `bounds` 必须存在且非空；
+    - `units` 必须存在。
 2. 循环每个地形带上下界，调用 `gen_orography_masks` 生成单带结果。
 3. 将所有单带结果堆叠输出：
-   - `xarray` 先 `xr.concat(..., dim="level")`，每个单带结果的 `level` 维长度为 1
-   - `numpy` 使用 `np.concatenate(..., axis=0)`。
+    - `xarray` 先 `xr.concat(..., dim="level")`，每个单带结果的 `level` 维长度为 1
+    - `numpy` 使用 `np.concatenate(..., axis=0)`。
 
 ---
 
@@ -260,7 +262,9 @@ meb.write_griddata_to_nc(result.astype("float32"), output_path, creat_dir=True)
 - 回归数据（对应上游 `improver_test_data-master/data/`）：
   - `CorrectLandSeaMask`：`generate_ancillary/test_data/generate-landmask`
   - `GenerateOrographyBandAncils`：`generate_ancillary/test_data/generate-topography-bands-mask`
+
     （覆盖默认阈值、JSON 阈值、无海陆掩码三类官方场景）
+
 - 结果一致性结论：
   - 迁移实现与 KGO、原实现结果一致（测试内现场调用原算法对照，按断言通过）。
   - 当前 `generate_ancillary/test` 全量测试通过。

@@ -36,7 +36,7 @@
 
 由风速 `ws`（m/s）与风向 `wd`（相对真北，**from** 约定，单位 degree）得到网格坐标系风分量 `u`、`v`（m/s）：
 
-```
+```text
 theta = rad(wd) + alpha + pi          # alpha 为真北偏角（投影网格）
 u = ws * sin(theta)
 v = ws * cos(theta)
@@ -48,61 +48,53 @@ v = ws * cos(theta)
 
 地形高度 `Z`（m）沿 x、y 方向分别做 3 点一维平滑得 `Z_smooth`，再求梯度（m/m）：
 
-```
+```text
 grad_x = diff(Z_smooth, axis=x) / dx    # dx 为 x 方向格距（m）
 grad_y = diff(Z_smooth, axis=y) / dy    # dy 为 y 方向格距（m）
 ```
 
 迎风抬升率 `vgradz`（m/s）：
 
-```
+```text
 vgradz = u * grad_x + v * grad_y
 ```
-
-
 
 #### （4）饱和水汽压
 
 温度 `T`（K）、气压 `P`（Pa）下，先对 Goff-Gratch 纯水饱和水汽压查表（183.15–338.15 K，步长 0.1 K）并线性插值得 `SVP_water`，再作湿空气修正：
 
-```
+```text
 T_c = T - 273.15
 correction = 1 + 1e-8 * P * (4.5 + 6e-4 * T_c^2)
 SVP = SVP_water * correction
 ```
 
-
-
 #### （5）有效计算掩码
 
 `mask = True` 表示该格点**不参与**计算，满足以下任一条件时置掩码：
 
-```
+```text
 mean(Z, 3x3 neighbourhood) < orog_thresh     # orog_thresh = 20 m
 RH < rh_thresh                               # rh_thresh = 0.8
 abs(vgradz) < vgradz_thresh                  # vgradz_thresh = 0.0005 m/s
 RH 或 vgradz 为非有限值
 ```
 
-
-
 #### （6）格点地形增强
 
 对 `mask = False` 的格点，格点尺度增强 `point_oe`（mm/h）：
 
-```
+```text
 R_v = 461.6    # J K^-1 kg^-1
 point_oe = (3600 / R_v) * (RH * SVP * vgradz) / T
 point_oe = max(point_oe, 0)
 ```
 
-
-
 #### （7）上游叠加
 
 沿风向在上游回溯，影响距离约 `upstream_range = 15 km`。设回溯格距为 `d`（格点），风速 `wind_speed = sqrt(u^2 + v^2)`，则高斯权重：
 
-```
+```text
 sigma = wind_speed * cloud_lifetime / grid_spacing    # cloud_lifetime = 102 s
 variance = sigma^2
 weight(d) = exp(-0.5 * d^2 / variance)
@@ -112,17 +104,15 @@ weight(d) = exp(-0.5 * d^2 / variance)
 
 #### （8）输出单位
 
-```
+```text
 oe_ms = oe_mmh / 3600000    # 输出地形增强，单位 m/s
 ```
-
-
 
 #### （9）应用到降水场
 
 降水率 `P_rate` 与地形增强项 `OE` 统一到相同单位后：
 
-```
+```text
 # 低降水阈值 min_rate ≈ 1/32 mm/h
 OE_eff = 0                         if P_rate < min_rate else OE
 
@@ -136,11 +126,7 @@ P_corrected = max(P_corrected, min_rate)    # 不低于最小降水率
 
 ---
 
-
-
 ### 2.2 核心处理流程
-
-
 
 #### 地形增强计算主流程
 
@@ -158,10 +144,6 @@ flowchart TD
     J --> K[换算为 m/s 地形增强场]
 ```
 
-
-
-
-
 #### 风分量解析（子流程）
 
 ```mermaid
@@ -174,10 +156,6 @@ flowchart LR
     E -->|是| G[输出网格风分量]
     F --> G
 ```
-
-
-
-
 
 #### 降水订正（Apply 插件）
 
@@ -193,15 +171,9 @@ flowchart TD
     G --> H
 ```
 
-
-
 ---
 
-
-
 ## 3. 类与主函数
-
-
 
 ### 3.1 MetaOrographicEnhancement
 
@@ -221,8 +193,6 @@ flowchart TD
 - 入口地形为六维单场时，主算法返回标准六维结果。
 - 入口地形为二维时，主算法返回二维结果。
 
-
-
 ### 3.2 ResolveWindComponents
 
 主函数：
@@ -236,8 +206,6 @@ flowchart TD
 3. 在投影网格场景下处理真北偏角。
 4. 必要时重采样到目标网格。
 
-
-
 ### 3.3 OrographicEnhancement
 
 主函数：
@@ -250,8 +218,6 @@ flowchart TD
 2. 计算 `v·gradZ`、掩码、格点增强与上游贡献。
 3. 输出 `orographic_enhancement`（单位 `m s-1`）。
 
-
-
 ### 3.4 ApplyOrographicEnhancement
 
 主函数：
@@ -260,7 +226,7 @@ flowchart TD
 
 实现位置：
 
-- `orographic_enhancement/src/apply_orographic_enhancement.py`
+- `orographic_precipitation_downscaling/src/apply_orographic_enhancement.py`
 
 功能：
 
@@ -270,105 +236,83 @@ flowchart TD
 
 ---
 
-
-
 ## 4. 输入输出与参数说明
-
-
 
 ### 4.1 MetaOrographicEnhancement
 
 输入输出总览：
 
-
-| 项目        | 说明                                                                                |
-| --------- | --------------------------------------------------------------------------------- |
-| 主函数       | `process(temperature, humidity, pressure, wind_speed, wind_direction, orography)` |
-| 输入类型      | `xr.DataArray` 或 `np.ndarray`                                                     |
-| 输入数量      | 6 个场                                                                              |
-| xarray 校验 | 使用 `check_for_meb_griddata` 执行标准六维网格检查                                            |
-| 输出类型      | `xr.DataArray`                                                                    |
-| 输出语义      | 优先输出标准六维网格；无可用模板时返回二维结果                                                           |
-| 输出变量      | `orographic_enhancement`                                                          |
-| 输出单位      | `m s-1`                                                                           |
-
+| 项目 | 说明 |
+| --- | --- |
+| 主函数 | `process(temperature, humidity, pressure, wind_speed, wind_direction, orography)` |
+| 输入类型 | `xr.DataArray` 或 `np.ndarray` |
+| 输入数量 | 6 个场 |
+| xarray 校验 | 使用 `check_for_meb_griddata` 执行标准六维网格检查 |
+| 输出类型 | `xr.DataArray` |
+| 输出语义 | 优先输出标准六维网格；无可用模板时返回二维结果 |
+| 输出变量 | `orographic_enhancement` |
+| 输出单位 | `m s-1` |
 
 参数表：
 
-
-| 参数名                     | 单位                        | 必填  | 默认值      | 说明             |
-| ----------------------- | ------------------------- | --- | -------- | -------------- |
-| `temperature`           | `K` 或 `degC`              | 是   | 无        | 温度场，支持多层输入     |
-| `humidity`              | `1` 或 `%`                 | 是   | 无        | 相对湿度场，支持多层输入   |
-| `pressure`              | `Pa` / `hPa` / `kPa`      | 是   | 无        | 气压场，支持多层输入     |
-| `wind_speed`            | `m s-1` / `km h-1`        | 是   | 无        | 风速场，支持多层输入     |
-| `wind_direction`        | `degree`                  | 是   | 无        | 风向场（真北参考）      |
-| `orography`             | `m` / `km`                | 是   | 无        | 地形高度场（目标网格）    |
-| `boundary_height`       | 同 `boundary_height_units` | 否   | `1000.0` | 边界层代表高度（初始化参数） |
-| `boundary_height_units` | -                         | 否   | `m`      | 边界层高度单位（初始化参数） |
-
-
-
+| 参数名 | 单位 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `temperature` | `K` 或 `degC` | 是 | 无 | 温度场，支持多层输入 |
+| `humidity` | `1` 或 `%` | 是 | 无 | 相对湿度场，支持多层输入 |
+| `pressure` | `Pa` / `hPa` / `kPa` | 是 | 无 | 气压场，支持多层输入 |
+| `wind_speed` | `m s-1` / `km h-1` | 是 | 无 | 风速场，支持多层输入 |
+| `wind_direction` | `degree` | 是 | 无 | 风向场（真北参考） |
+| `orography` | `m` / `km` | 是 | 无 | 地形高度场（目标网格） |
+| `boundary_height` | 同 `boundary_height_units` | 否 | `1000.0` | 边界层代表高度（初始化参数） |
+| `boundary_height_units` | - | 否 | `m` | 边界层高度单位（初始化参数） |
 
 ### 4.2 OrographicEnhancement
 
 输入输出总览：
 
-
-| 项目     | 说明                                                                   |
-| ------ | -------------------------------------------------------------------- |
-| 主函数    | `process(temperature, humidity, pressure, uwind, vwind, topography)` |
-| 输入类型   | `xr.DataArray` 或 `np.ndarray`                                        |
-| 输入数量   | 6 个场                                                                 |
-| 核心计算维度 | 二维（内部会将六维单场压缩到二维计算）                                                  |
-| 输出类型   | `xr.DataArray`                                                       |
-| 输出语义   | 地形为六维单场时重组为标准六维（模板仅取自地形）；否则返回二维，空间坐标来自地形，时间类辅助坐标可自气象场继承              |
-| 输出变量   | `orographic_enhancement`                                             |
-| 输出单位   | `m s-1`                                                              |
-
+| 项目 | 说明 |
+| --- | --- |
+| 主函数 | `process(temperature, humidity, pressure, uwind, vwind, topography)` |
+| 输入类型 | `xr.DataArray` 或 `np.ndarray` |
+| 输入数量 | 6 个场 |
+| 核心计算维度 | 二维（内部会将六维单场压缩到二维计算） |
+| 输出类型 | `xr.DataArray` |
+| 输出语义 | 地形为六维单场时重组为标准六维（模板仅取自地形）；否则返回二维，空间坐标来自地形，时间类辅助坐标可自气象场继承 |
+| 输出变量 | `orographic_enhancement` |
+| 输出单位 | `m s-1` |
 
 参数表：
 
-
-| 参数名           | 单位                   | 必填  | 默认值 | 说明           |
-| ------------- | -------------------- | --- | --- | ------------ |
-| `temperature` | `K` 或 `degC`         | 是   | 无   | 温度场          |
-| `humidity`    | `1` 或 `%`            | 是   | 无   | 相对湿度场        |
-| `pressure`    | `Pa` / `hPa` / `kPa` | 是   | 无   | 气压场          |
-| `uwind`       | `m s-1`              | 是   | 无   | 网格 `x` 方向风分量 |
-| `vwind`       | `m s-1`              | 是   | 无   | 网格 `y` 方向风分量 |
-| `topography`  | `m` / `km`           | 是   | 无   | 地形高度场，作为目标网格 |
-
-
-
+| 参数名 | 单位 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `temperature` | `K` 或 `degC` | 是 | 无 | 温度场 |
+| `humidity` | `1` 或 `%` | 是 | 无 | 相对湿度场 |
+| `pressure` | `Pa` / `hPa` / `kPa` | 是 | 无 | 气压场 |
+| `uwind` | `m s-1` | 是 | 无 | 网格 `x` 方向风分量 |
+| `vwind` | `m s-1` | 是 | 无 | 网格 `y` 方向风分量 |
+| `topography` | `m` / `km` | 是 | 无 | 地形高度场，作为目标网格 |
 
 ### 4.3 ApplyOrographicEnhancement
 
 输入输出总览：
 
-
-| 项目   | 说明                                                                          |
-| ---- | --------------------------------------------------------------------------- |
-| 主函数  | `process(precip_data, orographic_enhancement_data, allowed_time_diff=1800)` |
-| 输入类型 | `xr.DataArray` 或 `Sequence[xr.DataArray]`                                   |
-| 时间匹配 | 多时次增强场按最近时间匹配，受 `allowed_time_diff` 约束                                      |
-| 输出类型 | 单输入返回 `xr.DataArray`；序列输入返回 `list[xr.DataArray]`                            |
-
+| 项目 | 说明 |
+| --- | --- |
+| 主函数 | `process(precip_data, orographic_enhancement_data, allowed_time_diff=1800)` |
+| 输入类型 | `xr.DataArray` 或 `Sequence[xr.DataArray]` |
+| 时间匹配 | 多时次增强场按最近时间匹配，受 `allowed_time_diff` 约束 |
+| 输出类型 | 单输入返回 `xr.DataArray`；序列输入返回 `list[xr.DataArray]` |
 
 参数表：
 
-
-| 参数名                           | 单位                 | 必填  | 默认值    | 说明                          |
-| ----------------------------- | ------------------ | --- | ------ | --------------------------- |
-| `precip_data`                 | `mm h-1`（或等效降水率单位） | 是   | 无      | 降水场（可单场或场列表）                |
-| `orographic_enhancement_data` | `m s-1`            | 是   | 无      | 地形增强场（可单时次或多时次）             |
-| `allowed_time_diff`           | `s`                | 否   | `1800` | 时间匹配容差（秒）                   |
-| `operation`                   | -                  | 否   | `add`  | 初始化参数，支持 `add` / `subtract` |
-
+| 参数名 | 单位 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `precip_data` | `mm h-1`（或等效降水率单位） | 是 | 无 | 降水场（可单场或场列表） |
+| `orographic_enhancement_data` | `m s-1` | 是 | 无 | 地形增强场（可单时次或多时次） |
+| `allowed_time_diff` | `s` | 否 | `1800` | 时间匹配容差（秒） |
+| `operation` | - | 否 | `add` | 初始化参数，支持 `add` / `subtract` |
 
 ---
-
-
 
 ## 5. 关键参数（与原算法保持一致）
 
@@ -380,8 +324,6 @@ flowchart TD
 - `EFFICIENCY_FACTOR = 0.23265`
 
 ---
-
-
 
 ## 6. CLI 用法
 
@@ -411,23 +353,19 @@ result = process(
 )
 ```
 
-
-
 ### 6.2 `process()` 参数
 
-
-| 参数                      | 必填  | 说明                  |
-| ----------------------- | --- | ------------------- |
-| `temperature_path`      | 是   | 温度场 nc 路径           |
-| `humidity_path`         | 是   | 相对湿度 nc 路径          |
-| `pressure_path`         | 是   | 气压 nc 路径            |
-| `wind_speed_path`       | 是   | 风速 nc 路径            |
-| `wind_direction_path`   | 是   | 风向 nc 路径            |
-| `orography_path`        | 是   | 地形 nc 路径            |
-| `output_path`           | 否   | 输出 nc 路径            |
-| `boundary_height`       | 否   | 边界层代表高度，默认 `1000.0` |
-| `boundary_height_units` | 否   | 边界层高度单位，默认 `m`      |
-
+| 参数 | 必填 | 说明 |
+| --- | --- | --- |
+| `temperature_path` | 是 | 温度场 nc 路径 |
+| `humidity_path` | 是 | 相对湿度 nc 路径 |
+| `pressure_path` | 是 | 气压 nc 路径 |
+| `wind_speed_path` | 是 | 风速 nc 路径 |
+| `wind_direction_path` | 是 | 风向 nc 路径 |
+| `orography_path` | 是 | 地形 nc 路径 |
+| `output_path` | 否 | 输出 nc 路径 |
+| `boundary_height` | 否 | 边界层代表高度，默认 `1000.0` |
+| `boundary_height_units` | 否 | 边界层高度单位，默认 `m` |
 
 使用测试数据的 PowerShell 示例（先改脚本底部路径，或直接运行内置样例）：
 
@@ -439,11 +377,7 @@ result = process(
 
 ---
 
-
-
 ## 7. Python 调用示例
-
-
 
 ### 7.1 计算地形增强
 
@@ -462,8 +396,6 @@ plugin = MetaOrographicEnhancement(boundary_height=1000.0, boundary_height_units
 oe = plugin(temperature, humidity, pressure, wind_speed, wind_direction, orography)
 ```
 
-
-
 ### 7.2 应用地形增强项
 
 ```python
@@ -478,8 +410,6 @@ applied = plugin.process(precip, oe, allowed_time_diff=1800)
 ```
 
 ---
-
-
 
 ## 8. 验证建议
 
@@ -497,8 +427,6 @@ applied = plugin.process(precip, oe, allowed_time_diff=1800)
 - 六维结构是否完整（`member/level/time/dtime/lat/lon`）
 
 ---
-
-
 
 ## 9. 注意事项
 

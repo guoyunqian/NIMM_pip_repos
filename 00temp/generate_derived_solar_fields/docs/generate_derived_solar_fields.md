@@ -37,7 +37,7 @@ plugin = GenerateSolarTime()
 | --- | --- | --- | --- |
 | `target_grid` | `xr.DataArray` | 是 | 目标网格数据，需满足六维单场约束 |
 | `time` | `datetime` | 是 | 计算时刻 |
-| `new_title` | `str \| None` | 否 | 输出标题；为 `None` 时不覆盖现有标题 |
+| `new_title` | `str  或 None` | 否 | 输出标题；为 `None` 时不覆盖现有标题 |
 
 ### 3.1.3 输出要点
 
@@ -74,10 +74,10 @@ plugin = GenerateClearskySolarRadiation()
 | `target_grid` | `xr.DataArray` | 是 | 目标网格，需满足六维单场约束 |
 | `time` | `datetime` | 是 | 累积结束时刻 |
 | `accumulation_period` | `int` | 是 | 累积时长（小时） |
-| `surface_altitude` | `xr.DataArray \| None` | 否 | 海拔输入，不传时内部使用默认海拔场 |
-| `linke_turbidity` | `xr.DataArray \| None` | 否 | Linke 浑浊度输入，不传时内部使用默认浑浊度场 |
+| `surface_altitude` | `xr.DataArray  或 None` | 否 | 海拔输入，不传时内部使用默认海拔场 |
+| `linke_turbidity` | `xr.DataArray  或 None` | 否 | Linke 浑浊度输入，不传时内部使用默认浑浊度场 |
 | `temporal_spacing` | `int` | 否 | 时间积分步长（分钟），默认 30 |
-| `new_title` | `str \| None` | 否 | 输出标题；为 `None` 时不覆盖现有标题 |
+| `new_title` | `str  或 None` | 否 | 输出标题；为 `None` 时不覆盖现有标题 |
 
 ### 3.2.3 输出要点
 
@@ -91,19 +91,30 @@ plugin = GenerateClearskySolarRadiation()
 
 字段说明：
 
-- `time_lower_bound` / `time_upper_bound`  
-用于表示本次累计辐射对应的时间窗口起止。  
-  - `time_upper_bound` 对应主时间坐标（累计结束时刻）；  
-  - `time_lower_bound` 为 `time_upper_bound - accumulation_period`。  
+- `time_lower_bound` / `time_upper_bound`
+
+用于表示本次累计辐射对应的时间窗口起止。
+
+  - `time_upper_bound` 对应主时间坐标（累计结束时刻）；
+  - `time_lower_bound` 为 `time_upper_bound - accumulation_period`。
+
   这两项等价于原实现中的时间边界信息，便于下游明确“该值是哪个时段的累计量”。
-- `accumulation_period_hours`  
+
+- `accumulation_period_hours`
+
 记录本次计算使用的累计时长（小时）。该字段是主函数参数 `accumulation_period` 的显式回写，便于结果追溯和多批次结果拼接时校验一致性。
-- `temporal_spacing_minutes`  
+
+- `temporal_spacing_minutes`
+
 记录积分步长（分钟），对应主函数参数 `temporal_spacing`。该字段用于说明累计积分的时间离散精度。
-- `vertical_coordinate`  
-用于标记计算时采用的垂直语义：  
-  - 当海拔输入全为 0（默认补齐场）时写为 `altitude`；  
-  - 当传入了非零海拔场时写为 `height`。  
+
+- `vertical_coordinate`
+
+用于标记计算时采用的垂直语义：
+
+  - 当海拔输入全为 0（默认补齐场）时写为 `altitude`；
+  - 当传入了非零海拔场时写为 `height`。
+
   该字段用于提示结果与地形修正信息的关联状态。
 
 ### 3.2.4 核心流程图

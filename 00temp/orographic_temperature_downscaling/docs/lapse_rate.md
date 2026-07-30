@@ -21,10 +21,10 @@
 层结递减率调整量的计算公式如下：
 
 $$
-\Delta T = 
+\Delta T =
 \begin{cases}
-\Gamma \cdot \Delta z & \text{if } |\Delta z| \leq z_{\text{max}} 
-\Gamma \cdot z_{\text{max}} + \Gamma_e \cdot (\Delta z - z_{\text{max}}) & \text{if } \Delta z > z_{\text{max}} 
+\Gamma \cdot \Delta z & \text{if } |\Delta z| \leq z_{\text{max}}
+\Gamma \cdot z_{\text{max}} + \Gamma_e \cdot (\Delta z - z_{\text{max}}) & \text{if } \Delta z > z_{\text{max}}
 \Gamma \cdot (-z_{\text{max}}) + \Gamma_e \cdot (\Delta z + z_{\text{max}}) & \text{if } \Delta z < -z_{\text{max}}
 \end{cases}
 $$
@@ -127,56 +127,44 @@ flowchart TD
 
 ### 5.1 `compute_lapse_rate_adjustment` 函数
 
+| 参数 | 类型 | 说明 | 单位要求 |
+| --- | --- | --- | --- |
+| lapse_rate | np.ndarray | 层结递减率数组 | K/m（开尔文每米） |
+| orog_diff | np.ndarray | 地形高度差数组（目标减源） | m（米） |
+| max_orog_diff_limit | float | 最大垂直位移限制 | m（米），默认50.0 |
 
-| 参数                  | 类型         | 说明            | 单位要求        |
-| ------------------- | ---------- | ------------- | ----------- |
-| lapse_rate          | np.ndarray | 层结递减率数组       | K/m（开尔文每米）  |
-| orog_diff           | np.ndarray | 地形高度差数组（目标减源） | m（米）        |
-| max_orog_diff_limit | float      | 最大垂直位移限制      | m（米），默认50.0 |
-
-
-
-| 输出项 | 类型         | 说明         | 单位     |
-| --- | ---------- | ---------- | ------ |
+| 输出项 | 类型 | 说明 | 单位 |
+| --- | --- | --- | --- |
 | 返回值 | np.ndarray | 垂直层结递减率调整量 | K（开尔文） |
-
 
 ### 5.2 `ApplyGriddedLapseRate` 类
 
 注：若参数类型为xr.DataArray ，则输入数据须符合meteva_base网格数据格式
 
+| 参数 | 类型 | 说明 | 单位要求 |
+| --- | --- | --- | --- |
+| temperature | xr.DataArray 或 np.ndarray | 输入温度场 | - xarray: 支持 'K', 'degC' - numpy: 默认 'K' |
+| lapse_rate | xr.DataArray 或 np.ndarray | 预计算的层结递减率 | - xarray: 支持 'K m-1', 'C m-1' - numpy: 默认 'K m-1' |
+| source_orog | xr.DataArray 或 np.ndarray | 源地形高度 | - xarray: 支持 'm', 'metres', 'meter' - numpy: 默认 'm' |
+| dest_orog | xr.DataArray 或 np.ndarray | 目标地形高度 | - xarray: 支持 'm', 'metres', 'meter' - numpy: 默认 'm' |
 
-| 参数          | 类型                        | 说明        | 单位要求                                                |
-| ----------- | ------------------------- | --------- | --------------------------------------------------- |
-| temperature | xr.DataArray 或 np.ndarray | 输入温度场     | - xarray: 支持 'K', 'degC' - numpy: 默认 'K'            |
-| lapse_rate  | xr.DataArray 或 np.ndarray | 预计算的层结递减率 | - xarray: 支持 'K m-1', 'C m-1' - numpy: 默认 'K m-1'   |
-| source_orog | xr.DataArray 或 np.ndarray | 源地形高度     | - xarray: 支持 'm', 'metres', 'meter' - numpy: 默认 'm' |
-| dest_orog   | xr.DataArray 或 np.ndarray | 目标地形高度    | - xarray: 支持 'm', 'metres', 'meter' - numpy: 默认 'm' |
-
-
-
-| 输出项 | 类型                        | 说明           | 单位                   |
-| --- | ------------------------- | ------------ | -------------------- |
+| 输出项 | 类型 | 说明 | 单位 |
+| --- | --- | --- | --- |
 | 返回值 | xr.DataArray 或 np.ndarray | 层结递减率校正后的温度场 | K（开尔文），与上游 Improver 一致 |
-
 
 ### 5.3 `LapseRate` 类
 
 注：若参数类型为xr.DataArray ，则输入数据须符合meteva_base网格数据格式
 
+| 参数 | 类型 | 说明 | 单位要求 |
+| --- | --- | --- | --- |
+| temperature | xr.DataArray 或 np.ndarray | 空气温度数据 | - xarray: 支持 'K', 'degC' - numpy: 默认 'K' |
+| orography | xr.DataArray 或 np.ndarray | 地形数据 | - xarray: 支持 'm', 'metres', 'meter' - numpy: 默认 'm' |
+| land_sea_mask | xr.DataArray 或 np.ndarray | 二进制陆地-海洋掩膜 | - xarray: 任意单位 - numpy: 布尔数组 |
 
-| 参数            | 类型                        | 说明         | 单位要求                                                |
-| ------------- | ------------------------- | ---------- | --------------------------------------------------- |
-| temperature   | xr.DataArray 或 np.ndarray | 空气温度数据     | - xarray: 支持 'K', 'degC' - numpy: 默认 'K'            |
-| orography     | xr.DataArray 或 np.ndarray | 地形数据       | - xarray: 支持 'm', 'metres', 'meter' - numpy: 默认 'm' |
-| land_sea_mask | xr.DataArray 或 np.ndarray | 二进制陆地-海洋掩膜 | - xarray: 任意单位 - numpy: 布尔数组                        |
-
-
-
-| 输出项 | 类型                        | 说明        | 单位           |
-| --- | ------------------------- | --------- | ------------ |
+| 输出项 | 类型 | 说明 | 单位 |
+| --- | --- | --- | --- |
 | 返回值 | xr.DataArray 或 np.ndarray | 计算的层结递减率值 | K m⁻¹（开尔文每米） |
-
 
 ## 6. 使用示例
 
@@ -273,12 +261,10 @@ print(result_np.shape, result_np.dtype)
 
 温度模块提供两个示例脚本，均通过 `process()` 读 nc 路径、做输入检验、调用插件，并可选择写出结果。
 
-
-| 脚本                                       | 对应插件                    | 说明                 |
-| ---------------------------------------- | ----------------------- | ------------------ |
-| `orographic_temperature_downscaling/cli/anc_lapse_rate.py`      | `ApplyGriddedLapseRate` | 应用已计算的层结递减率        |
-| `orographic_temperature_downscaling/cli/dsc_temp_lapse_rate.py` | `LapseRate`             | 从温度、地形和海陆掩膜计算层结递减率 |
-
+| 脚本 | 对应插件 | 说明 |
+| --- | --- | --- |
+| `orographic_temperature_downscaling/cli/anc_lapse_rate.py` | `ApplyGriddedLapseRate` | 应用已计算的层结递减率 |
+| `orographic_temperature_downscaling/cli/dsc_temp_lapse_rate.py` | `LapseRate` | 从温度、地形和海陆掩膜计算层结递减率 |
 
 ### 7.1 运行方式
 
@@ -293,7 +279,7 @@ python -m orographic_temperature_downscaling.cli.anc_lapse_rate
 **方式 2：在代码中调用 `process()`**
 
 ```python
-from orographic_temperature_downscaling.cli.anc_lapse_rate import process
+from temperature.cli.anc_lapse_rate import process
 
 result = process(
     temperature_path=".../ukvx_temperature.nc",
@@ -308,15 +294,13 @@ result = process(
 
 `process()` 参数说明：
 
-
-| 参数                      | 类型  | 必填  | 说明                    |
-| ----------------------- | --- | --- | --------------------- |
-| `temperature_path`      | str | 是   | 温度场 nc 文件路径           |
-| `lapse_rate_path`       | str | 是   | 层结递减率场 nc 文件路径        |
-| `source_orography_path` | str | 是   | 源地形高度场 nc 文件路径        |
-| `target_orography_path` | str | 是   | 目标地形高度场 nc 文件路径       |
-| `output_path`           | str | 否   | 输出 nc 路径；`None` 时不写文件 |
-
+| 参数 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `temperature_path` | str | 是 | 温度场 nc 文件路径 |
+| `lapse_rate_path` | str | 是 | 层结递减率场 nc 文件路径 |
+| `source_orography_path` | str | 是 | 源地形高度场 nc 文件路径 |
+| `target_orography_path` | str | 是 | 目标地形高度场 nc 文件路径 |
+| `output_path` | str | 否 | 输出 nc 路径；`None` 时不写文件 |
 
 脚本内置测试数据目录：输入 `orographic_temperature_downscaling/test_data/apply_lapse_rate_data/cli_input/`，CLI 输出 `cli_output/`。
 
@@ -324,19 +308,17 @@ result = process(
 
 `process()` 参数说明：
 
-
-| 参数                   | 类型    | 必填  | 说明                                       |
-| -------------------- | ----- | --- | ---------------------------------------- |
-| `temperature_path`   | str   | 是   | 温度场 nc 文件路径                              |
-| `orography_path`     | str   | 否   | 地形高度场 nc 文件路径（`dry_adiabatic=True` 时可不传） |
-| `land_sea_mask_path` | str   | 否   | 陆海掩膜 nc 文件路径（`dry_adiabatic=True` 时可不传）  |
-| `output_path`        | str   | 否   | 输出 nc 路径                                 |
-| `max_height_diff`    | float | 否   | 邻域样本允许最大高差（m），默认 `35.0`                  |
-| `nbhood_radius`      | int   | 否   | 邻域半径（格点数），默认 `7`                         |
-| `max_lapse_rate`     | float | 否   | 层结递减率上限（K/m），默认 `0.0294`                 |
-| `min_lapse_rate`     | float | 否   | 层结递减率下限（K/m），默认 `-0.0098`                |
-| `dry_adiabatic`      | bool  | 否   | 为真时直接输出干绝热递减率场                           |
-
+| 参数 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `temperature_path` | str | 是 | 温度场 nc 文件路径 |
+| `orography_path` | str | 否 | 地形高度场 nc 文件路径（`dry_adiabatic=True` 时可不传） |
+| `land_sea_mask_path` | str | 否 | 陆海掩膜 nc 文件路径（`dry_adiabatic=True` 时可不传） |
+| `output_path` | str | 否 | 输出 nc 路径 |
+| `max_height_diff` | float | 否 | 邻域样本允许最大高差（m），默认 `35.0` |
+| `nbhood_radius` | int | 否 | 邻域半径（格点数），默认 `7` |
+| `max_lapse_rate` | float | 否 | 层结递减率上限（K/m），默认 `0.0294` |
+| `min_lapse_rate` | float | 否 | 层结递减率下限（K/m），默认 `-0.0098` |
+| `dry_adiabatic` | bool | 否 | 为真时直接输出干绝热递减率场 |
 
 脚本内置测试数据目录：输入 `orographic_temperature_downscaling/test_data/temp_lapse_rate_data/cli_input/`，CLI 输出 `cli_output/`。
 
@@ -383,4 +365,3 @@ result = process(
 - 最大高度差限制：默认 50 米，超过此值使用环境递减率
 - 层结递减率约束：默认范围 [DALR, -3×DALR] = [-0.0098, 0.0294] K/m
 - 陆地/海洋掩膜：海洋点自动设置为 DALR 值
-

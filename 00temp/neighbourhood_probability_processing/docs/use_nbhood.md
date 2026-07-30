@@ -2,10 +2,10 @@
 
 ## 1. 算法概述
 
-`use_nbhood` 模块迁移自 IMPROVER 的 `improver.nbhood.use_nbhood`，核心类为 `ApplyNeighbourhoodProcessingWithAMask`。  
+`use_nbhood` 模块迁移自 IMPROVER 的 `improver.nbhood.use_nbhood`，核心类为 `ApplyNeighbourhoodProcessingWithAMask`。
 该算法用于在一组分层掩码上重复执行邻域处理，并可按权重将分层结果折叠回原网格场。
 
-典型场景：地形带分层处理。  
+典型场景：地形带分层处理。
 输入掩码包含一个分层维（例如 `topographic_zone`），每层对应一张二维空间掩码。算法会逐层调用 `NeighbourhoodProcessing`，仅允许当前层有效点参与统计。
 
 ## 2. 核心算法说明
@@ -30,7 +30,7 @@
 
 `Y = sum(Y_k * W_k) / sum(W_k)`
 
-折叠时会忽略无效值（如 `NaN` / `Inf` / 被掩码值）。  
+折叠时会忽略无效值（如 `NaN` / `Inf` / 被掩码值）。
 若某网格点有效权重和为 0，则该点输出为无效（`NaN` 或 masked）。
 
 ### 2.3 核心处理流程
@@ -54,18 +54,12 @@ flowchart TD
     Q --> T
 ```
 
-
-
 要点：
 
 - 邻域处理固定**不重掩码**；各层无效格点的数值仍可能来自邻域扩散，需结合对应层掩码解读（见 §6.1）。
 - 仅当提供折叠权重时，才沿掩码分层维合并为与输入同形状的单场结果。
 
-
-
 ## 3. 组件说明
-
-
 
 ### 3.1 `ApplyNeighbourhoodProcessingWithAMask`
 
@@ -76,8 +70,6 @@ flowchart TD
 - 在提供权重时沿掩码分层维折叠；
 - `xarray` 输入场景下尽量保持维度名与坐标信息。
 
-
-
 ### 3.2 `collapse_mask_coord`
 
 该方法用于沿掩码分层维做加权折叠，处理流程包括：
@@ -87,40 +79,28 @@ flowchart TD
 - 计算加权分子与分母；
 - 对分母为 0 的点做无效处理。
 
-
-
 ## 4. 输入输出规范
-
-
 
 ### 4.1 初始化参数
 
-
-| 参数                     | 类型                                  | 说明                            |
-| ---------------------- | ----------------------------------- | ----------------------------- |
-| `coord_for_masking`    | `str`                               | 掩码分层维名称，如 `topographic_zone`  |
-| `neighbourhood_method` | `str`                               | 邻域方法，支持 `square` / `circular` |
-| `radii`                | `float` 或 `list[float]`             | 邻域半径（米）                       |
-| `lead_times`           | `list[int]` 或 `None`                | 与 `radii` 对应的时效（小时）           |
-| `collapse_weights`     | `xr.DataArray` / `ndarray` / `None` | 分层折叠权重                        |
-| `weighted_mode`        | `bool`                              | 是否启用圆形加权核                     |
-| `sum_only`             | `bool`                              | 是否输出邻域和而非邻域平均                 |
-
-
-
+| 参数 | 类型 | 说明 |
+| --- | --- | --- |
+| `coord_for_masking` | `str` | 掩码分层维名称，如 `topographic_zone` |
+| `neighbourhood_method` | `str` | 邻域方法，支持 `square` / `circular` |
+| `radii` | `float` 或 `list[float]` | 邻域半径（米） |
+| `lead_times` | `list[int]` 或 `None` | 与 `radii` 对应的时效（小时） |
+| `collapse_weights` | `xr.DataArray` / `ndarray` / `None` | 分层折叠权重 |
+| `weighted_mode` | `bool` | 是否启用圆形加权核 |
+| `sum_only` | `bool` | 是否输出邻域和而非邻域平均 |
 
 ### 4.2 `process` 输入参数
 
-
-| 参数                 | 类型                                       | 说明               | 单位要求          |
-| ------------------ | ---------------------------------------- | ---------------- | ------------- |
-| `data`             | `xr.DataArray` 或 `ndarray`               | 输入数据，最后两维为 `y,x` | 由调用方保证        |
-| `mask`             | `xr.DataArray` 或 `ndarray`               | 分层掩码             | `0` 无效，`1` 有效 |
-| `input_lead_times` | `float` / `ndarray` / `None`             | 可变半径场景对应输入时效     | 小时            |
-| `grid_spacing`     | `float` / `tuple[float, float]` / `None` | `numpy` 输入时网格分辨率 | 米             |
-
-
-
+| 参数 | 类型 | 说明 | 单位要求 |
+| --- | --- | --- | --- |
+| `data` | `xr.DataArray` 或 `ndarray` | 输入数据，最后两维为 `y,x` | 由调用方保证 |
+| `mask` | `xr.DataArray` 或 `ndarray` | 分层掩码 | `0` 无效，`1` 有效 |
+| `input_lead_times` | `float` / `ndarray` / `None` | 可变半径场景对应输入时效 | 小时 |
+| `grid_spacing` | `float` / `tuple[float, float]` / `None` | `numpy` 输入时网格分辨率 | 米 |
 
 ### 4.3 输出类型
 
@@ -130,11 +110,7 @@ flowchart TD
 - 输入为 `numpy.ndarray`：
   - 返回 `numpy.ndarray` 或 `numpy.ma.MaskedArray`。
 
-
-
 ## 5. 输出形状规则
-
-
 
 ### 5.1 不折叠结果
 
@@ -152,11 +128,7 @@ flowchart TD
 - 输入 `(y, x)` -> 输出 `(y, x)`；
 - 输入 `(threshold, y, x)` -> 输出 `(threshold, y, x)`。
 
-
-
 ## 6. 掩码与权重规则
-
-
 
 ### 6.1 外部掩码语义
 
@@ -172,8 +144,6 @@ flowchart TD
 - `numpy.ma.MaskedArray`：以 `mask` 位识别无效格点；掩码外不得含 `NaN`。
 - **六维** `DataArray`：算法入口会拒绝裸 `NaN`；若读盘得到大填充值或需表达内部缺测，须在 **CLI/预处理** 转为 `MaskedArray` 后再调用。
 
-
-
 #### 为何 `DataArray` 不支持内部掩码
 
 1. **xarray 数据模型**：`DataArray.values` 是普通 `ndarray`，不携带 `MaskedArray.mask`。传入 `MaskedArray` 时，掩码位常被写成 `NaN`，掩码语义在 xarray 侧即丢失。
@@ -184,7 +154,7 @@ flowchart TD
 
 ### 6.3 权重折叠
 
-折叠权重要求可整理为 `(n_mask, y, x)`。  
+折叠权重要求可整理为 `(n_mask, y, x)`。
 算法在折叠时会自动按有效权重重归一化，避免部分分层无效导致整体结果偏差。
 
 ## 7. 与原算法关系
@@ -202,11 +172,7 @@ flowchart TD
 - `xarray` 输入时尽量保留维度名与坐标；
 - 不处理 Iris `PostProcessingPlugin` 的元数据更新逻辑。
 
-
-
 ## 8. 使用示例
-
-
 
 ### 8.1 `numpy.ndarray` 输入，不折叠
 
@@ -238,8 +204,6 @@ plugin = ApplyNeighbourhoodProcessingWithAMask(
 
 result = plugin.process(data, mask, grid_spacing=1.0)
 ```
-
-
 
 ### 8.2 `xarray.DataArray` 输入
 
@@ -311,8 +275,6 @@ print(result.shape)
 #   result.coords["member_topographic_zone"]
 ```
 
-
-
 ### 8.3 带权重折叠
 
 该场景在分层处理后沿 `topographic_zone` 做加权折叠，得到与原输入同阶的输出。
@@ -359,20 +321,14 @@ print(collapsed.dims)   # ("threshold", "y", "x")
 print(collapsed.shape)  # (2, 3, 3)
 ```
 
-
-
 ## 9. CLI 应用说明
 
 本文档相关示例脚本：
 
-
-| 脚本                                           | 说明          |
-| -------------------------------------------- | ----------- |
+| 脚本 | 说明 |
+| --- | --- |
 | `neighbourhood_probability_processing/cli/ens_nbhood_iterate_with_mask.py` | 按分层掩码逐层邻域处理 |
-| `neighbourhood_probability_processing/cli/ens_nbhood_land_and_sea.py`      | 陆海分区邻域处理并合并 |
-
-
-
+| `neighbourhood_probability_processing/cli/ens_nbhood_land_and_sea.py` | 陆海分区邻域处理并合并 |
 
 ### 9.1 `ens_nbhood_iterate_with_mask.py`
 
@@ -428,19 +384,17 @@ process(
 
 `**process()` 参数说明**
 
-
-| 参数                    | 类型          | 必填  | 默认值      | 说明                          |
-| --------------------- | ----------- | --- | -------- | --------------------------- |
-| `input_data_path`     | str         | 是   | -        | 主输入 nc 路径                   |
-| `mask_path`           | str         | 是   | -        | 分层掩码 nc 路径                  |
-| `coord_for_masking`   | str         | 是   | -        | 掩码分层维名，如 `topographic_zone` |
-| `radii`               | list[float] | 是   | -        | 邻域半径（米）                     |
-| `weights_path`        | str         | 否   | `None`   | 分层折叠权重 nc 路径                |
-| `output_path`         | str         | 否   | `None`   | 输出 nc 路径                    |
-| `neighbourhood_shape` | str         | 否   | `square` | `square` 或 `circular`       |
-| `lead_times`          | list[int]   | 否   | `None`   | 与 `radii` 对应时效（小时）          |
-| `area_sum`            | bool        | 否   | `False`  | `True` 输出邻域和                |
-
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `input_data_path` | str | 是 | - | 主输入 nc 路径 |
+| `mask_path` | str | 是 | - | 分层掩码 nc 路径 |
+| `coord_for_masking` | str | 是 | - | 掩码分层维名，如 `topographic_zone` |
+| `radii` | list[float] | 是 | - | 邻域半径（米） |
+| `weights_path` | str | 否 | `None` | 分层折叠权重 nc 路径 |
+| `output_path` | str | 否 | `None` | 输出 nc 路径 |
+| `neighbourhood_shape` | str | 否 | `square` | `square` 或 `circular` |
+| `lead_times` | list[int] | 否 | `None` | 与 `radii` 对应时效（小时） |
+| `area_sum` | bool | 否 | `False` | `True` 输出邻域和 |
 
 说明：传 `weights_path` 时会沿掩码分层维折叠；不传时 xarray 路径下分层维会与输入 member 联合映射到新 member。
 
@@ -497,24 +451,20 @@ process(
 
 `**process()` 参数说明**
 
-
-| 参数                    | 类型          | 必填  | 默认值      | 说明                    |
-| --------------------- | ----------- | --- | -------- | --------------------- |
-| `input_data_path`     | str         | 是   | -        | 主输入 nc 路径             |
-| `mask_path`           | str         | 是   | -        | 陆海掩码或地形带 nc 路径        |
-| `radii`               | list[float] | 是   | -        | 邻域半径（米）               |
-| `weights_path`        | str         | 否   | `None`   | 地形带权重 nc 路径           |
-| `output_path`         | str         | 否   | `None`   | 输出 nc 路径              |
-| `neighbourhood_shape` | str         | 否   | `square` | `square` 或 `circular` |
-| `lead_times`          | list[int]   | 否   | `None`   | 与 `radii` 对应时效（小时）    |
-| `area_sum`            | bool        | 否   | `False`  | `True` 输出邻域和          |
-
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `input_data_path` | str | 是 | - | 主输入 nc 路径 |
+| `mask_path` | str | 是 | - | 陆海掩码或地形带 nc 路径 |
+| `radii` | list[float] | 是 | - | 邻域半径（米） |
+| `weights_path` | str | 否 | `None` | 地形带权重 nc 路径 |
+| `output_path` | str | 否 | `None` | 输出 nc 路径 |
+| `neighbourhood_shape` | str | 否 | `square` | `square` 或 `circular` |
+| `lead_times` | list[int] | 否 | `None` | 与 `radii` 对应时效（小时） |
+| `area_sum` | bool | 否 | `False` | `True` 输出邻域和 |
 
 说明：纯陆海二值掩码通常可不传 `weights_path`；地形带场景建议成对提供 mask 与 weights。
 
 ## 10. 注意事项
-
-
 
 ### 10.1 输入前提
 
@@ -523,15 +473,11 @@ process(
 - 不自动识别 NetCDF `_FillValue`；
 - 若输入存在填充值或内部缺测，应由调用方在进算法前转为 `MaskedArray`（`DataArray` 路径不得用 `NaN` 表达内部掩码，见 §6.2）。
 
-
-
 ### 10.2 `numpy` 输入要求
 
 - 需显式提供 `grid_spacing`；
 - 若使用可变半径，需显式提供 `input_lead_times`；
 - 默认使用倒数第三维作为掩码分层维。
-
-
 
 ### 10.3 当前限制
 
@@ -539,19 +485,15 @@ process(
 - 权重数组当前要求可整理为 `(n_mask, y, x)`；
 - 不处理 Iris `PostProcessingPlugin` 的元数据更新逻辑。
 
-
-
 ### 10.4 测试数据
 
 `official_test_use_nbhood/` 与 `official_test_nbhood/` 目录约定：
 
-
-| 路径                                                       | 内容                                                                         |
-| -------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `*/cli_input/`                                           | Notebook 预处理后的六维输入（`member, level, time, dtime, lat, lon`），供算法与 CLI 使用     |
-| `*/cli_output/`                                          | CLI 示例脚本写出结果                                                               |
+| 路径 | 内容 |
+| --- | --- |
+| `*/cli_input/` | Notebook 预处理后的六维输入（`member, level, time, dtime, lat, lon`），供算法与 CLI 使用 |
+| `*/cli_output/` | CLI 示例脚本写出结果 |
 | 场景子目录（如 `basic_collapse_bands/`、`no_topographic_bands/`） | 投影坐标下的 KGO、原算法参考；部分场景保留仅用于 `MaskedArray` 路径的原始输入（如 `mask/input_masked.nc`） |
-
 
 `pytest` 对照说明：
 

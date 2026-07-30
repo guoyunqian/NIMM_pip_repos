@@ -88,26 +88,23 @@ flowchart TD
 
 - **xarray.DataArray**：用于 meteva_base grid_data，自动从 `.attrs["units"]` 提取单位信息
 - **numpy.ndarray**：用于纯数组输入，使用默认单位（用户必须确保输入数组的单位正确）
+
 注：若参数为xr.DataArray类型，须符合meteva_base网格数据格式
 
 #### 输入参数
 
-
-| 参数                | 类型                        | 说明       | 单位要求                                                   |
-| ----------------- | ------------------------- | -------- | ------------------------------------------------------ |
-| temperature       | xr.DataArray 或 np.ndarray | 气温数据     | - xarray: 支持 'degC' 或 'K' - numpy: 默认摄氏度 (degC)        |
-| wind_speed        | xr.DataArray 或 np.ndarray | 10m 风速数据 | - xarray: 支持 'm s-1' 或 'km h-1' - numpy: 默认米/秒 (m s-1) |
-| relative_humidity | xr.DataArray 或 np.ndarray | 相对湿度数据   | - xarray: 支持分数 '1' 或百分比 '%' - numpy: 默认分数 (0-1)        |
-| pressure          | xr.DataArray 或 np.ndarray | 气压数据     | - xarray: 支持 'Pa', 'hPa', 'kPa' - numpy: 默认帕斯卡 (Pa)    |
-
+| 参数 | 类型 | 说明 | 单位要求 |
+| --- | --- | --- | --- |
+| temperature | xr.DataArray 或 np.ndarray | 气温数据 | - xarray: 支持 'degC' 或 'K' - numpy: 默认摄氏度 (degC) |
+| wind_speed | xr.DataArray 或 np.ndarray | 10m 风速数据 | - xarray: 支持 'm s-1' 或 'km h-1' - numpy: 默认米/秒 (m s-1) |
+| relative_humidity | xr.DataArray 或 np.ndarray | 相对湿度数据 | - xarray: 支持分数 '1' 或百分比 '%' - numpy: 默认分数 (0-1) |
+| pressure | xr.DataArray 或 np.ndarray | 气压数据 | - xarray: 支持 'Pa', 'hPa', 'kPa' - numpy: 默认帕斯卡 (Pa) |
 
 #### 输出
 
-
-| 输出项 | 类型                        | 说明     | 单位                                                                              |
-| --- | ------------------------- | ------ | ------------------------------------------------------------------------------- |
+| 输出项 | 类型 | 说明 | 单位 |
+| --- | --- | --- | --- |
 | 返回值 | xr.DataArray 或 np.ndarray | 体感温度结果 | - xarray输入: 返回 DataArray，单位与输入temperature一致 - numpy输入: 返回 ndarray，单位为摄氏度 (degC) |
-
 
 ### 4.2 CalculateWindChill 插件类
 
@@ -115,26 +112,23 @@ flowchart TD
 
 - **xarray.DataArray**：用于 meteva_base grid_data，自动从 `.attrs["units"]` 提取单位信息
 - **numpy.ndarray**：用于纯数组输入，使用默认单位（用户必须确保输入数组的单位正确）
+
 注：若参数为xr.DataArray类型，须符合meteva_base网格数据格式
 
 #### process 方法参数
 
-
-| 参数                | 类型                        | 说明              | 单位要求                                        |
-| ----------------- | ------------------------- | --------------- | ------------------------------------------- |
-| temperature_data  | xr.DataArray 或 np.ndarray | 气温数据            | xarray 自动读单位；ndarray 使用 `temperature_units` |
-| wind_speed_data   | xr.DataArray 或 np.ndarray | 10m 风速数据        | xarray 自动读单位；ndarray 使用 `wind_speed_units`  |
-| temperature_units | str                       | ndarray 输入时温度单位 | 'degC' 或 'K' (默认: 'degC')                   |
-| wind_speed_units  | str                       | ndarray 输入时风速单位 | 'm s-1' 或 'km h-1' (默认: 'm s-1')            |
-
+| 参数 | 类型 | 说明 | 单位要求 |
+| --- | --- | --- | --- |
+| temperature_data | xr.DataArray 或 np.ndarray | 气温数据 | xarray 自动读单位；ndarray 使用 `temperature_units` |
+| wind_speed_data | xr.DataArray 或 np.ndarray | 10m 风速数据 | xarray 自动读单位；ndarray 使用 `wind_speed_units` |
+| temperature_units | str | ndarray 输入时温度单位 | 'degC' 或 'K' (默认: 'degC') |
+| wind_speed_units | str | ndarray 输入时风速单位 | 'm s-1' 或 'km h-1' (默认: 'm s-1') |
 
 #### 输出
 
-
-| 输出项 | 类型                        | 说明     | 单位         |
-| --- | ------------------------- | ------ | ---------- |
+| 输出项 | 类型 | 说明 | 单位 |
+| --- | --- | --- | --- |
 | 返回值 | xr.DataArray 或 np.ndarray | 风寒温度结果 | 摄氏度 (degC) |
-
 
 ## 5. 算法验证
 
@@ -186,7 +180,7 @@ from feels_like_temperature.src.feels_like_temperature import calculate_feels_li
 # 生成示例数组（必须确保单位正确：degC, m/s, fraction, Pa）
 shape = (1, 1, 1, 1, 2, 3)
 t = np.full(shape, 15.0, dtype=np.float32)      # 15℃
-w = np.full(shape, 5.0, dtype=np.float32)       # 5 m/s  
+w = np.full(shape, 5.0, dtype=np.float32)       # 5 m/s
 rh = np.full(shape, 0.5, dtype=np.float32)      # 0.5 (fraction)
 p = np.full(shape, 101325.0, dtype=np.float32)  # Pa
 
@@ -258,15 +252,13 @@ result = process(
 
 ### 7.2 `process()` 参数说明
 
-
-| 参数                       | 是否必填 | 说明                      | 单位/格式                               |
-| ------------------------ | ---- | ----------------------- | ----------------------------------- |
-| `temperature_path`       | 是    | 气温输入 nc 文件              | `degC` 或 `K`（按 `attrs["units"]` 识别） |
-| `wind_speed_path`        | 是    | 10 米风速 nc 文件            | `m s-1` 或 `km h-1`                  |
-| `relative_humidity_path` | 是    | 相对湿度 nc 文件              | `1`（0–1）或 `%`                       |
-| `pressure_path`          | 是    | 气压 nc 文件                | `Pa`、`hPa` 或 `kPa`                  |
-| `output_path`            | 否    | 输出 nc 路径；`None` 则只返回不写盘 | `.nc`                               |
-
+| 参数 | 是否必填 | 说明 | 单位/格式 |
+| --- | --- | --- | --- |
+| `temperature_path` | 是 | 气温输入 nc 文件 | `degC` 或 `K`（按 `attrs["units"]` 识别） |
+| `wind_speed_path` | 是 | 10 米风速 nc 文件 | `m s-1` 或 `km h-1` |
+| `relative_humidity_path` | 是 | 相对湿度 nc 文件 | `1`（0–1）或 `%` |
+| `pressure_path` | 是 | 气压 nc 文件 | `Pa`、`hPa` 或 `kPa` |
+| `output_path` | 否 | 输出 nc 路径；`None` 则只返回不写盘 | `.nc` |
 
 说明：
 
@@ -294,9 +286,8 @@ result = process(
 - 对于 **xarray.DataArray** 输入，单位会自动从 `.attrs["units"]` 提取并进行转换
 - 对于 **numpy.ndarray** 输入，用户必须确保输入数组的单位正确：
   - 温度：摄氏度 (degC) - **注意：不是开尔文(K)**
-  - 风速：米/秒 (m s-1) 
+  - 风速：米/秒 (m s-1)
   - 相对湿度：分数 (0-1)
   - 气压：帕斯卡 (Pa)
 - 如果输入单位不在支持列表中，算法将按上述默认值处理
 - **测试文件位置**：所有算法验证和单元测试文件位于 `feels_like_temperature/test/` 目录
-

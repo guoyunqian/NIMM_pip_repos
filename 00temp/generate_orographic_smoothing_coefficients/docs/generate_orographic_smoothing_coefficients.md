@@ -49,7 +49,7 @@
 | 参数 | 类型 | 说明 |
 | --- | --- | --- |
 | `orography` | `xr.DataArray` | 地形场（六维单场） |
-| `mask` | `xr.DataArray \| None` | 可选掩码，网格须与地形一致 |
+| `mask` | `xr.DataArray  或 None` | 可选掩码，网格须与地形一致 |
 
 返回：`(smoothing_coefficient_x, smoothing_coefficient_y)` 两个六维 `DataArray`。
 
@@ -123,7 +123,9 @@ coeff_x, coeff_y = process(
   - 投影：等间距米制、`km` 单位换算、合成场、mask 边界、参数校验
   - 经纬度：逐段格距对齐 Improver、无 units、递减坐标符号、最终系数对齐原插件
 - 官方样例对照（投影网格）：`basic` / `mask_boundary` / `mask_zeroed` / `inverse_mask_zeroed`
+
   （含不同 limits、不同 power）；与原 Improver、KGO 一致（`atol/rtol=1e-5`）
+
 - CLI 冒烟：合成网格写出 + 默认 `cli_inputs` 可跑通
 
 说明：官方 KGO 仅覆盖投影网格。经纬路径以「同一经纬输入上 current vs 原算法」验证，不把重网格后的投影 KGO 当作判据。
