@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2019 NMC Developers.
 # Distributed under the terms of the GPL V3 License.
-"""站点高差订正（dz rescaling）算法包。"""
+"""station_height_difference_correction 核心算法实现。"""
 
-from dz_rescaling.src.dz_rescaling import ApplyDzRescaling, EstimateDzRescaling
+from station_height_difference_correction.src.dz_rescaling import ApplyDzRescaling, EstimateDzRescaling
 
 __all__ = [
     "EstimateDzRescaling",

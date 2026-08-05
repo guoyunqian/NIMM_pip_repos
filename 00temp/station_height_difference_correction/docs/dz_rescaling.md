@@ -1,4 +1,4 @@
-# 站点高差订正（dz_rescaling）
+# 站点高差订正（station_height_difference_correction）
 
 迁移自 Improver `improver.calibration.dz_rescaling`。  
 **I/O 为 meteva_base 站点表**（`pandas.DataFrame`），以站点 `id` 对齐。
@@ -160,7 +160,7 @@ Estimate / Apply 均在返回前经 `set_stadata_coords_dtype` 规范化输出 d
 ### 4.1 估计订正因子
 
 ```python
-from dz_rescaling import EstimateDzRescaling
+from station_height_difference_correction import EstimateDzRescaling
 
 plugin = EstimateDzRescaling(
     forecast_period=6,
@@ -176,7 +176,7 @@ scaled_dz = plugin.process(forecast_sta, truth_sta, neighbour_sta)
 ### 4.2 应用订正因子
 
 ```python
-from dz_rescaling import ApplyDzRescaling
+from station_height_difference_correction import ApplyDzRescaling
 
 plugin = ApplyDzRescaling(
     forecast_data_name="wind_speed",
@@ -192,23 +192,23 @@ rescaled = plugin.process(forecast_sta, scaled_dz_sta)
 
 示例脚本路径：
 
-- `dz_rescaling/cli/dsc_estimate_dz_rescaling.py`
-- `dz_rescaling/cli/dsc_apply_dz_rescaling.py`
+- `station_height_difference_correction/cli/dsc_estimate_dz_rescaling.py`
+- `station_height_difference_correction/cli/dsc_apply_dz_rescaling.py`
 
 在仓库根目录直接运行（脚本内会把仓库根加入 `sys.path`，并用 `__file__` 定位测试数据）：
 
 ```text
-python dz_rescaling/cli/dsc_estimate_dz_rescaling.py
-python dz_rescaling/cli/dsc_apply_dz_rescaling.py
+python station_height_difference_correction/cli/dsc_estimate_dz_rescaling.py
+python station_height_difference_correction/cli/dsc_apply_dz_rescaling.py
 ```
 
 ### 5.1 估计：调用 `process`
 
 ```python
 from pathlib import Path
-from dz_rescaling.cli.dsc_estimate_dz_rescaling import process
+from station_height_difference_correction.cli.dsc_estimate_dz_rescaling import process
 
-data_root = Path("dz_rescaling/test_data/estimate-dz-rescaling")
+data_root = Path("station_height_difference_correction/test_data/estimate-dz-rescaling")
 result = process(
     data_root / "cli_input" / "T1200Z_forecast.csv",
     data_root / "cli_input" / "T1200Z_truth.csv",
@@ -226,9 +226,9 @@ result = process(
 
 ```python
 from pathlib import Path
-from dz_rescaling.cli.dsc_apply_dz_rescaling import process
+from station_height_difference_correction.cli.dsc_apply_dz_rescaling import process
 
-data_root = Path("dz_rescaling/test_data/apply-dz-rescaling")
+data_root = Path("station_height_difference_correction/test_data/apply-dz-rescaling")
 result = process(
     data_root / "cli_input" / "apply_forecast.csv",
     data_root / "cli_input" / "apply_scaled_dz.csv",
@@ -244,12 +244,12 @@ result = process(
 
 ### 6.1 单元测试
 
-路径：`dz_rescaling/test/test_dz_rescaling_unit.py`。
+路径：`station_height_difference_correction/test/test_dz_rescaling_unit.py`。
 
 在仓库根目录执行：
 
 ```text
-pytest dz_rescaling/test
+pytest station_height_difference_correction/test
 ```
 
 以合成小样本为主，主要覆盖：

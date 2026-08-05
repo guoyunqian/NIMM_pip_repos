@@ -1,4 +1,4 @@
-"""dz_rescaling 单元测试（对照原版公式与匹配逻辑）。"""
+"""station_height_difference_correction 单元测试（对照原版公式与匹配逻辑）。"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -8,13 +8,13 @@ import pandas as pd
 import pytest
 from numpy.polynomial.polynomial import polyfit
 
-from dz_rescaling import ApplyDzRescaling, EstimateDzRescaling
-from dz_rescaling.src.utils._sta import (
+from station_height_difference_correction import ApplyDzRescaling, EstimateDzRescaling
+from station_height_difference_correction.src.utils._sta import (
     filter_matching_stations,
     get_neighbour_finding_method_name,
     require_columns,
 )
-from dz_rescaling.utils.base_plugin import PostProcessingPlugin
+from station_height_difference_correction.utils.base_plugin import PostProcessingPlugin
 
 EST_CLI_INPUT = (
     Path(__file__).resolve().parents[1]
@@ -444,7 +444,7 @@ def test_estimate_output_covers_all_neighbour_sites():
 )
 def test_cli_estimate_process_smoke():
     """CLI process 对官方样例输入可跑通（含 land_constraint）。"""
-    from dz_rescaling.cli.dsc_estimate_dz_rescaling import process
+    from station_height_difference_correction.cli.dsc_estimate_dz_rescaling import process
 
     result = process(
         EST_CLI_INPUT / "T1200Z_forecast.csv",

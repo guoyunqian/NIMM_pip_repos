@@ -12,4 +12,4 @@
 
 | 文件 | 算法 | 说明 |
 | --- | --- | --- |
-| `dz_rescaling_整理_20260731.log` | 站点高差订正 | NIMM 标准中间目录结构整理 |
+| `station_height_difference_correction_整理_20260731.log` | 站点高差订正 | NIMM 标准中间目录结构整理 |

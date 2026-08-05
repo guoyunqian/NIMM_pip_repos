@@ -6,7 +6,7 @@
 
 用法：在仓库根目录修改下方路径后执行::
 
-    python dz_rescaling/cli/dsc_estimate_dz_rescaling.py
+    python station_height_difference_correction/cli/dsc_estimate_dz_rescaling.py
 """
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ def process(
     """
     from meteva_base import read_stadata_from_csv, write_stadata_to_csv
 
-    from dz_rescaling.src.dz_rescaling import EstimateDzRescaling
+    from station_height_difference_correction.src.dz_rescaling import EstimateDzRescaling
 
     forecast = read_stadata_from_csv(str(forecast_path), drop_same_id=False)
     truth = read_stadata_from_csv(str(truth_path), drop_same_id=False)

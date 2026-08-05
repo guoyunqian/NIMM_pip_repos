@@ -2,8 +2,8 @@
 
 ## 基本信息
 
-- 算法名称：`dz_rescaling`
-- 原始路径：`D:\workspace\improver\dz_rescaling`
+- 算法名称：`station_height_difference_correction`
+- 原始路径：`D:\workspace\improver\dz_rescaling`（原包名 `dz_rescaling`）
 - 算法类型：`04single_calibration`
 - 贡献人：郭云谦、王亭波
 
@@ -28,12 +28,12 @@
 | 模块工具 | `src/utils/_sta.py` | 站点表列校验与对齐 |
 | CLI | `cli/dsc_*.py` | 示例入口 |
 | 测试 | `test/` | 单元与 CLI 冒烟 |
-| 文档 | `docs/dz_rescaling.md` | 详细算法说明 |
+| 文档 | `docs/dz_rescaling.md`、`docs/station_height_difference_correction.md` | 详细说明与简要说明 |
 | notebook | `nbs/dz_rescaling_validation.ipynb` | 示例与对照 |
 
 ## 当前整理状态
 
-- 已从原目录同步源码、CLI、测试、文档与 notebook；模块导入名保持 `dz_rescaling`。
+- 已从原目录同步源码、CLI、测试、文档与 notebook；模块导入名现为 `station_height_difference_correction`（原包名 `dz_rescaling`）；类名仍为 EstimateDzRescaling / ApplyDzRescaling。
 - 未同步 `test_data/`（约 3.07MB、21 文件）；缺官方样例时相关用例会跳过。
 - 原目录 pytest：27 passed（improver venv，2026-07-31）。
 - 中间目录 pytest：26 passed, 1 skipped（2026-07-31）。

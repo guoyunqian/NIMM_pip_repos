@@ -22,8 +22,8 @@ import pandas as pd
 from meteva_base import set_stadata_coords_dtype
 from numpy.polynomial.polynomial import polyfit
 
-from dz_rescaling.utils.base_plugin import PostProcessingPlugin
-from dz_rescaling.src.utils._sta import (
+from station_height_difference_correction.utils.base_plugin import PostProcessingPlugin
+from station_height_difference_correction.src.utils._sta import (
     align_forecast_truth,
     get_neighbour_finding_method_name,
     require_columns,
