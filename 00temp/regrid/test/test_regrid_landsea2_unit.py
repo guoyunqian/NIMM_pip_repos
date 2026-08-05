@@ -4,14 +4,8 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-import sys
-
 import numpy as np
 import pytest
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-
 
 from regrid import RegridLandSea
 from regrid.src.utils.bilinear import basic_indexes

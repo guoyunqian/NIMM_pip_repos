@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """RegridLandSea 官方样例全量对照测试。
 
-算法输入取自 notebook 写出的 ``test_data/cli_input/``；
+算法输入取自 ``python regrid/cli/preprocess_test_data.py`` 写出的 ``test_data/cli_input/``；
 KGO / 原版 iris 仍对照 ``test_data/`` 下官方文件。
 """
 
@@ -17,35 +17,26 @@ import meteva_base as meb
 import numpy as np
 import pytest
 
+from regrid import RegridLandSea
+from regrid.test.helpers import to_compare_array
+from regrid.utils.utils import check_for_meb_griddata
+
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = PACKAGE_ROOT.parent
 DATA_DIR = PACKAGE_ROOT / "test_data"
 CLI_INPUT = DATA_DIR / "cli_input"
-IMPROVER_ROOT = _REPO_ROOT / "improver-1.18.7"
+IMPROVER_ROOT = PROJECT_ROOT / "improver-1.18.7"
 
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
 if IMPROVER_ROOT.exists() and str(IMPROVER_ROOT) not in sys.path:
     sys.path.insert(0, str(IMPROVER_ROOT))
-
-from regrid import RegridLandSea  # noqa: E402
-from regrid.test.helpers import to_compare_array  # noqa: E402
-from regrid.utils.utils import check_for_meb_griddata  # noqa: E402
-
-
-def _improver_available() -> bool:
-    try:
-        import improver  # noqa: F401
-
-        return True
-    except ImportError:
-        return False
 
 
 def _require_files(*paths: Path) -> None:
     missing = [str(p) for p in paths if not p.exists()]
     if missing:
-        pytest.skip(f"缺官方/示例测试数据（test_data），会跳过: {missing}")
+        pytest.skip(
+            f"测试数据缺失（请先运行 python regrid/cli/preprocess_test_data.py）: {missing}"
+        )
 
 
 # case_id, mode, cli_input, cli_target, cli_landmask, vicinity,
@@ -288,8 +279,6 @@ def test_regrid_landsea_against_kgo_and_original(
         mig_arr, kgo_arr, atol=atol, rtol=1e-4, equal_nan=True
     )
 
-    if not _improver_available():
-        pytest.skip("缺 improver-1.18.7（相对 parents[2]），会跳过与原版对比")
     original = _run_original(
         mode, off_in_nc, off_tgt_nc, off_mask_nc, vicinity, extrapolation_mode
     )

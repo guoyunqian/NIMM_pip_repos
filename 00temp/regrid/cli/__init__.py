@@ -6,7 +6,10 @@
 
 from typing import Optional, Sequence
 
-_CLI_SCRIPTS = ("regrid/cli/tran_regrid.py",)
+_CLI_SCRIPTS = (
+    "regrid/cli/preprocess_test_data.py",
+    "regrid/cli/tran_regrid.py",
+)
 
 
 def main(argv: Optional[Sequence[str]] = None):

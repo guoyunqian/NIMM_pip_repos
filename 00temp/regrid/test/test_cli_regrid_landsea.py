@@ -5,13 +5,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-import sys
 
 import iris
 import numpy as np
 import pytest
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from regrid.cli.tran_regrid import process
 from regrid.test.helpers import to_compare_array
@@ -23,7 +20,9 @@ CLI_INPUT = DATA_DIR / "cli_input"
 def _require(*paths: Path) -> None:
     missing = [str(p) for p in paths if not p.exists()]
     if missing:
-        pytest.skip(f"缺 CLI 示例数据（test_data/cli_input），会跳过: {missing}")
+        pytest.skip(
+            f"CLI 测试数据缺失（请先运行 python regrid/cli/preprocess_test_data.py）: {missing}"
+        )
 
 
 def test_cli_bilinear_against_kgo(tmp_path):

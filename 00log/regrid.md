@@ -7,7 +7,7 @@
 | 算法名称 | `regrid` |
 | 中文名称 | 海陆感知重网格 |
 | 原始路径 | `D:\workspace\improver\regrid`（原包名 `regrid`） |
-| 整理日期 | 2026-07-30 |
+| 整理日期 | 2026-07-30 初整；2026-08-05 增量同步 |
 | 算法贡献人 | 郭云谦、王亭波 |
 | 算法分类 | `ancillaries` |
 | 当前状态 | 已整理至中间目录；导入已统一为模块名；待正式入库 |
@@ -49,3 +49,10 @@
 2. `BasePlugin` 正式入库时评估是否改为仓库统一基类。
 3. `test_data` 约 1.7MB，中间目录未同步；是否放入 `NIMM_pip_testdata` / 正式仓库需再定。
 4. `resource/` 当前为空；正式入库时确认是否需要。
+
+## 2026-08-05 增量同步
+
+- 自 `D:\workspace\improver\regrid` 覆盖同步有差异文件；新增 `cli/preprocess_test_data.py`。
+- 保留中间目录脚手架与 `docs/regrid_overview.md`；仍未同步 `test_data/`（约 1.78MB、27 文件）。
+- CLI / 预处理脚本在缺样例时提示而不崩溃。
+- 原目录 pytest：38 passed；中间目录：25 passed, 13 skipped（2026-08-05）。

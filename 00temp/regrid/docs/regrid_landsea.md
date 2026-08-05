@@ -274,6 +274,14 @@ regrid_rectilinear(source, target, *, method, extrapolation_mode="nanmask")
 
 ### 6.1 示例脚本
 
+官方 Iris 样例需先预处理为六维 meb：
+
+```bash
+python regrid/cli/preprocess_test_data.py
+```
+
+写出 `regrid/test_data/cli_input/`，供 CLI、pytest 与验证 Notebook 共用。
+
 `regrid/cli/tran_regrid.py` 提供 `process(...)`：读取预处理后的六维 nc，调用 `RegridLandSea`，可选写出结果。
 
 仓库根目录示例：
@@ -306,7 +314,8 @@ result = process(
 | `regrid/test/test_regrid_landsea2_unit.py` | 新版重网格路径单元测试 |
 | `regrid/test/test_regrid_landsea_official.py` | 官方样例 / KGO 数值对照 |
 | `regrid/test/test_cli_regrid_landsea.py` | CLI 示例对照 |
-| `regrid/nbs/regrid_landsea_validation.ipynb` | 预处理、场景对比与 CLI 验证 |
+| `regrid/cli/preprocess_test_data.py` | 官方样例 → meb，写出 `cli_input/` |
+| `regrid/nbs/regrid_landsea_validation.ipynb` | 读取 `cli_input/`，场景对比与 CLI 验证 |
 
 ```bash
 pytest regrid/test

@@ -101,7 +101,7 @@ def process(
 if __name__ == "__main__":
     import sys
 
-    # 将仓库根目录加入系统路径，便于直接运行示例脚本
+    # 添加项目根目录到系统路径，可直接运行示例脚本
     repo_root = Path(__file__).resolve().parents[2]
     if str(repo_root) not in sys.path:
         sys.path.insert(0, str(repo_root))
@@ -110,10 +110,10 @@ if __name__ == "__main__":
     cli_input_dir = data_root / "cli_input"
     cli_output_dir = data_root / "cli_output"
 
-    # 默认演示：双线性重网格（输入由 notebook 写出到 cli_input）
+    # 默认演示：双线性重网格（输入来自 preprocess_test_data.py 写出的 cli_input）
     input_path = cli_input_dir / "global_cutout.nc"
     target_grid_path = cli_input_dir / "ukvx_grid.nc"
-    land_sea_mask_path = None  # 掩膜模式示例见下方注释
+    land_sea_mask_path = None  # 掩码模式示例见下方注释
     output_path = cli_output_dir / "cli_bilinear_result.nc"
 
     regrid_mode = "bilinear"
@@ -121,7 +121,7 @@ if __name__ == "__main__":
     land_sea_mask_vicinity = 25000.0
     regridded_title = "Global Model Forecast on UK 2 km Standard Grid"
 
-    # 海陆感知重网格示例：取消注释并改 regrid_mode 等
+    # 海陆感知最近邻示例（取消注释并改 regrid_mode）：
     # land_sea_mask_path = cli_input_dir / "glm_landmask.nc"
     # target_grid_path = cli_input_dir / "ukvx_landmask.nc"
     # regrid_mode = "nearest-with-mask"
@@ -131,7 +131,8 @@ if __name__ == "__main__":
     if not input_path.is_file() or not target_grid_path.is_file():
         print(
             f"示例输入不存在：{input_path} 或 {target_grid_path}\n"
-            "请补齐 test_data 后再试，或在此处改成你自己的输入网格路径。"
+            "请补齐 test_data（可先运行 cli/preprocess_test_data.py）后再试，"
+            "或在此处改成你自己的输入网格路径。"
         )
     else:
         process(

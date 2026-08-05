@@ -6,7 +6,7 @@
 
 | 算法种类 | 算法名称 | 算法功能 | 整理时间 | 贡献人 | CLI 入口 |
 | --- | --- | --- | --- | --- | --- |
-| 辅助场 | **regrid** | 将源场重网格到目标空间网格，可选海陆掩膜感知以避免陆取海值 / 海取陆值 | 2026-07-30 | 郭云谦、王亭波 | `cli/tran_regrid.py` |
+| 辅助场 | **regrid** | 将源场重网格到目标空间网格，可选海陆掩膜感知以避免陆取海值 / 海取陆值 | 2026-08-05 | 郭云谦、王亭波 | `cli/preprocess_test_data.py`、`cli/tran_regrid.py` |
 
 ## regrid 目录明细
 
@@ -16,7 +16,7 @@
 | 模块工具 | `src/utils/` | 双线性 / 最近邻 / IDW / 网格与邻近域 |
 | 通用工具 | `utils/utils.py` | meteva_base 六维场校验与辅助封装 |
 | 插件基类 | `utils/base_plugin.py` | BasePlugin 本地提供 |
-| CLI | `cli/tran_regrid.py` | 文件式示例入口 |
+| CLI | `cli/preprocess_test_data.py`、`cli/tran_regrid.py` | 文件式示例入口 |
 | 文档 | `docs/regrid_landsea.md`、`docs/regrid_overview.md` | 算法说明 |
 | notebook | `nbs/regrid_landsea_validation.ipynb` | 示例与验证 |
 | 测试 | `test/` | 单元、官方回归与 CLI 冒烟 |
@@ -35,5 +35,5 @@
 
 | 范围 | 结果 | 日期 |
 | --- | --- | --- |
-| 中间目录 `00temp/regrid/` | 25 passed, 13 skipped | 2026-07-30 |
-| 原始算法目录 `D:\workspace\improver\regrid` | 38 passed（improver venv） | 2026-07-30 |
+| 中间目录 `00temp/regrid/` | 25 passed, 13 skipped | 2026-08-05 |
+| 原始算法目录 `D:\workspace\improver\regrid` | 38 passed（improver venv） | 2026-08-05 |

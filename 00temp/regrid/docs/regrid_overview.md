@@ -20,6 +20,7 @@
 | `RegridLandSea` | 统一入口，按 `regrid_mode` 分派 scipy 路径或新版 `*-2` 路径 |
 | `AdjustLandSeaPoints` | scipy 最近邻后的海陆点匹配订正（`nearest-with-mask`） |
 | `RegridWithLandSeaMask` | 新版经纬度源网格上的最近邻 / 双线性（可选掩膜） |
+| `cli/preprocess_test_data.py` | 官方样例预处理为六维 meb |
 | `cli/tran_regrid.py` | 文件式 CLI 示例 |
 
 ## 目录说明
@@ -37,6 +38,8 @@
 
 - 已从原目录同步源码、CLI、测试、文档与 notebook；模块导入名保持 `regrid`。
 - 未同步 `test_data/`（约 1.7MB、27 文件）；缺数据时相关用例会跳过。
-- 原目录 pytest：38 passed（improver venv，2026-07-30）。
-- 中间目录 pytest：25 passed, 13 skipped（2026-07-30）；缺 test_data 或缺相对 `parents[2]/improver-1.18.7` 时会跳过。
+- 原目录 pytest：38 passed（improver venv，2026-08-05）。
+- 中间目录 pytest：25 passed, 13 skipped（2026-08-05）；缺 test_data 或缺相对 `parents[2]/improver-1.18.7` 时会跳过。
 - 迁入正式 `NIMM/ancillaries/` 时再改为仓库正式包路径。
+
+- 2026-08-05：自原目录增量同步；新增 `cli/preprocess_test_data.py`；CLI 缺样例时提示而不崩溃。

@@ -51,3 +51,11 @@
   补充至 NIMM/ancillaries/ 时再调整为仓库正式包路径。
 
 ================================================================================
+
+五、2026-08-05 增量同步
+--------------------------------------------------------------------------------
+  [x] 自 improver/regrid 覆盖同步有差异的源码/CLI/test/docs/nbs；新增 cli/preprocess_test_data.py
+  [x] 保留脚手架（00log/、00temp/、NIMM_list.md、.gitignore、docs/regrid_overview.md、resource/）
+  [x] 未同步 test_data/；tran_regrid / preprocess_test_data 缺样例时提示而不崩溃
+  [x] 原目录 pytest：38 passed；中间目录：25 passed, 13 skipped（2026-08-05）
+================================================================================
