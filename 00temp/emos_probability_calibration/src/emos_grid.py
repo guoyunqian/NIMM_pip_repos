@@ -8,8 +8,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from src.emos import ApplyEMOS, EstimateCoefficientsForEnsembleCalibration
-from src.xr_utils import (
+from emos_core import ApplyEMOS, EstimateCoefficientsForEnsembleCalibration
+from emos_xr_utils import (
     REALIZATION_DIM,
     SPOT_DIM,
     TIME_DIM,
@@ -574,6 +574,10 @@ def to_internal_prob_template(
         if tpl.sizes[GRID_DTIME_DIM] != 1:
             raise ValueError(f"prob_template {GRID_DTIME_DIM} must have length 1")
         tpl = tpl.isel({GRID_DTIME_DIM: 0}, drop=True)
+    if GRID_LEVEL_DIM in tpl.dims:
+        if tpl.sizes[GRID_LEVEL_DIM] != 1:
+            raise ValueError(f"prob_template {GRID_LEVEL_DIM} must have length 1 here")
+        tpl = tpl.isel({GRID_LEVEL_DIM: 0}, drop=True)
     tpl = tpl.rename({GRID_TIME_DIM: TIME_DIM})
     if GRID_LAT_DIM in tpl.dims and GRID_LON_DIM in tpl.dims:
         tpl = tpl.transpose(
@@ -583,6 +587,7 @@ def to_internal_prob_template(
             GRID_LON_DIM,
             missing_dims="ignore",
         )
+        tpl = compact_spatial_for_internal(tpl)
     init_times = tpl[TIME_DIM].values
     tpl = tpl.assign_coords(
         {

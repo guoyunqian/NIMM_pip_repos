@@ -1,32 +1,36 @@
 """
-查看 EMOS 训练/订正的输入输出结构（不与 IMPROVER 对比）。
+查看 EMOS 训练/订正的输入输出结构（结果演示）。
 
 数据::
-  data/xarray/grid/   六维 NetCDF（member, level, time, dtime, lat, lon）
-  data/xarray/spot/   六列 CSV（member, level, time, dtime, lat, lon + 数值列）
+  test_data/grid/   六维 NetCDF（member, level, time, dtime, lat, lon）
+  test_data/spot/   六列 CSV（member, level, time, dtime, lat, lon + 数值列）
 
 用法::
-    python test_data/show_structure.py
-    python test_data/show_structure.py --domain spot --static 1
+    python tests/emos_probability_calibration_main.py
+    python tests/emos_probability_calibration_main.py --domain spot --static 1
 """
 
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import sys
 from pathlib import Path
 
+import meteva_base as meb
 import numpy as np
 import pandas as pd
 import xarray as xr
 
-ROOT = Path(__file__).resolve().parent.parent
-DATA_DIR = Path(__file__).resolve().parent / "data" / "xarray"
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+_PKG = Path(__file__).resolve().parents[1]
+_SRC = _PKG / "src"
+DATA_DIR = _PKG / "test_data"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
 
-from src.emos_calibration import apply_emos, create_prob_template, train_emos
-from src.grid import GRID_FORECAST_DIMS, GRID_MEMBER_DIM, normalize_grid_input
+from emos_calibration import apply_emos, create_prob_template, train_emos
+from emos_grid import GRID_FORECAST_DIMS, GRID_MEMBER_DIM, normalize_grid_input
 
 TRAINER_KWARGS = dict(
     distribution="norm",
@@ -34,43 +38,72 @@ TRAINER_KWARGS = dict(
     point_by_point=True,
     use_default_initial_guess=True,
 )
+# 概率订正阈值（与数据同单位，示例为 Kelvin）
 THRESHOLDS = [285.0, 288.0, 292.0]
+# 订正后输出的分位（百分位，0–100）
 OUTPUT_PERCENTILES = [10.0, 50.0, 90.0]
+# 集合 → 输入分位场时用的百分位（min / 中位 / max）
 INPUT_PERCENTILES = np.array([0.0, 50.0, 100.0], dtype=np.float32)
+# 演示场景：0 / 1 / 2 个 static 协变量
 STATIC_CASES = [("0 static", 0), ("1 static", 1), ("2 static", 2)]
+# 站点长表维度列（打印/取值时排除这些列）
 DIM_COLS = list(GRID_FORECAST_DIMS)
 
 
-def _read_grid_nc(path: Path) -> xr.DataArray:
-    with xr.open_dataset(path) as ds:
-        da = ds["air_temperature"].load() if "air_temperature" in ds else ds[next(iter(ds.data_vars))].load()
-    ordered = [d for d in GRID_FORECAST_DIMS if d in da.dims]
-    extra = [d for d in da.dims if d not in ordered]
-    return da.transpose(*ordered, *extra)
+@contextlib.contextmanager
+def _quiet_meteva():
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+        yield
 
 
-def _read_spot_csv(path: Path) -> pd.DataFrame:
-    df = pd.read_csv(path)
-    df["time"] = pd.to_datetime(df["time"])
+def _read_spot(path: Path) -> pd.DataFrame:
+    with _quiet_meteva():
+        sta = meb.read_stadata_from_csv(str(path), drop_same_id=False, show=False)
+    if sta is None:
+        raise FileNotFoundError(f"read_stadata_from_csv failed: {path}")
+    df = sta.copy()
+    if "time" in df.columns:
+        df["time"] = pd.to_datetime(df["time"])
     for col in df.columns:
-        if col not in DIM_COLS:
+        if col not in DIM_COLS and col != "id":
             df[col] = df[col].astype(np.float32)
+    if "id" in df.columns:
+        df = df.drop(columns=["id"])
     return df
 
 
+def _read_grid(path: Path) -> xr.DataArray:
+    with _quiet_meteva():
+        da = meb.read_griddata_from_nc(str(path))
+    if da is None:
+        raise FileNotFoundError(f"read_griddata_from_nc failed: {path}")
+    if hasattr(da, "load"):
+        da = da.load()
+    if "member" in da.coords:
+        try:
+            da = da.assign_coords(member=da["member"].astype(np.int32))
+        except (TypeError, ValueError):
+            pass
+    return da
+
+
 def load_case(domain: str):
+    """格点：meteva_base.read_griddata_from_nc；站点：read_stadata_from_csv。"""
     case_dir = DATA_DIR / domain
     if domain == "spot":
-        hf = _read_spot_csv(case_dir / "hf.csv")
-        tr = _read_spot_csv(case_dir / "truth.csv")
-        static = [_read_spot_csv(p) for p in sorted(case_dir.glob("static_*.csv"))]
-        return hf, tr, static
-    static_paths = sorted(case_dir.glob("static_*.nc"))
-    return (
-        _read_grid_nc(case_dir / "hf.nc"),
-        _read_grid_nc(case_dir / "truth.nc"),
-        [_read_grid_nc(p) for p in static_paths],
-    )
+        return (
+            _read_spot(case_dir / "hf.csv"),
+            _read_spot(case_dir / "truth.csv"),
+            [_read_spot(p) for p in sorted(case_dir.glob("static_*.csv"))],
+        )
+    if domain == "grid":
+        return (
+            _read_grid(case_dir / "hf.nc"),
+            _read_grid(case_dir / "truth.nc"),
+            [_read_grid(p) for p in sorted(case_dir.glob("static_*.nc"))],
+        )
+    raise ValueError(f"unknown domain: {domain!r}")
 
 
 def _value_col(df: pd.DataFrame) -> str:
@@ -216,9 +249,9 @@ def main() -> None:
     domains = ("spot", "grid") if args.domain == "all" else (args.domain,)
     static_cases = STATIC_CASES if args.static is None else [(f"{args.static} static", args.static)]
 
-    print("EMOS 结构检查")
-    print("  格点: 六维 xarray  member, level, time, dtime, lat, lon")
-    print("  站点: 六列 CSV     member, level, time, dtime, lat, lon + 数值列")
+    print("EMOS 结构检查（数据经 meteva_base 读取）")
+    print("  格点: read_griddata_from_nc → 六维 xarray")
+    print("  站点: read_stadata_from_csv → 六列 DataFrame")
     for domain in domains:
         for _, count in static_cases:
             run_scenario(domain, count)

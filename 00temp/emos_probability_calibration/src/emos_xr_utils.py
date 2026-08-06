@@ -16,7 +16,7 @@ from numpy.ma.core import MaskedArray
 
 # --- constants ---
 
-ABSOLUTE_ZERO = 273.15
+ABSOLUTE_ZERO = -273.15
 
 # bounds_for_ecdf 字典使用的 namedtuple
 Bounds = namedtuple("bounds", "value units")
@@ -613,7 +613,7 @@ import xarray as xr
 from numpy import ndarray
 
 
-ABSOLUTE_ZERO = 273.15
+ABSOLUTE_ZERO = -273.15
 
 
 def concatenate_2d_array_with_2d_array_endpoints(

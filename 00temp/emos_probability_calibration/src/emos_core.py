@@ -18,7 +18,7 @@ from scipy.optimize import OptimizeResult, minimize
 from scipy.stats import norm
 from scipy.stats._distn_infrastructure import rv_continuous
 
-from src.xr_utils import (
+from emos_xr_utils import (
     LAT_DIM,
     LON_DIM,
     REALIZATION_DIM,
@@ -1211,8 +1211,10 @@ class EstimateCoefficientsForEnsembleCalibration(BasePlugin):
             if d in tmpl.dims:
                 tmpl = tmpl.isel({d: 0}, drop=True)
         if not self.point_by_point and has_spatial_points(tmpl):
-            if SPOT_DIM in tmpl.dims:
-                tmpl = tmpl.isel({SPOT_DIM: 0}, drop=True)
+            # 全场共用系数：去掉全部空间维（站点 spot_index 或格点 lat/lon）
+            for d in (SPOT_DIM, LAT_DIM, LON_DIM):
+                if d in tmpl.dims:
+                    tmpl = tmpl.isel({d: 0}, drop=True)
         return tmpl
 
     def _add_predictor_coords(

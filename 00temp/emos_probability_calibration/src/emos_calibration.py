@@ -15,8 +15,8 @@ from typing import Any, List, Optional, Sequence
 
 import xarray as xr
 
-from src.emos import ApplyEMOS, EstimateCoefficientsForEnsembleCalibration
-from src.grid import (
+from emos_core import ApplyEMOS, EstimateCoefficientsForEnsembleCalibration
+from emos_grid import (
     GRID_LAT_DIM,
     GRID_LON_DIM,
     AdditionalFields,
