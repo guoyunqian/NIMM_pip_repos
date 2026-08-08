@@ -1,0 +1,47 @@
+================================================================================
+算法整理日志 — 概率可靠性订正
+================================================================================
+整理日期   : 2026-08-08
+算法代号   : probability_reliability_correction
+仓库目录   : 00temp/probability_reliability_correction/
+整理阶段   : NIMM 标准化目录结构整理
+贡献人     : 郭云谦、王亭波
+原始来源   : D:\workspace\improver\reliability_calibration（原包名 `reliability_calibration`）
+================================================================================
+
+一、目录映射（原 → 现）
+--------------------------------------------------------------------------------
+  核心算法             → src/reliability_calibration.py（Construct / Aggregate / Manipulate / Apply）
+  数值内核             → src/utils/（construct / manipulate / apply / _reliability / _station）
+  插件基类             → utils/base_plugin.py、utils/utils.py
+  CLI                  → cli/prb_*.py、cli/io.py、cli/preprocess_test_data.py
+  文档                 → docs/reliability_calibration.md、docs/probability_reliability_correction.md
+  notebook             → nbs/reliability_calibration_validation.ipynb
+  测试                 → test/
+  算法清单             → NIMM_list.md（本目录）
+  算法中间数据         → 00temp/probability_reliability_correction/
+  算法整理日志         → 00log/probability_reliability_correction_整理_20260808.log
+
+二、本次已完成
+--------------------------------------------------------------------------------
+  [x] 自 improver/reliability_calibration 同步 src/、utils/、cli/、test/、docs/、nbs/
+  [x] 中间目录与导入包名定为 probability_reliability_correction（中文「概率可靠性订正」）；
+      原包名 reliability_calibration；类名与 src/reliability_calibration.py、CLI 脚本名保留
+  [x] 包内绝对导入；未改算法计算骨架
+  [x] 建立算法内 00log/、00temp/、NIMM_list.md、.gitignore；空 resource/
+  [x] 未同步 test_data/（约 1.32MB、54 文件）；单元测试不依赖样例；CLI 缺样例时提示而不崩溃
+  [x] 原算法目录 pytest：18 passed（improver venv，2026-08-08）
+  [x] 中间目录 pytest：18 passed（2026-08-08）
+
+三、仍存在问题 — 需人工补充
+--------------------------------------------------------------------------------
+  [ ] 入库路径：补充至 NIMM/07probability/ 时需调整为仓库正式包路径
+  [ ] BasePlugin：正式入库时评估是否改为仓库统一基类
+  [ ] test_data：样例是否纳入 NIMM_pip_testdata / 正式仓库，后续决定
+  [ ] resource/：当前为空；正式入库时确认是否需要
+
+四、验证记录
+--------------------------------------------------------------------------------
+  原目录  : 18 passed（improver venv，2026-08-08）
+  中间目录: 18 passed（2026-08-08）
+================================================================================
