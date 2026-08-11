@@ -10,7 +10,7 @@
 | 整理日期 | 2026-06-29 |
 | 算法贡献人 | 郭云谦、曹勇、陈荣 |
 | 算法分类 | `04single_calibration` |
-| 当前状态 | 已整理至中间目录，待补充至算法仓库 |
+| 当前状态 | 已补充至正式算法仓库目录 |
 
 ## 算法理解
 
@@ -76,9 +76,40 @@
 
 ## 已发现问题与后续建议
 
-1. 原始代码导入路径仍使用 `nimm_kalman...` 包名。当前中间目录保持原样，后续补充至正式仓库时需要统一调整为 `NIMM` 下的实际包路径。
+1. `00temp/` 中间目录仍保持原始 `nimm_kalman...` 包名；正式归档目录已调整为仓库内相对导入或动态导入。
 2. 默认生产路径包含 `/data234/GUO_data/Kalman_data`、`/data234/DataPool/01CLDAS/00HRCLDAS/Hourly`、`/data/mnt/model_RT/globalECMWF_D1D/...`，正式测试需替换为仓库内可复现样例。
 3. 原始目录没有独立 `test_data/`，需要补充最小 NetCDF 测试样例。
 4. 完整业务流程依赖 `meteva_base`、`xarray`、`numpy` 和真实网格数据环境。
 5. 现有单元测试主要覆盖 `grid_utils`，后续建议补充 `KalmanME`、`KalmanFix` 插件级测试和 CLI 路径模板测试。
+
+## 2026-07-13 正式归档操作
+
+已按仓库规范将该算法补充至正式算法仓库目录，未修改 Kalman 误差更新和订正计算逻辑。
+
+归档目录包括：
+
+| 正式目录 | 内容说明 |
+| --- | --- |
+| `NIMM/04single_calibration/kalman_element_forecast_correction/` | 核心算法源码、插件类、业务流程和算法内部工具 |
+| `cli/04single_calibration/kalman_element_forecast_correction/` | CLI 调度入口 |
+| `docs/04single_calibration/kalman_element_forecast_correction/` | 算法文档 |
+| `nbs/04single_calibration/kalman_element_forecast_correction/` | notebook 示例 |
+| `resource/04single_calibration/kalman_element_forecast_correction/` | 资源说明 |
+| `test/04single_calibration/kalman_element_forecast_correction/` | 单元测试 |
+
+本次调整包括：
+
+- 将 `src/kalman_cli.py` 归档为 `kalman_workflow.py`，明确其为业务流程而非 CLI 参数入口。
+- 将 `cli/kalman_data.py` 和 `cli/trans_data.py` 分别归档为 `kalman_data_main.py`、`trans_data_main.py`。
+- 将 Kalman 专用的 `base_plugin.py`、`grid_utils.py` 放入算法内部 `utils/`，未提升为全局公共工具。
+- 正式目录源码已移除原始 `nimm_kalman` 导入路径，改为相对导入或 `importlib.import_module()` 动态导入，以兼容 `04single_calibration` 数字开头目录名。
+- 在正式 `src`/`cli` 对应代码中补充算法贡献人和软件产权说明。
+- 已运行 `test/04single_calibration/kalman_element_forecast_correction/test_grid_utils.py` 的纯数值单元测试。
+
+仍需后续补充或审核：
+
+- 默认生产路径仍依赖 `/data234/GUO_data/Kalman_data`、`/data234/DataPool/01CLDAS/00HRCLDAS/Hourly` 和 `/data/mnt/model_RT/globalECMWF_D1D/...`。
+- 完整业务流程仍依赖 `meteva_base`、`xarray`、`numpy` 和真实 NetCDF 网格数据环境。
+- 测试数据仓库当前缺少 `fcst_new.nc`、`obs_new.nc`、`me_before.nc`、`expected_result.nc` 等最小端到端样例。
+- 因上述外部数据和环境未提供，尚未运行完整业务端到端测试。
 

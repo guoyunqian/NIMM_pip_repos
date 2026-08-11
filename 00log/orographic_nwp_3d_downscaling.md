@@ -41,8 +41,40 @@
 
 ## 仍存在问题
 
-- 导入路径仍为原始 `nimm_g_interp` 包名；当前中间目录不是同名 Python 包，正式补充至算法仓库时需统一包名和导入路径。
+- `00temp/` 中间目录仍保留原始 `nimm_g_interp` 包名；正式归档目录已调整为仓库内相对导入或动态导入。
 - 完整运行依赖真实模式资料、地形数据、站点文件、实况数据和业务 `Parameter/lib` 目录，当前仅保留最小配置模板。
 - `src/core/Module_Micaps_RW.so` 为二进制扩展，跨平台和跨 Python 版本兼容性需人工确认。
 - 原始文档提示默认环境可能缺少 `eccodes` 等依赖，完整业务测试尚未执行。
 - 当前测试仅覆盖插件构造，不覆盖完整插值流程。
+
+## 2026-08-11 更新与正式归档操作
+
+本次以 `D:\nimm-file\cli_code\nimm_g_interp` 为整理源，将用户改进后的版本同步到算法仓库。未修改原始算法计算逻辑，主要进行结构归档、导入路径调整和清单同步。
+
+本次操作包括：
+
+- 将新版 `nimm_g_interp` 复制更新到 `00temp/orographic_nwp_3d_downscaling/`，复制时排除 `__pycache__` 和 `.pyc` 缓存文件。
+- 将核心源码归档到 `NIMM/00space_downscale/orographic_nwp_3d_downscaling/`。
+- 将 CLI 调度入口归档到 `cli/00space_downscale/orographic_nwp_3d_downscaling/`，并按规范命名为 `fast_refine_interp_main.py`、`server_minimal_runner_main.py`。
+- 将资源模板、测试、文档、notebook 说明归档到对应的 `resource/`、`test/`、`docs/`、`nbs/` 分类目录。
+- 正式目录代码已移除原始 `nimm_g_interp` 导入路径，改为相对导入或 `importlib.import_module()` 动态导入，以兼容 `00space_downscale` 数字开头目录名。
+- 在正式核心源码中补充算法贡献人和软件产权说明。
+- 已运行 `test/00space_downscale/orographic_nwp_3d_downscaling/test_fast_refine_interp.py` 的最小插件构造测试。
+
+正式归档目录如下：
+
+| 正式目录 | 内容说明 |
+| --- | --- |
+| `NIMM/00space_downscale/orographic_nwp_3d_downscaling/` | 核心插件、快速精细化插值流程和原核心模块 |
+| `cli/00space_downscale/orographic_nwp_3d_downscaling/` | CLI 调度入口 |
+| `resource/00space_downscale/orographic_nwp_3d_downscaling/` | 最小配置模板和资源说明 |
+| `test/00space_downscale/orographic_nwp_3d_downscaling/` | 最小测试脚本 |
+| `docs/00space_downscale/orographic_nwp_3d_downscaling/` | 算法文档 |
+| `nbs/00space_downscale/orographic_nwp_3d_downscaling/` | notebook 示例说明 |
+
+仍需后续补充或人工确认：
+
+- 当前测试仍只覆盖插件构造，不覆盖 `process()` 的完整业务运行。
+- 完整业务流程仍依赖真实模式资料、地形数据、站点文件、实况数据、`Parameter/lib` 目录和 `eccodes` 等运行环境。
+- `Module_Micaps_RW.so` 为二进制扩展，跨平台和 Python 版本兼容性需人工确认。
+- 独立小样例输入/输出数据尚未补充到 `NIMM_pip_testdata`，完整端到端业务测试尚未运行。

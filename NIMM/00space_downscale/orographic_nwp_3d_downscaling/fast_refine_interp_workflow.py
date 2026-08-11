@@ -1,4 +1,9 @@
-# -*- coding: utf-8 -*- 
+# -*- coding: utf-8 -*-
+"""Fast refined interpolation workflow.
+
+Algorithm contributors: 曾晓青、丰硕、赵如奇.
+Software ownership: National Institute of Meteorological Sciences / NIMM.
+"""
 # cython:language_level=3
 import os
 import sys
