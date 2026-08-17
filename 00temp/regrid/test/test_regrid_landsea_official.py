@@ -19,7 +19,6 @@ import pytest
 
 from regrid import RegridLandSea
 from regrid.test.helpers import to_compare_array
-from regrid.utils.utils import check_for_meb_griddata
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 PROJECT_ROOT = PACKAGE_ROOT.parent
@@ -249,14 +248,14 @@ def test_regrid_landsea_against_kgo_and_original(
     _require_files(*required)
 
     _unbounded = (-np.inf, np.inf, np.nan)
-    src = check_for_meb_griddata(
+    src = meb.checkout_griddata(
         meb.read_griddata_from_nc(str(src_path)), valid_val=_unbounded
     )
-    tgt = check_for_meb_griddata(
+    tgt = meb.checkout_griddata(
         meb.read_griddata_from_nc(str(tgt_path)), valid_val=_unbounded
     )
     landmask = (
-        check_for_meb_griddata(
+        meb.checkout_griddata(
             meb.read_griddata_from_nc(str(mask_path)), valid_val=_unbounded
         )
         if mask_path is not None

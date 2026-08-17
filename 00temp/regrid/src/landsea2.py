@@ -9,6 +9,8 @@ from __future__ import annotations
 import numpy as np
 import xarray as xr
 
+import meteva_base as meb
+
 from regrid.src.utils.bilinear import (
     adjust_for_surface_mismatch,
     apply_weights,
@@ -32,7 +34,6 @@ from regrid.src.utils.grid import (
 )
 from regrid.src.utils.nearest import nearest_regrid, nearest_with_mask_regrid
 from regrid.utils.base_plugin import PostProcessingPlugin
-from regrid.utils.utils import check_for_meb_griddata
 
 NEAREST = "nearest"
 BILINEAR = "bilinear"
@@ -98,8 +99,8 @@ class RegridWithLandSeaMask(PostProcessingPlugin):
         xr.DataArray
             重网格结果。
         """
-        data_in = check_for_meb_griddata(data_in, valid_val=(-np.inf, np.inf, np.nan))
-        data_out_mask = check_for_meb_griddata(
+        data_in = meb.checkout_griddata(data_in, valid_val=(-np.inf, np.inf, np.nan))
+        data_out_mask = meb.checkout_griddata(
             data_out_mask, valid_val=(-np.inf, np.inf, np.nan)
         )
         if WITH_MASK in self.regrid_mode:
@@ -107,7 +108,7 @@ class RegridWithLandSeaMask(PostProcessingPlugin):
                 raise ValueError(
                     f"Regrid mode {self.regrid_mode} requires an input landmask"
                 )
-            data_in_mask = check_for_meb_griddata(
+            data_in_mask = meb.checkout_griddata(
                 data_in_mask, valid_val=(-np.inf, np.inf, np.nan)
             )
 

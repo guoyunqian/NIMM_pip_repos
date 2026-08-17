@@ -10,6 +10,8 @@ from typing import Optional, Tuple, Union
 
 import numpy as np
 import xarray as xr
+
+import meteva_base as meb
 from numpy import ndarray
 from numpy.ma.core import MaskedArray
 from pyproj import CRS, Transformer
@@ -22,7 +24,7 @@ from regrid.src.utils._coords import (
     spatial_axis_values,
     target_points_in_source_crs,
 )
-from regrid.utils.utils import check_for_meb_griddata, spatial_coords_match
+from regrid.utils.utils import spatial_coords_match
 
 # 对齐 Iris ``analysis._interpolation.EXTRAPOLATION_MODES`` 的 bounds_error /
 # fill_value；DataArray 无 MaskedArray，故省略 mask_fill_value / force_mask，
@@ -129,7 +131,7 @@ def flatten_spatial_dimensions(
 ) -> Tuple[Union[ndarray, MaskedArray], int, int]:
     """将 (..., lat, lon) 展平为 (lat*lon, ...)。"""
     # 约定六维顺序，空间维固定为最后两维
-    normalized = check_for_meb_griddata(data, valid_val=(-np.inf, np.inf, np.nan))
+    normalized = meb.checkout_griddata(data, valid_val=(-np.inf, np.inf, np.nan))
     in_values = np.asarray(normalized.values)
     lats_index = list(normalized.dims).index("lat")
     lons_index = list(normalized.dims).index("lon")
@@ -240,8 +242,8 @@ def create_regrid_dataarray(
     - 空间维坐标继承自 ``data_out``；
     - 投影元数据优先保留目标网格的 ``grid_mapping_attrs``。
     """
-    data_in = check_for_meb_griddata(data_in, valid_val=(-np.inf, np.inf, np.nan))
-    data_out = check_for_meb_griddata(data_out, valid_val=(-np.inf, np.inf, np.nan))
+    data_in = meb.checkout_griddata(data_in, valid_val=(-np.inf, np.inf, np.nan))
+    data_out = meb.checkout_griddata(data_out, valid_val=(-np.inf, np.inf, np.nan))
 
     # 输出形状：源场前四维 × 目标空间维
     out_shape = (
@@ -329,7 +331,7 @@ def mask_target_points_outside_source_domain(
 
 def _spatial_2d(data: xr.DataArray) -> ndarray:
     """提取二维空间场：六维单场取 squeeze，否则取最后两维均值投影。"""
-    normalized = check_for_meb_griddata(data, valid_val=(-np.inf, np.inf, np.nan))
+    normalized = meb.checkout_griddata(data, valid_val=(-np.inf, np.inf, np.nan))
     values = np.asarray(normalized.values)
     # 海陆掩码通常为六维单场；若前四维有长度>1，取首个切片保持与原算法二维掩码一致
     return values.reshape(-1, values.shape[-2], values.shape[-1])[0]
@@ -398,8 +400,8 @@ def regrid_rectilinear(
     ``mask`` / ``nanmask``（三者等效，均填 NaN）；``error`` 在目标点越出源域时
     抛出 ``ValueError``。
     """
-    source = check_for_meb_griddata(source, valid_val=(-np.inf, np.inf, np.nan))
-    target = check_for_meb_griddata(target, valid_val=(-np.inf, np.inf, np.nan))
+    source = meb.checkout_griddata(source, valid_val=(-np.inf, np.inf, np.nan))
+    target = meb.checkout_griddata(target, valid_val=(-np.inf, np.inf, np.nan))
     # Iris 风格模式 → RegularGridInterpolator 的 bounds_error / fill_value
     try:
         bounds_error, fill_value = EXTRAPOLATION_MODES[str(extrapolation_mode)]

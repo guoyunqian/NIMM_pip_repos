@@ -209,7 +209,7 @@ regrid_rectilinear(source, target, *, method, extrapolation_mode="nanmask")
 
 | 项目 | 说明 |
 | --- | --- |
-| 输入类型 | `xr.DataArray`（经 `check_for_meb_griddata`） |
+| 输入类型 | `xr.DataArray`（经 `meb.checkout_griddata`） |
 | 维度顺序 | `member, level, time, dtime, lat, lon` |
 | 海陆掩码 | `land_binary_mask`，陆=1、海=0 |
 | 投影网格 | 维度仍叫 `lat`/`lon`，但坐标存投影平面值（非地理经纬）；坐标 attrs 的 `units` 为可换算到米的距离单位（常见为 `m`），且 DataArray 须带可解析的 `grid_mapping_attrs` |

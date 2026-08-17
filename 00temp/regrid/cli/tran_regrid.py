@@ -58,14 +58,13 @@ def process(
         重网格后的六维场。
     """
     from regrid.src.landsea import RegridLandSea
-    from regrid.utils.utils import check_for_meb_griddata
-
+    
     _unbounded = (-np.inf, np.inf, np.nan)
 
-    input_field = check_for_meb_griddata(
+    input_field = meb.checkout_griddata(
         meb.read_griddata_from_nc(input_path), valid_val=_unbounded
     )
-    target_grid = check_for_meb_griddata(
+    target_grid = meb.checkout_griddata(
         meb.read_griddata_from_nc(target_grid_path), valid_val=_unbounded
     )
 
@@ -81,7 +80,7 @@ def process(
                 "Land-mask file supplied without appropriate regrid-mode. "
                 "Use --regrid-mode nearest-with-mask."
             )
-        land_sea_mask = check_for_meb_griddata(
+        land_sea_mask = meb.checkout_griddata(
             meb.read_griddata_from_nc(land_sea_mask_path), valid_val=_unbounded
         )
 
@@ -111,10 +110,10 @@ if __name__ == "__main__":
     cli_output_dir = data_root / "cli_output"
 
     # 默认演示：双线性重网格（输入来自 preprocess_test_data.py 写出的 cli_input）
-    input_path = cli_input_dir / "global_cutout.nc"
-    target_grid_path = cli_input_dir / "ukvx_grid.nc"
+    input_path = str(cli_input_dir / "global_cutout.nc")
+    target_grid_path = str(cli_input_dir / "ukvx_grid.nc")
     land_sea_mask_path = None  # 掩码模式示例见下方注释
-    output_path = cli_output_dir / "cli_bilinear_result.nc"
+    output_path = str(cli_output_dir / "cli_bilinear_result.nc")
 
     regrid_mode = "bilinear"
     extrapolation_mode = "nanmask"
@@ -122,24 +121,27 @@ if __name__ == "__main__":
     regridded_title = "Global Model Forecast on UK 2 km Standard Grid"
 
     # 海陆感知最近邻示例（取消注释并改 regrid_mode）：
-    # land_sea_mask_path = cli_input_dir / "glm_landmask.nc"
-    # target_grid_path = cli_input_dir / "ukvx_landmask.nc"
+    # land_sea_mask_path = str(cli_input_dir / "glm_landmask.nc")
+    # target_grid_path = str(cli_input_dir / "ukvx_landmask.nc")
     # regrid_mode = "nearest-with-mask"
     # land_sea_mask_vicinity = 100000.0
-    # output_path = cli_output_dir / "cli_nearest_with_mask_result.nc"
+    # output_path = str(cli_output_dir / "cli_nearest_with_mask_result.nc")
 
-    if not input_path.is_file() or not target_grid_path.is_file():
+    required_inputs = [Path(input_path), Path(target_grid_path)]
+    missing = [str(path) for path in required_inputs if not path.is_file()]
+    if missing:
         print(
-            f"示例输入不存在：{input_path} 或 {target_grid_path}\n"
-            "请补齐 test_data（可先运行 cli/preprocess_test_data.py）后再试，"
-            "或在此处改成你自己的输入网格路径。"
+            "示例输入不存在：\n  "
+            + "\n  ".join(missing)
+            + "\n请补齐 test_data 或先运行 cli/preprocess_test_data.py，"
+            "也可在此处改为自己的输入/输出路径。"
         )
     else:
-        process(
-            str(input_path),
-            str(target_grid_path),
-            land_sea_mask_path=str(land_sea_mask_path) if land_sea_mask_path else None,
-            output_path=str(output_path),
+        result = process(
+            input_path,
+            target_grid_path,
+            land_sea_mask_path=land_sea_mask_path,
+            output_path=output_path,
             regrid_mode=regrid_mode,
             extrapolation_mode=extrapolation_mode,
             land_sea_mask_vicinity=land_sea_mask_vicinity,

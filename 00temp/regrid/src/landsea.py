@@ -12,6 +12,8 @@ from typing import Optional, Tuple
 
 import numpy as np
 import xarray as xr
+
+import meteva_base as meb
 from numpy import ndarray
 from scipy.spatial import cKDTree
 
@@ -20,7 +22,7 @@ from regrid.src.utils._coords import distance_to_grid_cells, is_projected_spatia
 from regrid.src.utils._vicinity import apply_threshold, maximum_within_vicinity
 from regrid.src.utils.grid import regrid_rectilinear, grid_contains_cutout
 from regrid.utils.base_plugin import PostProcessingPlugin
-from regrid.utils.utils import check_for_meb_griddata, spatial_coords_match
+from regrid.utils.utils import spatial_coords_match
 
 # 与上游 MOSG 网格属性集合保持一致，用于重网格后继承目标网格属性
 MOSG_GRID_ATTRIBUTES = {"mosg__grid_type", "mosg__grid_version", "mosg__grid_domain"}
@@ -79,7 +81,7 @@ class RegridLandSea(PostProcessingPlugin):
         self.regrid_mode = regrid_mode
         self.extrapolation_mode = extrapolation_mode
         self.landmask_source_grid = (
-            check_for_meb_griddata(landmask, valid_val=(-np.inf, np.inf, np.nan))
+            meb.checkout_griddata(landmask, valid_val=(-np.inf, np.inf, np.nan))
             if landmask is not None
             else None
         )
@@ -181,8 +183,8 @@ class RegridLandSea(PostProcessingPlugin):
         xr.DataArray
             重网格后的场，属性已更新。
         """
-        data = check_for_meb_griddata(data, valid_val=(-np.inf, np.inf, np.nan))
-        target_grid = check_for_meb_griddata(
+        data = meb.checkout_griddata(data, valid_val=(-np.inf, np.inf, np.nan))
+        target_grid = meb.checkout_griddata(
             target_grid, valid_val=(-np.inf, np.inf, np.nan)
         )
         if self.REGRID_REQUIRES_LANDMASK[self.regrid_mode]:
@@ -316,11 +318,11 @@ class AdjustLandSeaPoints(PostProcessingPlugin):
         xr.DataArray
             订正后的重网格结果。
         """
-        data = check_for_meb_griddata(data, valid_val=(-np.inf, np.inf, np.nan))
-        input_land = check_for_meb_griddata(
+        data = meb.checkout_griddata(data, valid_val=(-np.inf, np.inf, np.nan))
+        input_land = meb.checkout_griddata(
             input_land, valid_val=(-np.inf, np.inf, np.nan)
         )
-        output_land = check_for_meb_griddata(
+        output_land = meb.checkout_griddata(
             output_land, valid_val=(-np.inf, np.inf, np.nan)
         )
 

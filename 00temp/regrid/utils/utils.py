@@ -6,42 +6,10 @@
 
 from __future__ import annotations
 
-from typing import Sequence
-
 import numpy as np
 import xarray as xr
 
 import meteva_base as meb
-
-
-def check_for_meb_griddata(
-    grd: xr.DataArray,
-    is_single: bool = False,
-    valid_val: Sequence[float] = (-1000.0, 1000.0, np.nan),
-) -> xr.DataArray:
-    """检查 meteva_base 网格数据并统一格式。"""
-    if not isinstance(grd, xr.DataArray):
-        raise ValueError("ERROR: griddata must be xr.DataArray, please check")
-    if set(grd.dims) != {"member", "level", "time", "dtime", "lat", "lon"}:
-        raise ValueError(
-            "ERROR: griddata dims must be set of "
-            "{'member', 'level', 'time', 'dtime', 'lat', 'lon'} , please check"
-        )
-    if is_single and len(grd.values.squeeze().shape) > 2:
-        raise ValueError(
-            "ERROR: griddata has more effective coordinates than (lat, lon) , please check"
-        )
-    grd0 = grd.copy()
-    if grd0.dims != ("member", "level", "time", "dtime", "lat", "lon"):
-        grd0 = grd0.transpose("member", "level", "time", "dtime", "lat", "lon")
-    if grd0.values.dtype == np.float64:
-        grd0.values = grd0.values.astype(np.float32)
-    if ((grd0.values < valid_val[0]) | (grd0.values > valid_val[1])).any():
-        print("WARNING: griddata values exceed VALID_VAL, setting to np.NaN")
-        grd0.values[(grd0.values < valid_val[0]) | (grd0.values > valid_val[1])] = (
-            valid_val[2]
-        )
-    return grd0
 
 
 def rebuild_to_meb_griddata(
@@ -56,7 +24,7 @@ def rebuild_to_meb_griddata(
     if not isinstance(template, xr.DataArray):
         raise TypeError("template 必须为 xarray.DataArray。")
 
-    normalized = check_for_meb_griddata(template, valid_val=(-np.inf, np.inf, np.nan))
+    normalized = meb.checkout_griddata(template, valid_val=(-np.inf, np.inf, np.nan))
 
     target_shape = tuple(
         normalized.sizes[dim]
@@ -78,18 +46,18 @@ def rebuild_to_meb_griddata(
     if result.dims != ("member", "level", "time", "dtime", "lat", "lon"):
         result = result.transpose("member", "level", "time", "dtime", "lat", "lon")
 
-    attrs = {
-        "units": units,
-        "model": None,
-        "dtime_units": "hour",
-        "level_type": "isobaric",
-        "time_type": "UT",
-        "time_bounds": [0, 0],
-    }
-    attrs.update(dict(normalized.attrs))
-    if units is not None:
-        attrs["units"] = units
-    result.attrs = attrs
+    # 继承模板 attrs；缺省的 meb 标准属性由 set_griddata_attrs 补齐。
+    result.attrs = dict(normalized.attrs)
+    meb.set_griddata_attrs(
+        result,
+        units=units,
+        model_var=result.attrs.get("model_var"),
+        dtime_units=result.attrs.get("dtime_units"),
+        level_type=result.attrs.get("level_type"),
+        time_type=result.attrs.get("time_type"),
+        time_bounds=result.attrs.get("time_bounds"),
+        is_default=True,
+    )
     result.name = name if name is not None else normalized.name
     return result
 

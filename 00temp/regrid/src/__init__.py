@@ -3,9 +3,9 @@
 # Copyright (c) 2019 NMC Developers.
 # Distributed under the terms of the GPL V3 License.
 
-from regrid.src.landsea import AdjustLandSeaPoints, RegridLandSea
-from regrid.src.landsea2 import RegridWithLandSeaMask
-from regrid.src.utils.grid import grid_contains_cutout
+from .landsea import AdjustLandSeaPoints, RegridLandSea
+from .landsea2 import RegridWithLandSeaMask
+from .utils.grid import grid_contains_cutout
 
 __all__ = [
     "RegridLandSea",

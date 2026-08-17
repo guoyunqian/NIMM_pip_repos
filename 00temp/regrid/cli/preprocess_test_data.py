@@ -18,6 +18,7 @@ from pathlib import Path
 
 import numpy as np
 import xarray as xr
+import meteva_base as meb
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = PACKAGE_ROOT.parent
@@ -139,11 +140,6 @@ def official_to_meb6d(nc_path: Path, var_name: str | None = None) -> xr.DataArra
 
     attrs = {
         "units": str(arr.attrs.get("units", "1")),
-        "model": None,
-        "dtime_units": "hour",
-        "level_type": "isobaric",
-        "time_type": "UT",
-        "time_bounds": [0, 0],
     }
     gma = arr.attrs.get("grid_mapping_attrs")
     if isinstance(gma, str) and gma.strip():
@@ -152,7 +148,7 @@ def official_to_meb6d(nc_path: Path, var_name: str | None = None) -> xr.DataArra
         if gm_name and gm_name != "latitude_longitude":
             attrs["grid_mapping_attrs"] = gma
 
-    return xr.DataArray(
+    da = xr.DataArray(
         values,
         dims=("member", "level", "time", "dtime", "lat", "lon"),
         coords={
@@ -168,6 +164,18 @@ def official_to_meb6d(nc_path: Path, var_name: str | None = None) -> xr.DataArra
         name=arr.name,
         attrs=attrs,
     )
+    # 补齐 meb 标准默认属性（已有 units 等保留）
+    meb.set_griddata_attrs(
+        da,
+        units=da.attrs.get("units"),
+        model_var=da.attrs.get("model_var"),
+        dtime_units=da.attrs.get("dtime_units"),
+        level_type=da.attrs.get("level_type"),
+        time_type=da.attrs.get("time_type"),
+        time_bounds=da.attrs.get("time_bounds"),
+        is_default=True,
+    )
+    return da
 
 
 def save_meb6d_to_nc(data: xr.DataArray, dst_path: Path) -> None:

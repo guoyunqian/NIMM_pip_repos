@@ -1,0 +1,61 @@
+================================================================================
+算法整理日志 — 海陆感知重网格
+================================================================================
+整理日期   : 2026-08-17
+算法代号   : regrid
+仓库目录   : 00temp/regrid/
+整理阶段   : 原算法目录增量同步至中间目录
+贡献人     : 郭云谦、王亭波
+原始来源   : D:\workspace\improver\regrid（原包名 `regrid`）
+================================================================================
+
+一、变更说明
+--------------------------------------------------------------------------------
+  原算法目录在 2026-08-05 中间目录整理后继续修改，本次将增量改动同步到中间目录。
+  主要算法变化：
+    - 网格校验改用 meb.checkout_griddata
+    - rebuild_to_meb_griddata 改为 meb.set_griddata_attrs 补齐标准属性
+    - src/__init__.py 改为包内相对导入
+  中间目录导入仍保持模块名 `regrid`。
+  保留脚手架：00log/、00temp/、NIMM_list.md、.gitignore、docs/regrid_overview.md、resource/。
+  未同步 test_data/（约 1.70MB、27 文件）。
+  CLI / 预处理脚本在缺样例时中文提示，不崩溃。
+
+二、目录映射（原 → 现）
+--------------------------------------------------------------------------------
+  核心算法             → src/landsea.py、src/landsea2.py（RegridLandSea、AdjustLandSeaPoints、RegridWithLandSeaMask）
+  模块工具             → src/utils/（双线性 / 最近邻 / IDW / 网格与邻近域）
+  通用工具             → utils/utils.py（rebuild_to_meb_griddata，内部用 meb.checkout_griddata）
+  插件基类             → utils/base_plugin.py（BasePlugin + PostProcessingPlugin）
+  CLI                  → cli/tran_regrid.py、cli/preprocess_test_data.py
+  文档                 → docs/regrid_landsea.md、docs/regrid_overview.md
+  notebook             → nbs/regrid_landsea_validation.ipynb
+  测试                 → test/（单元、官方回归、CLI 冒烟）
+  整理中间数据         → 00temp/regrid/
+  整理过程日志         → 00log/regrid_整理_20260817.log
+
+三、本次已完成
+--------------------------------------------------------------------------------
+  [x] 覆盖同步有差异的 src/、utils/、cli/、test/、docs/、nbs/
+  [x] 导入路径保持 regrid
+  [x] CLI 直启缺 test_data 时中文提示，不崩溃
+  [x] 未删除原始目录任何文件
+
+四、仍存在问题 — 需人工补充
+--------------------------------------------------------------------------------
+  [ ] 入库路径：补充至 NIMM/ancillaries/ 时需调整为仓库正式包路径
+  [ ] BasePlugin：正式入库时评估是否改为仓库统一基类
+  [ ] test_data：中间目录未同步；缺数据或缺相对 parents[2]/improver-1.18.7 时对照测试会 skip
+  [ ] resource/：当前为空
+
+五、验证记录
+--------------------------------------------------------------------------------
+  [x] 原算法目录 pytest：38 passed（improver venv，2026-08-17）
+  [x] 中间目录 pytest：25 passed, 13 skipped（improver venv，2026-08-17；缺 test_data 时官方对照 skip）
+
+六、导入路径说明
+--------------------------------------------------------------------------------
+  中间目录 Python import 模块名为 `regrid`（与原包名一致）。
+  补充至 NIMM/ancillaries/ 时再调整为仓库正式包路径。
+
+================================================================================

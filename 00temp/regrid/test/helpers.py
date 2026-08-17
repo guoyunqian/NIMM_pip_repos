@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import numpy as np
 import xarray as xr
+import meteva_base as meb
 
 
 def to_compare_array(data) -> np.ndarray:
@@ -51,20 +52,13 @@ def make_meb6d(
     if lon_units is not None:
         lon_attrs["units"] = lon_units
 
-    out_attrs = {
-        "units": units,
-        "model": None,
-        "dtime_units": "hour",
-        "level_type": "isobaric",
-        "time_type": "UT",
-        "time_bounds": [0, 0],
-    }
+    out_attrs = {"units": units}
     if attrs:
         out_attrs.update(attrs)
     if grid_mapping_attrs is not None:
         out_attrs["grid_mapping_attrs"] = grid_mapping_attrs
 
-    return xr.DataArray(
+    da = xr.DataArray(
         values[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, :],
         dims=("member", "level", "time", "dtime", "lat", "lon"),
         coords={
@@ -84,3 +78,14 @@ def make_meb6d(
         name=name,
         attrs=out_attrs,
     )
+    meb.set_griddata_attrs(
+        da,
+        units=da.attrs.get("units"),
+        model_var=da.attrs.get("model_var"),
+        dtime_units=da.attrs.get("dtime_units"),
+        level_type=da.attrs.get("level_type"),
+        time_type=da.attrs.get("time_type"),
+        time_bounds=da.attrs.get("time_bounds"),
+        is_default=True,
+    )
+    return da
