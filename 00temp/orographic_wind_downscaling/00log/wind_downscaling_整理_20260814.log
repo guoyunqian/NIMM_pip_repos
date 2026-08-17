@@ -29,7 +29,7 @@
   插件基类             → utils/base_plugin.py（BasePlugin + PostProcessingPlugin）
   CLI                  → cli/dsc_wind_downscaling.py、cli/preprocess_test_data.py
   文档                 → docs/wind_downscaling.md、docs/orographic_wind_downscaling.md
-  notebook             → nbs/wind_calculations.ipynb（新增）；保留 nbs/official_data_wind_calculations.ipynb
+  notebook             → nbs/wind_calculations.ipynb
   测试                 → 原有单元/官方对照 + test_infer_grid_resolution.py、test_synthetic_latlon_roughness.py
   整理中间数据         → 00temp/wind_downscaling/
   整理过程日志         → 00log/wind_downscaling_整理_20260814.log
@@ -50,21 +50,15 @@
   [ ] BasePlugin：正式入库时评估是否改为仓库统一基类
   [ ] test_data：中间目录未同步；官方对照测试缺数据时会 skip
   [ ] resource/：当前为空
-  [ ] nbs/official_data_wind_calculations.ipynb：历史 notebook 仍保留，输出单元格含原 improver 路径
 
 五、验证记录
 --------------------------------------------------------------------------------
   [x] 原算法目录 pytest：32 passed（improver venv，2026-08-14）
-  [x] 中间目录 pytest：30 passed, 2 skipped（improver venv，2026-08-17 恢复后复验；缺 test_data 时官方对照 skip）
+  [x] 中间目录 pytest：30 passed, 2 skipped（improver venv，2026-08-14；缺 test_data 时官方对照 skip）
 
 六、导入路径说明
 --------------------------------------------------------------------------------
   中间目录 Python import 已统一为模块名 `orographic_wind_downscaling`。
   补充至 NIMM/00space_downscale/ 时需再调整为仓库正式包路径。
-
-七、2026-08-17 恢复说明
---------------------------------------------------------------------------------
-  中间目录增量同步曾被误回退。已按原目录 D:\workspace\improver\wind_calculations
-  重新复制并重映射导入，未重新做正式入库。
 
 ================================================================================
