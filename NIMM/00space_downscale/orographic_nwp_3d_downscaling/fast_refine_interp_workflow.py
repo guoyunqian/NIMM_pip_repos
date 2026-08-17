@@ -24,13 +24,6 @@ if core_path not in sys.path:
     sys.path.insert(0, core_path)
 # =====================================================================================================
 
-for i in range(1,10):
-  sRoot_Path = os.path.join(*[".."]*i)
-  lib_path=os.path.join(sRoot_Path,"lib","pylib")
-  if os.path.exists(lib_path):
-    break
-sys.path.append(lib_path)
-
 import core.Module_MyFunction      as MMyfun
 import core.Module_Arguments       as MArg
 import core.Module_Global_Variable as MGV

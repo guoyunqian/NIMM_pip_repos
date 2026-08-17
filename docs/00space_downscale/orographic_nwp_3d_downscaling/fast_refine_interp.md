@@ -7,10 +7,8 @@
 
 ## 公开插件
 
-公开类为 `FastRefineInterpPlugin`，位于 `NIMM/00space_downscale/orographic_nwp_3d_downscaling/fast_refine_interp_plugin.py`。
+公开类为 `FastRefineInterpPlugin`，位于 `src/fast_refine_interp_plugin.py`。
 插件方法为 `process()`。
-
-由于分类目录 `00space_downscale` 以数字开头，示例代码建议使用 `importlib.import_module()` 动态导入正式包。
 
 ## 主要参数
 
@@ -29,9 +27,4 @@
 
 完整业务运行仍依赖真实模式数据、地形数据、站点文件和配置路径。
 
-## 正式归档位置
 
-- 核心源码：`NIMM/00space_downscale/orographic_nwp_3d_downscaling/`
-- CLI 调度：`cli/00space_downscale/orographic_nwp_3d_downscaling/`
-- 资源模板：`resource/00space_downscale/orographic_nwp_3d_downscaling/`
-- 测试脚本：`test/00space_downscale/orographic_nwp_3d_downscaling/`

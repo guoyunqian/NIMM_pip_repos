@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+import numpy as np
+
 from importlib import import_module
 from pathlib import Path
 import sys
-
-import numpy as np
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(REPO_ROOT) not in sys.path:

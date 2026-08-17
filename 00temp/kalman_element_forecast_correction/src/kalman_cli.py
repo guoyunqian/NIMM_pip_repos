@@ -338,6 +338,7 @@ def run_variable(
     alpha: float = 0.15,
     back_days: int = 5,
     dtimes=None,
+    obs_end_time: datetime | None = None,
 ) -> int:
     """Run one variable across levels and cycles."""
     if dtimes is None:
@@ -367,7 +368,7 @@ def run_variable(
                     is_kalme_out=True,
                     output=output,
                     is_kal_fix=True,
-                    obs_end_time=run_time,
+                    obs_end_time=obs_end_time,
                 )
                 total_success += 1
                 print(f"完成 {variable} 层级 {level} {run_time:%Y%m%d%H}\n")

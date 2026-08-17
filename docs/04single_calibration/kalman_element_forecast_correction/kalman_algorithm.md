@@ -1,4 +1,4 @@
-﻿# NIMM Kalman 土壤温湿度订正算法说明
+# NIMM Kalman 土壤温湿度订正算法说明
 
 ## 1. 改造范围
 
@@ -129,6 +129,7 @@ python -m cli.04single_calibration.kalman_element_forecast_correction.trans_data
 
 - 生产运行依赖 `meteva_base`、`numpy`、`xarray` 等科学计算库。
 - 当前本机 `pytorch` conda 环境中已确认存在 `meteva_base`。
+- `kalman_data` 默认不限制最新可用观测时间；若实时业务需要避免使用晚于某一时刻的实况，可通过 `--obs-end-time YYYYMMDDHH` 显式指定。
 - 预报场有效值中位数大于 `150` 时，会按开尔文自动转换为摄氏度。
 - 默认处理变量为 `SWVL` 和 `STL`。
 - 默认订正层级为 `5`、`10`、`40`，与原生产脚本保持一致。

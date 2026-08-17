@@ -113,3 +113,21 @@
 - 测试数据仓库当前缺少 `fcst_new.nc`、`obs_new.nc`、`me_before.nc`、`expected_result.nc` 等最小端到端样例。
 - 因上述外部数据和环境未提供，尚未运行完整业务端到端测试。
 
+## 2026-08-17 代码更新
+
+本次以 `D:\nimm-file\cli_code\nimm_kalman` 为更新源，同步用户改进后的 Kalman 算法代码。
+
+更新内容包括：
+
+- 将新版代码同步到 `00temp/kalman_element_forecast_correction/`，复制时排除 `__pycache__` 和 `.pyc` 缓存文件。
+- 将新版核心源码同步到 `NIMM/04single_calibration/kalman_element_forecast_correction/`。
+- 将新版 CLI、测试、文档和 notebook 同步到正式分类目录。
+- 正式目录继续保持相对导入或动态导入，未恢复原始 `nimm_kalman` 包路径。
+- CLI 新增/保留 `--obs-end-time` 参数，用于限制最新可用观测时间。
+- 已运行正式目录下的最小数值单元测试。
+
+仍需后续补充或审核：
+
+- 完整业务流程仍依赖生产路径、`meteva_base` 和真实 NetCDF 网格资料。
+- 独立最小端到端测试数据仍未补充。
+

@@ -18,6 +18,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--alpha", type=float, default=0.15, help="Kalman 误差更新系数。")
     parser.add_argument("--back-days", type=int, default=5, help="向前回溯查找或重算误差场的天数。")
     parser.add_argument("--variables", default="SWVL,STL", help="逗号分隔的变量列表，如 SWVL,STL。")
+    parser.add_argument("--obs-end-time", help="可选，最新可用观测时间，格式 YYYYMMDDHH；不传则不限制。")
     return parser.parse_args()
 
 
@@ -39,6 +40,7 @@ def main() -> None:
     args = parse_args()
     start_time, end_time = _date_range_from_args(args)
     variables = [item.strip().upper() for item in args.variables.split(",") if item.strip()]
+    obs_end_time = datetime.strptime(args.obs_end_time, "%Y%m%d%H") if args.obs_end_time else None
 
     total_success = 0
     for variable in variables:
@@ -50,6 +52,7 @@ def main() -> None:
             obs_root=args.obs_root,
             alpha=args.alpha,
             back_days=args.back_days,
+            obs_end_time=obs_end_time,
         )
 
     print(f"全部 Kalman 任务完成，成功任务数：{total_success}")

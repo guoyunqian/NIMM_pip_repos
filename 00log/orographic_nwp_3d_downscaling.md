@@ -78,3 +78,20 @@
 - 完整业务流程仍依赖真实模式资料、地形数据、站点文件、实况数据、`Parameter/lib` 目录和 `eccodes` 等运行环境。
 - `Module_Micaps_RW.so` 为二进制扩展，跨平台和 Python 版本兼容性需人工确认。
 - 独立小样例输入/输出数据尚未补充到 `NIMM_pip_testdata`，完整端到端业务测试尚未运行。
+
+## 2026-08-17 代码更新
+
+本次以 `D:\nimm-file\cli_code\nimm_g_interp` 为更新源，同步用户改进后的快速精细化插值算法代码。
+
+更新内容包括：
+
+- 将新版代码同步到 `00temp/orographic_nwp_3d_downscaling/`，复制时排除 `__pycache__` 和 `.pyc` 缓存文件。
+- 将新版核心流程同步到 `NIMM/00space_downscale/orographic_nwp_3d_downscaling/fast_refine_interp_workflow.py`。
+- 将新版 CLI、测试、资源模板和文档同步到正式分类目录。
+- 正式目录继续保持相对导入或动态导入，未恢复原始 `nimm_g_interp` 包路径。
+- 已运行正式目录下的最小插件构造测试。
+
+仍需后续补充或审核：
+
+- 当前测试仍只覆盖插件构造，不覆盖 `process()` 的完整业务运行。
+- 完整业务流程仍依赖真实模式资料、地形数据、站点文件、实况数据、`Parameter/lib` 目录、`eccodes` 环境和 `Module_Micaps_RW.so`。
