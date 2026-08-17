@@ -18,7 +18,7 @@ import xarray as xr
 
 import meteva_base as meb
 
-from orographic_temperature_downscaling.utils.base_plugin import BasePlugin
+from orographic_temperature_downscaling.utils.base_plugin import BasePlugin,PostProcessingPlugin
 from orographic_temperature_downscaling.utils.utils import (
     convert_units,
     rebuild_to_meb_griddata,
@@ -81,7 +81,7 @@ def compute_lapse_rate_adjustment(
     return vertical_adjustment
 
 
-class ApplyGriddedLapseRate(BasePlugin):
+class ApplyGriddedLapseRate(PostProcessingPlugin):
     """将网格化层结递减率应用到温度场的插件。
 
     典型使用步骤：
