@@ -322,45 +322,67 @@ result = process(
 
 脚本内置测试数据目录：输入 `orographic_temperature_downscaling/test_data/temp_lapse_rate_data/cli_input/`，CLI 输出 `cli_output/`。
 
-## 8. 算法验证
+## 8. 测试数据预处理
 
-### 8.1 单元测试结果
+官方投影样例需先预处理，再供 CLI / Notebook 读取。脚本：
+
+`orographic_temperature_downscaling/cli/preprocess_test_data.py`
+
+仓库根目录运行：
+
+```text
+python orographic_temperature_downscaling/cli/preprocess_test_data.py
+```
+
+写出目录（分别在 `test_data/apply_lapse_rate_data/` 与 `test_data/temp_lapse_rate_data/` 下）：
+
+| 路径 | 内容 | 用途 |
+| --- | --- | --- |
+| `cli_input/` | 投影维重命名后的 meb 六维 | 方案一：迁移方法 / CLI |
+| `latlon/` | 投影→规则经纬后的 Iris Cube | 方案二：原 IMPROVER 方法 |
+| `latlon/cli_input/` | 与 `latlon/` 同源数值的 meb 六维 | 方案二：迁移方法 |
+
+`kgo.nc` 与原方法结果文件不转换。Notebook 只读上述写出结果做对照，不再内嵌预处理。
+
+## 9. 算法验证
+
+### 9.1 单元测试结果
 
 - `17 passed`
 - 覆盖 `compute_lapse_rate_adjustment`、`ApplyGriddedLapseRate`、`LapseRate` 关键分支
 - 覆盖官方样例数据对照（KGO 与 original result）
 
-### 8.2 官方数据对照结论
+### 9.2 官方数据对照结论
 
 - `ApplyGriddedLapseRate`：迁移版输出与 `kgo.nc`、`original_algorithm_result.nc` 一致（设定容差内）。
 - `LapseRate`：迁移版输出与 `kgo.nc`、`original_lapse_rate_result.nc` 一致（设定容差内）。
 
-## 9. 物理常数
+## 10. 物理常数
 
 - **DALR (干绝热递减率)**: -0.0098 K/m
 - **ELR (环境递减率/标准大气递减率)**: -0.0065 K/m
 
-## 10. 注意事项
+## 11. 注意事项
 
-### 10.1 单位要求
+### 11.1 单位要求
 
 - 所有 xarray 输入必须在 `attrs["units"]` 中指定正确的单位
 - numpy 输入假设使用默认单位，用户需确保输入数据单位正确
 - `ApplyGriddedLapseRate` 输出固定为开尔文（K）；`LapseRate` 输出层结递减率单位为 K/m
 
-### 10.2 坐标验证
+### 11.2 坐标验证
 
 - xarray 输入必须符合 meteva_base 的 grid_data 结构（维度顺序：member, level, time, dtime, lat, lon）
 - 所有输入网格的空间坐标（lat, lon）必须匹配
-- 时间坐标通过 `check_for_xy_coordinates` 工具函数验证
+- 时间坐标通过 `meb.checkout_griddata_same_coords` 验证
 
-### 10.3 性能考虑
+### 11.3 性能考虑
 
 - 使用 float32 数据类型以优化内存使用
 - 邻域计算使用 numpy 的 sliding_window_view 实现高效滚动窗口
 - 大规模数据处理时建议分批处理
 
-### 10.4 限制条件
+### 11.4 限制条件
 
 - 最大高度差限制：默认 50 米，超过此值使用环境递减率
 - 层结递减率约束：默认范围 [DALR, -3×DALR] = [-0.0098, 0.0294] K/m

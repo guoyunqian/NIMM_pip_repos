@@ -75,11 +75,10 @@ def process(
         层结递减率场，单位 ``K m-1``。
     """
     from orographic_temperature_downscaling.src.lapse_rate import LapseRate
-    from orographic_temperature_downscaling.utils.utils import check_for_meb_griddata, check_for_xy_coordinates
-    
+        
     _unbounded = (-np.inf, np.inf, np.nan)
 
-    temperature = check_for_meb_griddata(
+    temperature = meb.checkout_griddata(
         meb.read_griddata_from_nc(temperature_path), valid_val=_unbounded
     )
 
@@ -99,14 +98,14 @@ def process(
         if orography_path is None or land_sea_mask_path is None:
             raise RuntimeError("计算真实层结递减率时，必须同时提供 orography_path 和 land_sea_mask_path。")
 
-        orography = check_for_meb_griddata(
+        orography = meb.checkout_griddata(
             meb.read_griddata_from_nc(orography_path), valid_val=_unbounded
         )
-        land_sea_mask = check_for_meb_griddata(meb.read_griddata_from_nc(land_sea_mask_path))
+        land_sea_mask = meb.checkout_griddata(meb.read_griddata_from_nc(land_sea_mask_path))
 
-        if not check_for_xy_coordinates([temperature, orography], is_time_match=False):
+        if not meb.checkout_griddata_same_coords([temperature, orography], is_time_match=False):
             raise ValueError("地形高度场与温度场的坐标不一致")
-        if not check_for_xy_coordinates([temperature, land_sea_mask], is_time_match=True):
+        if not meb.checkout_griddata_same_coords([temperature, land_sea_mask], is_time_match=True):
             raise ValueError("海陆掩码与温度场的空间/时效坐标不一致")
 
         plugin = LapseRate(

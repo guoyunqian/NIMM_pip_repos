@@ -16,10 +16,10 @@ from typing import Union, Tuple
 import numpy as np
 import xarray as xr
 
+import meteva_base as meb
+
 from orographic_temperature_downscaling.utils.base_plugin import BasePlugin
 from orographic_temperature_downscaling.utils.utils import (
-    check_for_meb_griddata,
-    check_for_xy_coordinates,
     convert_units,
     rebuild_to_meb_griddata,
 )
@@ -152,26 +152,26 @@ class ApplyGriddedLapseRate(BasePlugin):
         - 返回值类型随输入类型而变化，但数值形状与输入温度保持一致。
         """
         temp_template = (
-            check_for_meb_griddata(temperature, valid_val=_MEB_VALID_VAL)
+            meb.checkout_griddata(temperature, valid_val=_MEB_VALID_VAL)
             if isinstance(temperature, xr.DataArray)
             else None
         )
         source_template = (
-            check_for_meb_griddata(source_orog, valid_val=_MEB_VALID_VAL)
+            meb.checkout_griddata(source_orog, valid_val=_MEB_VALID_VAL)
             if isinstance(source_orog, xr.DataArray)
             else None
         )
         dest_template = (
-            check_for_meb_griddata(dest_orog, valid_val=_MEB_VALID_VAL)
+            meb.checkout_griddata(dest_orog, valid_val=_MEB_VALID_VAL)
             if isinstance(dest_orog, xr.DataArray)
             else None
         )
 
         if isinstance(lapse_rate, xr.DataArray):
-            lr_template = check_for_meb_griddata(lapse_rate, valid_val=_MEB_VALID_VAL)
+            lr_template = meb.checkout_griddata(lapse_rate, valid_val=_MEB_VALID_VAL)
             lr_k_per_m = convert_units(lapse_rate, "K m-1")
             if temp_template is not None:
-                if not check_for_xy_coordinates(
+                if not meb.checkout_griddata_same_coords(
                     [temp_template, lr_template], is_time_match=True
                 ):
                     raise ValueError("层结递减率与温度场的空间/时效坐标不一致")
@@ -180,12 +180,12 @@ class ApplyGriddedLapseRate(BasePlugin):
 
         if temp_template is not None:
             if source_template is not None:
-                if not check_for_xy_coordinates(
+                if not meb.checkout_griddata_same_coords(
                     [temp_template, source_template], is_time_match=False
                 ):
                     raise ValueError("源地形与温度场的坐标不一致")
             if dest_template is not None:
-                if not check_for_xy_coordinates(
+                if not meb.checkout_griddata_same_coords(
                     [temp_template, dest_template], is_time_match=False
                 ):
                     raise ValueError("目标地形与温度场的坐标不一致")
@@ -458,15 +458,15 @@ class LapseRate(BasePlugin):
         - 输出数值数据类型为 `np.float32`；
         """
         temp_template = (
-            check_for_meb_griddata(temperature, valid_val=_MEB_VALID_VAL)
+            meb.checkout_griddata(temperature, valid_val=_MEB_VALID_VAL)
             if isinstance(temperature, xr.DataArray)
             else None
         )
 
         if isinstance(orography, xr.DataArray):
-            orog_template = check_for_meb_griddata(orography, valid_val=_MEB_VALID_VAL)
+            orog_template = meb.checkout_griddata(orography, valid_val=_MEB_VALID_VAL)
             if temp_template is not None:
-                if not check_for_xy_coordinates(
+                if not meb.checkout_griddata_same_coords(
                     [temp_template, orog_template], is_time_match=False
                 ):
                     raise ValueError("地形与温度场的坐标不一致")
@@ -474,12 +474,12 @@ class LapseRate(BasePlugin):
             orography = orography.astype(np.float32, copy=False)
 
         if isinstance(land_sea_mask, xr.DataArray):
-            mask_template = check_for_meb_griddata(
+            mask_template = meb.checkout_griddata(
                 land_sea_mask, valid_val=_MEB_VALID_VAL
             )
             land_mask_values = mask_template.values.astype(bool, copy=False)
             if temp_template is not None:
-                if not check_for_xy_coordinates(
+                if not meb.checkout_griddata_same_coords(
                     [temp_template, mask_template], is_time_match=True
                 ):
                     raise ValueError("陆地-海洋掩膜与温度场的空间/时效坐标不一致")

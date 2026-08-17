@@ -8,7 +8,7 @@
 | 中文名称 | 气温降尺度(地形) |
 | 原始路径 | `D:\workspace\improver\temperature`（原包名 `temperature`） |
 | 路径说明 | 体感温度相关内容已拆分至独立模块 `feels_like_temperature` |
-| 整理日期 | 2026-06-29（初整）；2026-07-06（NIMM 标准化目录结构整理） |
+| 整理日期 | 2026-06-29（初整）；2026-07-06（NIMM 标准化）；2026-08-17（增量同步） |
 | 算法贡献人 | 郭云谦、王亭波 |
 | 算法分类 | `00space_downscale` |
 | 当前状态 | 已整理至中间目录；导入已统一为模块名；待正式入库 |
@@ -31,10 +31,22 @@ CLI 包括 `cli/dsc_temp_lapse_rate.py`（递减率）与 `cli/anc_lapse_rate.py
 | --- | --- |
 | `00temp/orographic_temperature_downscaling/src/lapse_rate.py` | 核心算法与插件 |
 | `00temp/orographic_temperature_downscaling/cli/` | 递减率与地形订正 CLI |
-| `00temp/orographic_temperature_downscaling/utils/` | 网格校验工具与本地 `BasePlugin` |
+| `00temp/orographic_temperature_downscaling/utils/` | 单位换算、结果封装工具与本地 `BasePlugin` |
 | `00temp/orographic_temperature_downscaling/test/`、`docs/`、`nbs/` | 测试、文档与 notebook |
 | `00temp/orographic_temperature_downscaling/00temp/`、`00log/` | 中间数据与包内整理日志 |
 | `00temp/orographic_temperature_downscaling/NIMM_list.md` | 算法包内整理清单 |
+
+## 2026-08-17 更新
+
+- 从 `D:\workspace\improver\temperature` 增量同步，发现多处实质性差异并更新：
+  - `src/lapse_rate.py`：改用 `meb.checkout_griddata()` / `meb.checkout_griddata_same_coords()` 直接调用，移除本地封装函数 `check_for_meb_griddata()` / `check_for_xy_coordinates()`。
+  - `utils/utils.py`：从 228 行简化为 103 行，仅保留 `rebuild_to_meb_griddata()` 和 `convert_units()`；`rebuild_to_meb_griddata()` 改用 `meb.set_griddata_attrs()` 组装属性。
+  - `utils/base_plugin.py`：恢复完整 `PostProcessingPlugin`（含 `post_processed_title()` 方法）。
+  - `cli/anc_lapse_rate.py`、`cli/dsc_temp_lapse_rate.py`：同步改用 `meb` 直接调用。
+  - 补齐 `cli/preprocess_test_data.py`（官方投影样例预处理脚本）。
+  - 同步 `nbs/lapse_rate.ipynb`（更完善的演示与验证 notebook，含 CLI 示例和原方法对照）。
+  - `docs/lapse_rate.md`：补齐"测试数据预处理"章节，修正坐标验证引用。
+  - `docs/orographic_temperature_downscaling.md`：更新文件列表与整理记录。
 
 ## 2026-07-06 更新
 

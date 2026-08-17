@@ -41,8 +41,7 @@ def process(
         地形订正后的温度场。
     """
     from orographic_temperature_downscaling.src.lapse_rate import ApplyGriddedLapseRate
-    from orographic_temperature_downscaling.utils.utils import check_for_meb_griddata, check_for_xy_coordinates
-    
+        
     _unbounded = (-np.inf, np.inf, np.nan)
 
     temperature = meb.read_griddata_from_nc(temperature_path)
@@ -50,16 +49,16 @@ def process(
     source_orography = meb.read_griddata_from_nc(source_orography_path)
     target_orography = meb.read_griddata_from_nc(target_orography_path)
 
-    temperature = check_for_meb_griddata(temperature, valid_val=_unbounded)
-    lapse_rate = check_for_meb_griddata(lapse_rate)
-    source_orography = check_for_meb_griddata(source_orography, valid_val=_unbounded)
-    target_orography = check_for_meb_griddata(target_orography, valid_val=_unbounded)
+    temperature = meb.checkout_griddata(temperature, valid_val=_unbounded)
+    lapse_rate = meb.checkout_griddata(lapse_rate)
+    source_orography = meb.checkout_griddata(source_orography, valid_val=_unbounded)
+    target_orography = meb.checkout_griddata(target_orography, valid_val=_unbounded)
 
-    if not check_for_xy_coordinates([temperature, lapse_rate], is_time_match=True):
+    if not meb.checkout_griddata_same_coords([temperature, lapse_rate], is_time_match=True):
         raise ValueError("层结递减率场与温度场的空间/时效坐标不一致")
-    if not check_for_xy_coordinates([temperature, source_orography], is_time_match=False):
+    if not meb.checkout_griddata_same_coords([temperature, source_orography], is_time_match=False):
         raise ValueError("源地形高度场与温度场的坐标不一致")
-    if not check_for_xy_coordinates([temperature, target_orography], is_time_match=False):
+    if not meb.checkout_griddata_same_coords([temperature, target_orography], is_time_match=False):
         raise ValueError("目标地形高度场与温度场的坐标不一致")
 
     result = ApplyGriddedLapseRate()(

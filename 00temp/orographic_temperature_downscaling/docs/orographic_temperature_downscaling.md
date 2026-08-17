@@ -21,9 +21,10 @@
 | --- | --- | --- |
 | 核心源码 | `src/lapse_rate.py` | 层结递减率估计与气温地形订正核心算法 |
 | 辅助源码 | `utils/base_plugin.py` | 插件基类与后处理插件基类 |
-| 辅助源码 | `utils/utils.py` | `meteva_base` 网格数据校验、单位换算与结果封装工具 |
+| 辅助源码 | `utils/utils.py` | `meteva_base` 网格数据单位换算与结果封装工具 |
 | CLI | `cli/dsc_temp_lapse_rate.py` | 从温度、地形和陆海掩膜计算层结递减率 |
 | CLI | `cli/anc_lapse_rate.py` | 应用层结递减率进行温度地形订正 |
+| CLI | `cli/preprocess_test_data.py` | 官方投影样例预处理为 meb 六维及经纬重网格 |
 | 测试 | `test/test_lapse_rate.py` | 核心函数与插件单元测试 |
 | 测试 | `test/test_official_lapse_rate_actual_orog.py` | 官方样例数据对照测试 |
 
@@ -62,6 +63,7 @@
 
 - 原始源码、CLI、文档、notebook、测试脚本复制到 `00temp/orographic_temperature_downscaling/`。
 - 2026-07-03 从 `D:\workspace\improver\temperature` 增量同步，导入路径已统一为中间目录模块名 `orographic_temperature_downscaling`。
+- 2026-08-17 从 `D:\workspace\improver\temperature` 增量同步：`src/lapse_rate.py` 改用 `meb.checkout_griddata()` / `meb.checkout_griddata_same_coords()` 直接调用；`utils/utils.py` 简化为仅保留 `rebuild_to_meb_griddata()` 和 `convert_units()`；`utils/base_plugin.py` 恢复完整 `PostProcessingPlugin`；补齐 `cli/preprocess_test_data.py`；同步 `nbs/lapse_rate.ipynb`（更完善的演示与验证版本）；文档同步更新。
 - 体感温度相关内容已拆出，中间目录仅保留层结递减率与地形订正。
 
 待处理：

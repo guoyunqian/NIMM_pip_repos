@@ -8,6 +8,7 @@ from typing import Optional, Sequence
 
 
 _CLI_SCRIPTS = (
+    "orographic_temperature_downscaling/cli/preprocess_test_data.py",
     "orographic_temperature_downscaling/cli/anc_lapse_rate.py",
     "orographic_temperature_downscaling/cli/dsc_temp_lapse_rate.py",
 )
