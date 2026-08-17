@@ -8,6 +8,7 @@ from typing import Optional, Sequence
 
 
 _CLI_SCRIPTS = (
+    "feels_like_temperature/cli/preprocess_test_data.py",
     "feels_like_temperature/cli/der_feel_like_temp.py",
 )
 

@@ -1,0 +1,63 @@
+================================================================================
+算法整理日志 — 体感温度
+================================================================================
+整理日期   : 2026-08-17
+算法代号   : feels_like_temperature
+仓库目录   : 00temp/feels_like_temperature/
+整理阶段   : 原算法目录增量同步至中间目录
+贡献人     : 郭云谦、王亭波
+原始来源   : D:\workspace\improver\feels_like_temperature（原 improver 包名 `feels_like_temperature`）
+================================================================================
+
+一、变更说明
+--------------------------------------------------------------------------------
+  原算法目录在 2026-07-06 中间目录整理后继续修改，本次将增量改动同步到中间目录。
+  主要算法变化：
+    - 网格校验改用 meb.checkout_griddata / meb.checkout_griddata_same_coords
+    - utils/utils.py 去掉本地 check_for_meb_griddata，改为 rebuild_to_meb_griddata 内部调用 meb
+    - PostProcessingPlugin 与原目录对齐
+    - 新增 cli/preprocess_test_data.py（方案一投影维重命名 / 方案二经纬重网格）
+  中间目录导入仍统一为模块名 `feels_like_temperature`。
+  保留脚手架：00log/、00temp/、NIMM_list.md、.gitignore。
+  未同步 test_data/（原目录样例体量较大）。
+
+二、目录映射（原 → 现）
+--------------------------------------------------------------------------------
+  核心算法             → src/feels_like_temperature.py
+  内部工具             → src/utils/_feels_like.py
+  模块工具             → utils/utils.py（rebuild_to_meb_griddata，内部用 meb.checkout_griddata）
+  插件基类             → utils/base_plugin.py（BasePlugin + PostProcessingPlugin）
+  CLI                  → cli/der_feel_like_temp.py、cli/preprocess_test_data.py
+  文档                 → docs/feels_like_temperature.md
+  notebook             → nbs/feels_like_temperature.ipynb
+  测试                 → test/test_feels_like_temperature.py、test/test_official_feels_like_temperature.py、test/test_validate_goff_gratch.py
+  整理中间数据         → 00temp/feels_like_temperature/
+  整理过程日志         → 00log/feels_like_temperature_整理_20260817.log
+
+三、本次已完成
+--------------------------------------------------------------------------------
+  [x] 覆盖同步有差异的 src/、utils/、cli/、test/、docs/、nbs/
+  [x] 新增 cli/preprocess_test_data.py
+  [x] 导入路径保持 feels_like_temperature
+  [x] 保留数据目录名 test_data/feels_like_temp_data
+  [x] CLI 直启缺 test_data 时中文提示，不崩溃
+  [x] 未删除原始目录任何文件
+
+四、仍存在问题 — 需人工补充
+--------------------------------------------------------------------------------
+  [ ] 入库路径：补充至 NIMM/02diagnostic/ 时需调整为仓库正式包路径
+  [ ] BasePlugin：正式入库时评估是否改为仓库统一基类
+  [ ] test_data：中间目录未同步；官方对照测试缺数据时会 skip
+  [ ] resource/：当前为空
+
+五、验证记录
+--------------------------------------------------------------------------------
+  [x] 原算法目录 pytest：14 passed（improver venv，2026-08-17）
+  [x] 中间目录 pytest：12 passed, 2 skipped（improver venv，2026-08-17；缺 test_data 时官方对照 skip）
+
+六、导入路径说明
+--------------------------------------------------------------------------------
+  中间目录 Python import 已统一为模块名 `feels_like_temperature`。
+  补充至 NIMM/02diagnostic/ 时需再调整为仓库正式包路径。
+
+================================================================================

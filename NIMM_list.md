@@ -1,6 +1,6 @@
 | 算法名称 | 算法种类 | 算法功能 | 更新时间 | 贡献人 | 仍存在问题 |
 | --- | --- | --- | --- | --- | --- |
-| `feels_like_temperature` / 体感温度 | `02diagnostic` | 根据气温、10 米风速、相对湿度和气压综合风寒与显温，计算体感温度诊断场 | 2026-07-06 | 郭云谦、王亭波 | 中间目录导入已统一；原目录 pytest 已通过；正式入库需改 `NIMM` 包路径并评估统一 `BasePlugin`；`resource/` 为空 |
+| `feels_like_temperature` / 体感温度 | `02diagnostic` | 根据气温、10 米风速、相对湿度和气压综合风寒与显温，计算体感温度诊断场 | 2026-08-17 | 郭云谦、王亭波 | 原目录 pytest 14 passed，中间目录 12 passed / 2 skipped；正式入库需改 `NIMM` 包路径并评估统一 `BasePlugin`；`test_data/` 未同步；`resource/` 为空 |
 | `orographic_temperature_downscaling` / 气温降尺度(地形) | `00space_downscale` | 基于层结递减率和地形高度差进行气温空间降尺度与地形订正 | 2026-07-06 | 郭云谦、王亭波 | 中间目录导入已统一为 `orographic_temperature_downscaling`（体感温度已拆出）；原目录 pytest 已通过；正式入库需改 `NIMM` 包路径并评估统一 `BasePlugin`；样例在 `NIMM_pip_testdata`；`resource/` 为空 |
 | `orographic_wind_downscaling` / 风降尺度(地形) | `00space_downscale` | 基于地形粗糙度、地形高度标准差和地形高度差进行风速空间降尺度与订正；支持投影米制与真经纬分辨率推断 | 2026-08-17 | 郭云谦、王亭波 | 已补充至正式目录；正式 pytest 30 passed / 2 skipped；`BasePlugin` 仍为算法内本地类；`test_data/` 未同步；`resource/` 仅说明文件 |
 | `neighbourhood_probability_processing` / 邻域(nbhood)处理及概率生成 | `07probability` | 进行邻域概率处理、邻域百分位生成、陆海/地形带分区和分层掩码概率处理 | 2026-07-09 | 郭云谦、王亭波 | 中间目录导入已统一为 `neighbourhood_probability_processing`；原目录 pytest 已通过；正式入库需改 `NIMM` 包路径并评估统一 `BasePlugin`；样例在 `NIMM_pip_testdata`（含 CLI 输出）待筛选；`resource/` 为空 |

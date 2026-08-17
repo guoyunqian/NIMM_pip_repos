@@ -84,7 +84,7 @@ flowchart TD
 
 ### 4.1 calculate_feels_like_temperature 函数
 
-#### 输入类型支持
+#### calculate_feels_like_temperature 输入类型支持
 
 - **xarray.DataArray**：用于 meteva_base grid_data，自动从 `.attrs["units"]` 提取单位信息
 - **numpy.ndarray**：用于纯数组输入，使用默认单位（用户必须确保输入数组的单位正确）
@@ -100,7 +100,7 @@ flowchart TD
 | relative_humidity | xr.DataArray 或 np.ndarray | 相对湿度数据 | - xarray: 支持分数 '1' 或百分比 '%' - numpy: 默认分数 (0-1) |
 | pressure | xr.DataArray 或 np.ndarray | 气压数据 | - xarray: 支持 'Pa', 'hPa', 'kPa' - numpy: 默认帕斯卡 (Pa) |
 
-#### 输出
+#### calculate_feels_like_temperature 输出
 
 | 输出项 | 类型 | 说明 | 单位 |
 | --- | --- | --- | --- |
@@ -108,7 +108,7 @@ flowchart TD
 
 ### 4.2 CalculateWindChill 插件类
 
-#### 输入类型支持
+#### CalculateWindChill 输入类型支持
 
 - **xarray.DataArray**：用于 meteva_base grid_data，自动从 `.attrs["units"]` 提取单位信息
 - **numpy.ndarray**：用于纯数组输入，使用默认单位（用户必须确保输入数组的单位正确）
@@ -124,7 +124,7 @@ flowchart TD
 | temperature_units | str | ndarray 输入时温度单位 | 'degC' 或 'K' (默认: 'degC') |
 | wind_speed_units | str | ndarray 输入时风速单位 | 'm s-1' 或 'km h-1' (默认: 'm s-1') |
 
-#### 输出
+#### CalculateWindChill 输出
 
 | 输出项 | 类型 | 说明 | 单位 |
 | --- | --- | --- | --- |
@@ -147,7 +147,7 @@ flowchart TD
 ```python
 import numpy as np
 import meteva_base as meb
-from feels_like_temperature.src.feels_like_temperature import calculate_feels_like_temperature
+from temperature.src.feels_like_temperature import calculate_feels_like_temperature
 
 # 构造一个简单网格
 grid = meb.grid([100, 102, 1], [30, 31, 1])
@@ -175,7 +175,7 @@ print("单位：", t.attrs.get("units"))
 
 ```python
 import numpy as np
-from feels_like_temperature.src.feels_like_temperature import calculate_feels_like_temperature
+from temperature.src.feels_like_temperature import calculate_feels_like_temperature
 
 # 生成示例数组（必须确保单位正确：degC, m/s, fraction, Pa）
 shape = (1, 1, 1, 1, 2, 3)
@@ -197,7 +197,7 @@ print(flt.dtype)  # 输出: float32
 ```python
 import numpy as np
 import meteva_base as meb
-from feels_like_temperature.src.feels_like_temperature import CalculateWindChill
+from temperature.src.feels_like_temperature import CalculateWindChill
 
 # 创建 CalculateWindChill 实例
 wind_chill_calculator = CalculateWindChill()
@@ -224,11 +224,33 @@ wind_chill_result_np = wind_chill_calculator(temp_np, wind_np)
 print("风寒指数:", wind_chill_result_np)
 ```
 
-## 7. CLI 应用示例
+## 7. 测试数据预处理
+
+官方投影样例需先预处理，再供 CLI / Notebook 读取。脚本：
+
+`feels_like_temperature/cli/preprocess_test_data.py`
+
+仓库根目录运行：
+
+```text
+python feels_like_temperature/cli/preprocess_test_data.py
+```
+
+写出目录（均在 `test_data/feels_like_temp_data/` 下）：
+
+| 路径 | 内容 | 用途 |
+| --- | --- | --- |
+| `cli_input/` | 投影维重命名后的 meb 六维 | 方案一：迁移方法 / CLI |
+| `latlon/` | 投影→规则经纬后的 Iris Cube | 方案二：原 IMPROVER 方法 |
+| `latlon/cli_input/` | 与 `latlon/` 同源数值的 meb 六维 | 方案二：迁移方法 |
+
+`kgo.nc` 与原方法结果文件不转换。Notebook 只读上述写出结果做对照，不再内嵌预处理。
+
+## 8. CLI 应用示例
 
 示例脚本：`feels_like_temperature/cli/der_feel_like_temp.py`
 
-### 7.1 运行方式
+### 8.1 运行方式
 
 PowerShell：
 
@@ -250,7 +272,7 @@ result = process(
 )
 ```
 
-### 7.2 `process()` 参数说明
+### 8.2 `process()` 参数说明
 
 | 参数 | 是否必填 | 说明 | 单位/格式 |
 | --- | --- | --- | --- |
@@ -263,9 +285,9 @@ result = process(
 说明：
 
 1. 脚本底部已配置 `feels_like_temperature/test_data/feels_like_temp_data/cli_input/` 下的官方样例路径，CLI 结果写入 `cli_output/`，可直接改路径后运行。
-2. 若输入不是标准六维网格，请先做预处理再调用 `process()`。
+2. 若输入不是标准六维网格，请先运行预处理脚本再调用 `process()`。
 
-## 8. 参考文献
+## 9. 参考文献
 
 ### 风寒指数 (Wind Chill Index)
 
@@ -280,7 +302,7 @@ result = process(
 
 - **Atmosphere-Ocean Dynamics, Adrian E. Gill**, International Geophysics Series, Vol. 30; Equation A4.7.
 
-## 9. 注意事项
+## 10. 注意事项
 
 - 参数必须在空间与时间维度上对齐（与 temperature 坐标一致），否则请先做插值或重采样。
 - 对于 **xarray.DataArray** 输入，单位会自动从 `.attrs["units"]` 提取并进行转换

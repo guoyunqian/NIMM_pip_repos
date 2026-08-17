@@ -26,10 +26,10 @@ from cf_units import Unit
 import numpy as np
 import xarray as xr
 
+import meteva_base as meb
+
 from feels_like_temperature.utils.base_plugin import BasePlugin
 from feels_like_temperature.utils.utils import (
-    check_for_meb_griddata,
-    check_for_xy_coordinates,
     convert_units,
     rebuild_to_meb_griddata,
 )
@@ -110,18 +110,18 @@ class CalculateWindChill(BasePlugin):
             风寒温度，单位为摄氏度。
         """
         t_template = (
-            check_for_meb_griddata(temperature_data, valid_val=_MEB_VALID_VAL)
+            meb.checkout_griddata(temperature_data, valid_val=_MEB_VALID_VAL)
             if isinstance(temperature_data, xr.DataArray)
             else None
         )
         w_template = (
-            check_for_meb_griddata(wind_speed_data, valid_val=_MEB_VALID_VAL)
+            meb.checkout_griddata(wind_speed_data, valid_val=_MEB_VALID_VAL)
             if isinstance(wind_speed_data, xr.DataArray)
             else None
         )
 
         if t_template is not None and w_template is not None:
-            if not check_for_xy_coordinates(
+            if not meb.checkout_griddata_same_coords(
                 [t_template, w_template], is_time_match=True
             ):
                 raise ValueError("风速场与温度场的空间/时效坐标不一致")

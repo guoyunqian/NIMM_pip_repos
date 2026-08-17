@@ -41,19 +41,18 @@ def process(
         体感温度场。
     """
     from feels_like_temperature.src.feels_like_temperature import calculate_feels_like_temperature
-    from feels_like_temperature.utils.utils import check_for_meb_griddata, check_for_xy_coordinates
-    
+        
     _valid_val = (-np.inf, np.inf, np.nan)
-    temperature = check_for_meb_griddata(
+    temperature = meb.checkout_griddata(
         meb.read_griddata_from_nc(temperature_path), valid_val=_valid_val
     )
-    wind_speed = check_for_meb_griddata(
+    wind_speed = meb.checkout_griddata(
         meb.read_griddata_from_nc(wind_speed_path), valid_val=_valid_val
     )
-    relative_humidity = check_for_meb_griddata(
+    relative_humidity = meb.checkout_griddata(
         meb.read_griddata_from_nc(relative_humidity_path), valid_val=_valid_val
     )
-    pressure = check_for_meb_griddata(
+    pressure = meb.checkout_griddata(
         meb.read_griddata_from_nc(pressure_path), valid_val=_valid_val
     )
 
@@ -62,7 +61,7 @@ def process(
         ("相对湿度场", relative_humidity),
         ("气压场", pressure),
     ):
-        if not check_for_xy_coordinates([temperature, field], is_time_match=True):
+        if not meb.checkout_griddata_same_coords([temperature, field], is_time_match=True):
             raise ValueError(f"{label}与温度场的空间/时效坐标不一致")
 
     result = calculate_feels_like_temperature(
@@ -104,10 +103,25 @@ if __name__ == "__main__":
     pressure_path = str(cli_input_dir / "20181121T1200Z-PT0012H00M-pressure_at_mean_sea_level.nc")   #气压场nc文件路径
     output_path = str(cli_output_dir / "cli_feels_like_temp_result.nc")   #输出nc文件路径
 
-    result = process(
-        temperature_path,
-        wind_speed_path,
-        relative_humidity_path,
-        pressure_path,
-        output_path=output_path,
-    )
+    required_inputs = [
+        Path(temperature_path),
+        Path(wind_speed_path),
+        Path(relative_humidity_path),
+        Path(pressure_path),
+    ]
+    missing = [str(path) for path in required_inputs if not path.is_file()]
+    if missing:
+        print(
+            "示例输入不存在：\n  "
+            + "\n  ".join(missing)
+            + "\n请补齐 test_data 或先运行 cli/preprocess_test_data.py，"
+            "也可在此处改为自己的输入/输出路径。"
+        )
+    else:
+        result = process(
+            temperature_path,
+            wind_speed_path,
+            relative_humidity_path,
+            pressure_path,
+            output_path=output_path,
+        )

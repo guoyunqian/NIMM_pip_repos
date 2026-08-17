@@ -19,10 +19,8 @@ from typing import Optional, Union
 import numpy as np
 import xarray as xr
 
-from feels_like_temperature.utils.utils import (
-    check_for_meb_griddata,
-    check_for_xy_coordinates,
-)
+import meteva_base as meb
+
 
 #: 0 开尔文对应的摄氏温标偏移
 ABSOLUTE_ZERO = -273.15
@@ -55,7 +53,7 @@ def _prepare_meb_inputs(
 ) -> Optional[xr.DataArray]:
     """规范化四路输入并校验与温度场的坐标一致性，返回温度场模板。"""
     if isinstance(temperature, xr.DataArray):
-        t_template = check_for_meb_griddata(temperature, valid_val=_MEB_VALID_VAL)
+        t_template = meb.checkout_griddata(temperature, valid_val=_MEB_VALID_VAL)
     else:
         t_template = None
 
@@ -66,8 +64,8 @@ def _prepare_meb_inputs(
             ("气压场", pressure),
         ):
             if isinstance(field, xr.DataArray):
-                field_template = check_for_meb_griddata(field, valid_val=_MEB_VALID_VAL)
-                if not check_for_xy_coordinates(
+                field_template = meb.checkout_griddata(field, valid_val=_MEB_VALID_VAL)
+                if not meb.checkout_griddata_same_coords(
                     [t_template, field_template], is_time_match=True
                 ):
                     raise ValueError(f"{label}与温度场的空间/时效坐标不一致")
