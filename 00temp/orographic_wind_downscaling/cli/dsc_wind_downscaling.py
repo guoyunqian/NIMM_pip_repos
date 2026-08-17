@@ -59,8 +59,7 @@ def process(
         订正后的风速场。
     """
     from orographic_wind_downscaling.src.wind_downscaling import RoughnessCorrection
-    from orographic_wind_downscaling.utils.utils import check_for_meb_griddata
-    
+        
     _unbounded = (-np.inf, np.inf, np.nan)
 
     if output_height_level_units and output_height_level is None:
@@ -68,29 +67,29 @@ def process(
             "output_height_level_units 已设置，但未提供 output_height_level；该参数不会生效。"
         )
 
-    wind_speed = check_for_meb_griddata(
+    wind_speed = meb.checkout_griddata(
         meb.read_griddata_from_nc(wind_speed_path), valid_val=_unbounded
     )
-    sigma = check_for_meb_griddata(
+    sigma = meb.checkout_griddata(
         meb.read_griddata_from_nc(sigma_path), is_single=True, valid_val=_unbounded
     )
-    target_orography = check_for_meb_griddata(
+    target_orography = meb.checkout_griddata(
         meb.read_griddata_from_nc(target_orography_path),
         is_single=True,
         valid_val=_unbounded,
     )
-    standard_orography = check_for_meb_griddata(
+    standard_orography = meb.checkout_griddata(
         meb.read_griddata_from_nc(standard_orography_path),
         is_single=True,
         valid_val=_unbounded,
     )
-    silhouette_roughness = check_for_meb_griddata(
+    silhouette_roughness = meb.checkout_griddata(
         meb.read_griddata_from_nc(silhouette_roughness_path), is_single=True
     )
     vegetative_roughness = (
         None
         if vegetative_roughness_path is None
-        else check_for_meb_griddata(
+        else meb.checkout_griddata(
             meb.read_griddata_from_nc(vegetative_roughness_path), is_single=True
         )
     )
@@ -206,15 +205,32 @@ if __name__ == "__main__":
     output_height_level = None   #若指定，则从结果中提取该高度层
     output_height_level_units = "m"   #output_height_level的单位
 
-    result = process(
-        wind_speed_path,
-        sigma_path,
-        target_orography_path,
-        standard_orography_path,
-        silhouette_roughness_path,
-        model_resolution,
-        vegetative_roughness_path=vegetative_roughness_path,
-        output_path=output_path,
-        output_height_level=output_height_level,
-        output_height_level_units=output_height_level_units,
-    )
+    required_inputs = [
+        Path(wind_speed_path),
+        Path(sigma_path),
+        Path(target_orography_path),
+        Path(standard_orography_path),
+        Path(silhouette_roughness_path),
+        Path(vegetative_roughness_path),
+    ]
+    missing = [str(path) for path in required_inputs if not path.is_file()]
+    if missing:
+        print(
+            "示例输入不存在：\n  "
+            + "\n  ".join(missing)
+            + "\n请补齐 test_data 或先运行 cli/preprocess_test_data.py，"
+            "也可在此处改为自己的输入/输出路径。"
+        )
+    else:
+        result = process(
+            wind_speed_path,
+            sigma_path,
+            target_orography_path,
+            standard_orography_path,
+            silhouette_roughness_path,
+            model_resolution,
+            vegetative_roughness_path=vegetative_roughness_path,
+            output_path=output_path,
+            output_height_level=output_height_level,
+            output_height_level_units=output_height_level_units,
+        )

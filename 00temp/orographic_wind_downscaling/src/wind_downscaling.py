@@ -10,17 +10,17 @@
 """
 
 # 导入必要的库
-import numpy as np
-import xarray as xr
-
-from numpy import ndarray
+import json
 from typing import Optional, Tuple, Union
 
-from orographic_wind_downscaling.utils.base_plugin import BasePlugin
-from orographic_wind_downscaling.utils.utils import (
-    check_for_meb_griddata,
-    rebuild_to_meb_griddata,
-)
+import numpy as np
+import xarray as xr
+from numpy import ndarray
+
+import meteva_base as meb
+
+from orographic_wind_downscaling.utils.base_plugin import BasePlugin, PostProcessingPlugin
+from orographic_wind_downscaling.utils.utils import rebuild_to_meb_griddata
 
 # 真实缺测数据指示符
 RMDI = -32767.0
@@ -33,6 +33,9 @@ HREF_SCALE = 2.0
 
 # 冯·卡门常数
 VONKARMAN = 0.4
+
+# 经纬网格间距换算为米时使用的地球半径（与常见气象近似一致）
+EARTH_RADIUS_M = 6371000.0
 
 # 海面点的默认粗糙度长度（米）
 Z0M_SEA = 0.0001
@@ -741,7 +744,7 @@ class RoughnessCorrectionUtilities:
         return result.astype(np.float32)
 
 
-class RoughnessCorrection(BasePlugin):
+class RoughnessCorrection(PostProcessingPlugin):
     """
     风速降尺度主插件：对输入风速执行粗糙度订正（RC）与高度订正（HC）。
 
@@ -756,7 +759,7 @@ class RoughnessCorrection(BasePlugin):
     维度约定：
     - 算法内部计算阶段按 `(level, lat, lon)` 组织三维风速切片。
     - 对于高维输入，除上述三维外的其余维度都作为批次维度独立处理。
-    - 对于 `xarray.DataArray` 输入，会先调用 `check_for_meb_griddata` 归一化为
+    - 对于 `xarray.DataArray` 输入，会先调用 `meb.checkout_griddata` 归一化为
       `member, level, time, dtime, lat, lon` 顺序，再参与计算。
 
     参数
@@ -767,7 +770,8 @@ class RoughnessCorrection(BasePlugin):
         网格单元内的高度标准差（米）。
     pporo : np.ndarray 或 xr.DataArray, 形状 (lat, lon)
         后处理网格地形高度（米）。
-        当传入 xr.DataArray 且未提供 ppres 时，会自动根据坐标估算分辨率。
+        当传入 xr.DataArray 且未提供 ppres 时，会自动根据坐标估算分辨率（米）。
+        投影米制坐标直接取间距；真经纬坐标将度间距换算为米后再取平均。
     modoro : np.ndarray 或 xr.DataArray, 形状 (lat, lon)
         插值至后处理网格的模式地形高度（米）。
     modres : float
@@ -800,7 +804,8 @@ class RoughnessCorrection(BasePlugin):
             网格单元内的高度标准差（米）。
         pporo : np.ndarray 或 xr.DataArray, 形状 (lat, lon)
             后处理网格地形高度（米）。
-            若传入 DataArray 且 `ppres` 为空，将自动基于坐标推断网格分辨率。
+            若传入 DataArray 且 `ppres` 为空，将自动基于坐标推断网格分辨率（米）；
+            真经纬网格会将度间距换算为米。
         modoro : np.ndarray 或 xr.DataArray, 形状 (lat, lon)
             插值至后处理网格的模式地形高度（米）。
         modres : float
@@ -815,10 +820,10 @@ class RoughnessCorrection(BasePlugin):
         self.a_over_s = self._to_lat_lon_array(a_over_s, "a_over_s")
         self.sigma = self._to_lat_lon_array(sigma, "sigma")
         # 后处理网格地形高度与分辨率：
-        # - DataArray 输入时，可直接从坐标推断 ppres；
+        # - DataArray 输入时，可从投影米制或真经纬坐标推断 ppres（始终为米）；
         # - ndarray 输入时，要求外部显式提供 ppres。
         if isinstance(pporo, xr.DataArray):
-            pporo = check_for_meb_griddata(pporo)
+            pporo = meb.checkout_griddata(pporo)
             if ppres is None:
                 ppres = self.infer_grid_resolution_from_coords(pporo)
             self.pporo = np.asarray(pporo.values, dtype=np.float32).squeeze()
@@ -843,7 +848,7 @@ class RoughnessCorrection(BasePlugin):
     ) -> np.ndarray:
         """将辅助场统一为二维 `(lat, lon)` 数组。"""
         if isinstance(field, xr.DataArray):
-            normalized = check_for_meb_griddata(field, is_single=True)
+            normalized = meb.checkout_griddata(field, is_single=True)
             values = np.asarray(normalized.values.squeeze(), dtype=np.float32)
         else:
             values = np.asarray(field, dtype=np.float32)
@@ -855,12 +860,80 @@ class RoughnessCorrection(BasePlugin):
         return values
 
     @staticmethod
+    def _coord_units_token(coord: xr.DataArray) -> str:
+        """归一化坐标 units 字符串，便于判断米制/角度。"""
+        return str(coord.attrs.get("units", "")).strip().lower()
+
+    @classmethod
+    def _coords_are_geographic_degrees(
+        cls,
+        data: xr.DataArray,
+        y_coord: xr.DataArray,
+        x_coord: xr.DataArray,
+    ) -> bool:
+        """判断空间坐标是否为真经纬（度）。
+
+        判定顺序：
+
+        1. 坐标 ``units``：明确为米 → 否；含 ``degree`` → 是。
+        2. ``grid_mapping_attrs``：``latitude_longitude`` 等 → 是；投影类 → 否。
+        3. **两侧均无 ``units``**：meb 网格一般默认为经纬，常不写空间坐标单位，
+           此时视为经纬。例外：数值远超地理经纬度合理范围时，仍判为投影米制
+           （例如官方样例仅把 ``projection_*`` 重命名为 ``lat/lon``、未改数值与单位）。
+        """
+        y_units = cls._coord_units_token(y_coord)
+        x_units = cls._coord_units_token(x_coord)
+        meter_tokens = ("m", "metre", "meter", "metres", "meters")
+        if y_units in meter_tokens or x_units in meter_tokens:
+            return False
+        if "degree" in y_units or "degree" in x_units:
+            return True
+
+        mapping_raw = data.attrs.get("grid_mapping_attrs")
+        if isinstance(mapping_raw, str) and mapping_raw.strip():
+            try:
+                mapping = json.loads(mapping_raw)
+            except json.JSONDecodeError:
+                mapping = {}
+            if isinstance(mapping, dict):
+                name = str(mapping.get("grid_mapping_name", "")).lower()
+                if name in ("latitude_longitude", "latlon", "geographic"):
+                    return True
+                if "lambert" in name or "projected" in name or "azimuthal" in name:
+                    return False
+
+        y = np.asarray(y_coord.values, dtype=np.float64)
+        x = np.asarray(x_coord.values, dtype=np.float64)
+        y = y[np.isfinite(y)]
+        x = x[np.isfinite(x)]
+
+        # 无单位：meb 默认经纬；空坐标或数值落在经纬范围内 → True
+        # 数值像投影米制（|y|≫90 或 |x|≫360）→ False，避免维名重命名误判
+        units_missing = (not y_units) and (not x_units)
+        if y.size == 0 or x.size == 0:
+            return bool(units_missing)
+
+        in_geo_range = bool(
+            np.nanmax(np.abs(y)) <= 90.0 + 1e-6
+            and np.nanmax(np.abs(x)) <= 360.0 + 1e-6
+        )
+        if units_missing:
+            return in_geo_range
+        # 仅一侧有未识别单位时，仍用范围启发
+        return in_geo_range
+
+
+    @staticmethod
     def infer_grid_resolution_from_coords(
         data: xr.DataArray,
         y_name: Optional[str] = None,
         x_name: Optional[str] = None,
     ) -> float:
         """基于二维空间坐标估算网格分辨率（米）。
+
+        - 投影米制坐标：直接取 ``bounds``/``points`` 差分（米）。
+        - 真经纬坐标：将纬度/经度差分换算为米后再平均；
+          东西向间距按代表纬度 ``cos(lat)`` 缩放。
 
         参数
         ----------
@@ -927,6 +1000,16 @@ class RoughnessCorrection(BasePlugin):
 
         dy = _resolution_from_coord(y_coord)
         dx = _resolution_from_coord(x_coord)
+
+        # 真经纬：度间距 → 米；投影米制（含维名重命名）保持原间距。
+        if RoughnessCorrection._coords_are_geographic_degrees(data, y_coord, x_coord):
+            lat_points = np.asarray(y_coord.values, dtype=np.float64)
+            lat_points = lat_points[np.isfinite(lat_points)]
+            lat0 = float(np.median(lat_points)) if lat_points.size else 0.0
+            dy_m = np.deg2rad(dy) * EARTH_RADIUS_M
+            dx_m = np.deg2rad(dx) * EARTH_RADIUS_M * np.cos(np.deg2rad(lat0))
+            return float(np.mean([abs(dy_m), abs(dx_m)]))
+
         return float(np.mean([dy, dx]))
 
     def process(
@@ -964,7 +1047,7 @@ class RoughnessCorrection(BasePlugin):
 
         # 处理输入数据类型
         if isinstance(wind_speed, xr.DataArray):
-            template_da = check_for_meb_griddata(wind_speed)
+            template_da = meb.checkout_griddata(wind_speed)
 
             # 从DataArray中获取高度网格（如果未提供）
             if height_grid is None:

@@ -12,11 +12,11 @@
 
 ### 2.1 FrictionVelocity 类
 
-#### 功能描述
+#### FrictionVelocity 功能描述
 
 计算大气边界层中的摩擦速度 u*，这是表征近地面大气湍流强度的特征速度尺度。
 
-#### 输入参数
+#### FrictionVelocity 输入参数
 
 | 参数名 | 类型 | 描述 | 单位 |
 | --- | --- | --- | --- |
@@ -25,13 +25,13 @@
 | `z_0` | 二维浮点型数组（float32） | 植被粗糙度长度，反映地表粗糙程度 | 长度单位（通常为米） |
 | `mask` | 二维布尔型数组（bool） | True 表示对应格点需计算摩擦速度 u* | 无 |
 
-#### 输出参数
+#### FrictionVelocity 输出参数
 
 | 返回值 | 类型 | 描述 | 单位 |
 | --- | --- | --- | --- |
 | `process()` | 二维浮点型数组（float32） | 摩擦速度场，未计算的格点值为 RMDI | 与输入风速单位一致（通常为 m/s） |
 
-#### 算法原理
+#### FrictionVelocity 算法原理
 
 基于对数风速廓线方程，计算公式为：
 
@@ -47,10 +47,10 @@ u* = K \times \frac{u_{href}}{\ln(\frac{h_{ref}}{z_0})}
 - `h_{ref}` 为参考高度
 - `z_0` 为植被粗糙度长度
 
-#### 使用方法
+#### FrictionVelocity 使用方法
 
 ```python
-from orographic_wind_downscaling.src.wind_downscaling import FrictionVelocity
+from src.wind_downscaling import FrictionVelocity
 
 # 初始化实例
 fv = FrictionVelocity(u_href, h_ref, z_0, mask)
@@ -81,11 +81,11 @@ print(ustar.dtype)      # float32
 
 ### 2.2 RoughnessCorrectionUtilities 类
 
-#### 功能描述
+#### RoughnessCorrectionUtilities 功能描述
 
 提供粗糙度订正和高度订正的核心功能，基于辅助文件计算风速订正。
 
-#### 输入参数
+#### RoughnessCorrectionUtilities 输入参数
 
 | 参数名 | 类型 | 描述 | 单位 |
 | --- | --- | --- | --- |
@@ -105,7 +105,7 @@ print(ustar.dtype)      # float32
 | `calc_roughness_correction` | hgrid: 三维或一维浮点型数组 uold: 三维浮点型数组 mask: 二维布尔型数组 | 三维浮点型数组 | 执行粗糙度订正 |
 | `do_rc_hc_all` | hgrid: 一维或三维浮点型数组 uorig: 三维浮点型数组 | 三维浮点型数组 | 同时执行粗糙度订正和高度订正 |
 
-#### 算法原理
+#### RoughnessCorrectionUtilities 算法原理
 
 1. **半峰谷高度计算**：
 
@@ -132,10 +132,10 @@ print(ustar.dtype)      # float32
    hc\_add = \exp(-height \times wavenumber) \times u(href) \times h\_at\_0 \times wavenumber
   ```
 
-#### 使用方法
+#### RoughnessCorrectionUtilities 使用方法
 
 ```python
-from orographic_wind_downscaling.src.wind_downscaling import RoughnessCorrectionUtilities
+from src.wind_downscaling import RoughnessCorrectionUtilities
 
 # 初始化实例
 rc_utils = RoughnessCorrectionUtilities(
@@ -154,7 +154,7 @@ final_wind = rc_utils.do_rc_hc_all(height_grid, wind_speed)
 
 ### 2.3 RoughnessCorrection 类
 
-#### 功能描述
+#### RoughnessCorrection 功能描述
 
 `RoughnessCorrection` 是风速降尺度流程的主插件，用于组织输入数据并调度
 `RoughnessCorrectionUtilities` 执行粗糙度订正（RC）与高度订正（HC）。
@@ -165,7 +165,7 @@ final_wind = rc_utils.do_rc_hc_all(height_grid, wind_speed)
 - 高维批次维拆分与逐片处理。
 - 输出结构重组（尤其是 DataArray 场景下的 meteva_base 维度对齐）。
 
-#### 输入参数
+#### RoughnessCorrection 输入参数
 
 | 参数名 | 类型 | 是否必填 | 说明 | 单位 |
 | --- | --- | --- | --- | --- |
@@ -182,7 +182,7 @@ final_wind = rc_utils.do_rc_hc_all(height_grid, wind_speed)
 | 方法名 | 输入参数 | 输出结果 | 描述 |
 | --- | --- | --- | --- |
 | `process` | wind_speed: np.ndarray 或 xr.DataArray height_grid: np.ndarray，可选 | np.ndarray 或 xr.DataArray | 对风速进行地形粗糙度订正和高度订正 |
-| `infer_grid_resolution_from_coords` | `data: xr.DataArray` | `float` | 从坐标估算网格分辨率（优先 `bounds`，其次 `points` 差分） |
+| `infer_grid_resolution_from_coords` | `data: xr.DataArray` | `float` | 从坐标估算网格分辨率（米）：投影米制直接取间距；真经纬将度间距换算为米 |
 
 #### 输出表（当前版本）
 
@@ -191,18 +191,18 @@ final_wind = rc_utils.do_rc_hc_all(height_grid, wind_speed)
 | `wind_speed` 为 `np.ndarray` | `np.ndarray` | 与输入风速数组同结构（批次维 + `level, lat, lon`） |
 | `wind_speed` 为 `xr.DataArray` | `xr.DataArray` | 按 meteva_base 六维重组：`member, level, time, dtime, lat, lon` |
 
-#### 算法原理
+#### RoughnessCorrection 算法原理
 
 1. 识别输入类型并规范风速数据结构。
     - 数组输入默认最后三维为 `(level, lat, lon)`；
     - DataArray 输入会先规范为 meteva_base 约定维度顺序。
 2. 校验辅助场 `a_over_s / sigma / pporo / modoro / z0` 与风速场空间形状一致。
-3. 若 `pporo` 为 DataArray 且未显式提供 `ppres`，自动按坐标估算后处理网格分辨率。
+3. 若 `pporo` 为 DataArray 且未显式提供 `ppres`，自动按坐标估算后处理网格分辨率（米）；真经纬输入会将度间距换算为米（东西向按代表纬度 `cos(lat)` 缩放）。
 4. 组织高度网格（支持一维公共高度层或三维空间变化高度层）。
 5. 将输入整理为“批次维 + (level, lat, lon)”并逐批次调用核心订正。
 6. 还原为输入对应结构；若输入为 DataArray，则按标准维度重组装为 DataArray 输出。
 
-#### 使用方法
+#### RoughnessCorrection 使用方法
 
 ```python
 from orographic_wind_downscaling.src.wind_downscaling import RoughnessCorrection
@@ -396,11 +396,18 @@ result = process(
 
 | 路径 | 说明 |
 | --- | --- |
-| `cli_input/` | CLI 与插件输入（六维 meb 网格 nc，由 notebook 预处理写出） |
+| `cli_input/` | 方案一输入（投影维重命名；由 `cli/preprocess_test_data.py` 写出） |
+| `cli_input/latlon/` | 方案二输入与对照场（经纬重网格；含 `kgo.nc`、`original_algorithm_result.nc`） |
 | `cli_output/` | CLI 示例输出目录 |
 | `kgo.nc` | 官方 KGO（投影坐标，位于数据根目录） |
 | `original_algorithm_result.nc` | 原 IMPROVER 算法结果（投影坐标，位于数据根目录） |
 | `input.nc`、`a_over_s.nc` 等 | 原始官方投影样例（预处理源文件） |
+
+官方样例预处理（一次生成方案一 `cli_input/` 与方案二 `cli_input/latlon/`）：
+
+```powershell
+python orographic_wind_downscaling/cli/preprocess_test_data.py
+```
 
 官方回归测试：
 
@@ -408,7 +415,14 @@ result = process(
 pytest orographic_wind_downscaling/test/test_official_wind_downscaling.py
 ```
 
-测试从 `cli_input/` 读入六维输入，与根目录 `kgo.nc`、`original_algorithm_result.nc` 对照。若 `cli_input/` 缺失，可先运行 `nbs/official_data_wind_calculations.ipynb` 中的预处理单元格生成。
+测试从 `cli_input/` 读入六维输入，与根目录 `kgo.nc`、`original_algorithm_result.nc` 对照。若 `cli_input/` 缺失，先运行上述预处理脚本生成。
+
+验证 Notebook：`nbs/official_data_wind_calculations.ipynb`（仅读取预处理结果并做方法调用与对照；预处理请先运行上述脚本）
+
+- **方案一**：投影维重命名路径（低误差对照）
+- **方案二**：真经纬重网格路径（`ppres` 度→米推断；对照场亦由预处理写出）
+
+原 Iris 插件不能在纯经纬网格上直接重跑。
 
 ### 8.2 `process()` 参数说明
 
@@ -428,7 +442,7 @@ pytest orographic_wind_downscaling/test/test_official_wind_downscaling.py
 ### 使用注意
 
 1. 本 CLI 当前仅支持 meteva_base 网格数据格式输入：`member, level, time, dtime, lat, lon`。
-2. 若输入不是 meteva_base 网格数据格式，请先在 notebook 中执行数据预处理单元格（将原始投影 NetCDF 升维为六维并写出 `cli_input/`）；预处理逻辑内联在 `nbs/official_data_wind_calculations.ipynb`，仅做投影维重命名为 `lat/lon`，不做经纬重网格。
+2. 若输入不是 meteva_base 网格数据格式，请先运行 `python orographic_wind_downscaling/cli/preprocess_test_data.py`（写出方案一 `cli_input/` 与方案二 `cli_input/latlon/`）。
 3. `--output-height-level` 与 `--output-height-level-units` 建议配套使用；只给单位不指定高度时，单位参数不会生效。
 
 ## 9. 总结
