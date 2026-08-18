@@ -78,6 +78,11 @@
 
 - 原始源码、CLI、文档、notebook、测试脚本复制到 `00temp/orographic_precipitation_downscaling/`。
 - 2026-07-03 从 `D:\workspace\improver\orographic_enhancement` 增量同步，导入路径已统一为中间目录模块名 `orographic_precipitation_downscaling`。
+- **2026-08-18 增量同步**：
+  - 核心算法改用 `meb.checkout_griddata()` 直接调用，移除本地封装函数 `check_for_meb_griddata()` / `check_for_xy_coordinates()`。
+  - CLI 调度脚本同步改用 `meb.checkout_griddata()` 进行网格数据校验。
+  - 补齐测试数据预处理脚本 `cli/preprocess_test_data.py`。
+  - 同步最新测试用例、文档说明和验证 notebook。
 
 待处理：
 

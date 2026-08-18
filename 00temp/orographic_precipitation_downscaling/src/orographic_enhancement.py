@@ -20,12 +20,13 @@ from typing import Optional, Tuple, Union
 
 import numpy as np
 import xarray as xr
+
+import meteva_base as meb
 from pyproj import CRS, Transformer
 from scipy.ndimage import uniform_filter1d
 
 from orographic_precipitation_downscaling.utils.base_plugin import BasePlugin
 from orographic_precipitation_downscaling.utils.utils import (
-    check_for_meb_griddata,
     convert_units,
     rebuild_to_meb_griddata,
 )
@@ -240,6 +241,19 @@ class MetaOrographicEnhancement(BasePlugin):
     """
 
     def __init__(self, boundary_height: float = 1000.0, boundary_height_units: str = "m"):
+        """初始化元插件，指定从多层气象场中抽取的边界层代表高度。
+
+        该高度作为边界层顶的代理层：对带 ``level`` 坐标的输入，选取与
+        ``boundary_height`` 最接近的一层（允许偏差 0.1 个单位）；输入已是
+        二维场时不再选层。
+
+        参数
+        ----------
+        boundary_height : float, 默认 1000.0
+            边界层代表高度，须与气象场 ``level`` 坐标在同一高度量纲下可比。
+        boundary_height_units : str, 默认 ``m``
+            ``boundary_height`` 的单位，同时用于把 ``level`` 坐标换算到同一单位后再选层。
+        """
         self.boundary_height = boundary_height
         self.boundary_height_units = boundary_height_units
 
@@ -321,7 +335,7 @@ class MetaOrographicEnhancement(BasePlugin):
         for name, field in input_fields.items():
             if isinstance(field, xr.DataArray):
                 # 不做值域裁剪，避免气压/地形等高值被误置无效。
-                input_fields[name] = check_for_meb_griddata(
+                input_fields[name] = meb.checkout_griddata(
                     field,
                     is_single=False,
                     valid_val=(-np.inf, np.inf, np.nan),
@@ -340,7 +354,7 @@ class MetaOrographicEnhancement(BasePlugin):
         wind_direction = self._extract_height_level(wind_direction, self.boundary_height, self.boundary_height_units)
 
         if isinstance(orography, xr.DataArray):
-            orography = check_for_meb_griddata(
+            orography = meb.checkout_griddata(
                 orography,
                 is_single=True,
                 valid_val=(-np.inf, np.inf, np.nan),

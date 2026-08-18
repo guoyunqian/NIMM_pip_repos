@@ -247,7 +247,7 @@ flowchart TD
 | 主函数 | `process(temperature, humidity, pressure, wind_speed, wind_direction, orography)` |
 | 输入类型 | `xr.DataArray` 或 `np.ndarray` |
 | 输入数量 | 6 个场 |
-| xarray 校验 | 使用 `check_for_meb_griddata` 执行标准六维网格检查 |
+| xarray 校验 | 使用 `meb.checkout_griddata` 执行标准六维网格检查 |
 | 输出类型 | `xr.DataArray` |
 | 输出语义 | 优先输出标准六维网格；无可用模板时返回二维结果 |
 | 输出变量 | `orographic_enhancement` |
@@ -325,11 +325,45 @@ flowchart TD
 
 ---
 
-## 6. CLI 用法
+## 6. Python 调用示例
+
+### 6.1 计算地形增强
+
+```python
+import xarray as xr
+from orographic_precipitation_downscaling.src.orographic_enhancement import MetaOrographicEnhancement
+
+temperature = xr.open_dataset("temperature.nc")["air_temperature"]
+humidity = xr.open_dataset("humidity.nc")["relative_humidity"]
+pressure = xr.open_dataset("pressure.nc")["air_pressure"]
+wind_speed = xr.open_dataset("wind_speed.nc")["wind_speed"]
+wind_direction = xr.open_dataset("wind_direction.nc")["wind_from_direction"]
+orography = xr.open_dataset("orography.nc")["surface_altitude"]
+
+plugin = MetaOrographicEnhancement(boundary_height=1000.0, boundary_height_units="m")
+oe = plugin(temperature, humidity, pressure, wind_speed, wind_direction, orography)
+```
+
+### 6.2 应用地形增强项
+
+```python
+import xarray as xr
+from orographic_precipitation_downscaling.src.apply_orographic_enhancement import ApplyOrographicEnhancement
+
+precip = xr.open_dataset("precipitation.nc")["lwe_precipitation_rate"]
+oe = xr.open_dataset("orographic_enhancement.nc")["orographic_enhancement"]
+
+plugin = ApplyOrographicEnhancement(operation="add")
+applied = plugin.process(precip, oe, allowed_time_diff=1800)
+```
+
+---
+
+## 7. CLI 用法
 
 示例脚本：`orographic_precipitation_downscaling/cli/dsc_orographic_enhancement.py`
 
-### 6.1 运行方式
+### 7.1 运行方式
 
 ```powershell
 python -m orographic_precipitation_downscaling.cli.dsc_orographic_enhancement
@@ -353,7 +387,7 @@ result = process(
 )
 ```
 
-### 6.2 `process()` 参数
+### 7.2 `process()` 参数
 
 | 参数 | 必填 | 说明 |
 | --- | --- | --- |
@@ -377,40 +411,6 @@ result = process(
 
 ---
 
-## 7. Python 调用示例
-
-### 7.1 计算地形增强
-
-```python
-import xarray as xr
-from orographic_precipitation_downscaling.src.orographic_enhancement import MetaOrographicEnhancement
-
-temperature = xr.open_dataset("temperature.nc")["air_temperature"]
-humidity = xr.open_dataset("humidity.nc")["relative_humidity"]
-pressure = xr.open_dataset("pressure.nc")["air_pressure"]
-wind_speed = xr.open_dataset("wind_speed.nc")["wind_speed"]
-wind_direction = xr.open_dataset("wind_direction.nc")["wind_from_direction"]
-orography = xr.open_dataset("orography.nc")["surface_altitude"]
-
-plugin = MetaOrographicEnhancement(boundary_height=1000.0, boundary_height_units="m")
-oe = plugin(temperature, humidity, pressure, wind_speed, wind_direction, orography)
-```
-
-### 7.2 应用地形增强项
-
-```python
-import xarray as xr
-from orographic_precipitation_downscaling.src.apply_orographic_enhancement import ApplyOrographicEnhancement
-
-precip = xr.open_dataset("precip.nc")["lwe_precipitation_rate"]
-oe = xr.open_dataset("orographic_precipitation_downscaling.nc")["orographic_enhancement"]
-
-plugin = ApplyOrographicEnhancement(operation="add")
-applied = plugin.process(precip, oe, allowed_time_diff=1800)
-```
-
----
-
 ## 8. 验证建议
 
 建议使用同一批标准化输入，对比：
@@ -428,6 +428,32 @@ applied = plugin.process(precip, oe, allowed_time_diff=1800)
 
 ---
 
-## 9. 注意事项
+## 9. 测试数据预处理
+
+官方投影样例需先预处理，再供 CLI / Notebook 读取。脚本：
+
+`orographic_precipitation_downscaling/cli/preprocess_test_data.py`
+
+仓库根目录运行：
+
+```text
+python orographic_precipitation_downscaling/cli/preprocess_test_data.py
+```
+
+写出目录：
+
+| 路径 | 内容 | 用途 |
+| --- | --- | --- |
+| `test_data/orographic_enhancement_data/cli_input/` | 投影维重命名后的 meb 六维；气象场保留 `height` 作为 `level` | 投影输入验证：修改后方法 / CLI |
+| `test_data/orographic_enhancement_data/latlon/` | 经纬 Iris Cube：`precipitation.nc`、`original_algorithm_result.nc`（ApplyOE 原方法输入），`kgo_hi_res.nc`（对照） | 经纬输入对照。计算增强项的原方法不能直接吃纯经纬，故不写气象/地形 Cube |
+| `test_data/orographic_enhancement_data/latlon/cli_input/` | 气象/地形/降水/原方法增强项的 meb 六维 | 经纬输入：修改后方法（增强项计算与 ApplyOE） |
+
+说明：
+
+- `precipitation.nc` 不是官方 IMPROVER 样例，是已重网格到增强项网格上的降水场（`lwe_precipitation_rate`，`mm hr-1`），y 轴与 `original_algorithm_result.nc` / `original_cli_result.nc` 同向。
+- `original_algorithm_result.nc` 为地形增强项计算原方法结果（供 ApplyOE 使用）。CLI 对照直接读原方法结果 `original_cli_result.nc`（Iris Cube）。投影路径的 KGO 仍读官方 `kgo_hi_res.nc`；经纬重网格 KGO 只写 `latlon/kgo_hi_res.nc` Cube作对照使用。
+- Notebook 只读上述写出结果做对照。
+
+## 10. 注意事项
 
 若输出文件被占用（如被 Notebook 打开），CLI 写文件可能失败。

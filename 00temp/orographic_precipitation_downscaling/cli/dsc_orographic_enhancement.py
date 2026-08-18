@@ -54,26 +54,25 @@ def process(
         地形增强结果，单位 ``m s-1``。
     """
     from orographic_precipitation_downscaling.src.orographic_enhancement import MetaOrographicEnhancement
-    from orographic_precipitation_downscaling.utils.utils import check_for_meb_griddata, check_for_xy_coordinates
-
+    
     _unbounded = (-np.inf, np.inf, np.nan)
 
-    temperature = check_for_meb_griddata(
+    temperature = meb.checkout_griddata(
         meb.read_griddata_from_nc(temperature_path), valid_val=_unbounded
     )
-    humidity = check_for_meb_griddata(
+    humidity = meb.checkout_griddata(
         meb.read_griddata_from_nc(humidity_path), valid_val=_unbounded
     )
-    pressure = check_for_meb_griddata(
+    pressure = meb.checkout_griddata(
         meb.read_griddata_from_nc(pressure_path), valid_val=_unbounded
     )
-    wind_speed = check_for_meb_griddata(
+    wind_speed = meb.checkout_griddata(
         meb.read_griddata_from_nc(wind_speed_path), valid_val=_unbounded
     )
-    wind_direction = check_for_meb_griddata(
+    wind_direction = meb.checkout_griddata(
         meb.read_griddata_from_nc(wind_direction_path), valid_val=_unbounded
     )
-    orography = check_for_meb_griddata(
+    orography = meb.checkout_griddata(
         meb.read_griddata_from_nc(orography_path),
         is_single=True,
         valid_val=_unbounded,
@@ -85,7 +84,7 @@ def process(
         ("风速场", wind_speed),
         ("风向场", wind_direction),
     ):
-        if not check_for_xy_coordinates([temperature, field], is_time_match=True):
+        if not meb.checkout_griddata_same_coords([temperature, field], is_time_match=True):
             raise ValueError(f"{label}与温度场的空间/时效坐标不一致")
 
     plugin = MetaOrographicEnhancement(

@@ -7,7 +7,7 @@
 | 算法名称 | `orographic_precipitation_downscaling` |
 | 中文名称 | 降水降尺度(地形) |
 | 原始路径 | `D:\workspace\improver\orographic_enhancement`（原包名 `orographic_enhancement`） |
-| 整理日期 | 2026-06-29（初整）；2026-07-06（NIMM 标准化目录结构整理） |
+| 整理日期 | 2026-06-29（初整）；2026-07-06（NIMM 标准化目录结构整理）；2026-08-18（增量同步） |
 | 算法贡献人 | 郭云谦、王亭波 |
 | 算法分类 | `00space_downscale` |
 | 当前状态 | 已整理至中间目录；导入已统一为模块名；待正式入库 |
@@ -41,6 +41,18 @@ CLI 入口 `cli/dsc_orographic_enhancement.py` 读取温度、相对湿度、气
 | `00temp/orographic_precipitation_downscaling/test/`、`docs/`、`nbs/` | 测试、文档与 notebook |
 | `00temp/orographic_precipitation_downscaling/00temp/`、`00log/` | 中间数据与包内整理日志 |
 | `00temp/orographic_precipitation_downscaling/NIMM_list.md` | 算法包内整理清单 |
+
+## 2026-08-18 更新
+
+- 从 `D:\workspace\improver\orographic_enhancement` 完整同步最新修改：
+  - `src/orographic_enhancement.py`：改用 `meb.checkout_griddata()` 直接调用，移除本地封装函数 `check_for_meb_griddata()` / `check_for_xy_coordinates()`。
+  - `src/apply_orographic_enhancement.py`：同步改用 `meb.checkout_griddata()` 进行网格数据校验。
+  - `cli/dsc_orographic_enhancement.py`：同步改用 `meb.checkout_griddata()` 直接调用。
+  - 补齐 `cli/preprocess_test_data.py`（官方投影样例预处理脚本）。
+  - `test/test_orographic_enhancement.py`：同步最新测试用例。
+  - `docs/orographic_enhancement.md`：同步最新文档说明。
+  - `nbs/orographic_enhancement_validation.ipynb`：同步最新验证 notebook。
+  - `utils/base_plugin.py`、`utils/utils.py`：同步最新工具函数。
 
 ## 2026-07-06 更新
 

@@ -24,8 +24,10 @@ from typing import List, Sequence, Union
 import numpy as np
 import xarray as xr
 
+import meteva_base as meb
+
 from orographic_precipitation_downscaling.utils.base_plugin import BasePlugin
-from orographic_precipitation_downscaling.utils.utils import check_for_meb_griddata, convert_units
+from orographic_precipitation_downscaling.utils.utils import convert_units
 from orographic_precipitation_downscaling.src.utils._apply import (
     _extract_scalar_time_value,
     _nearest_time_index,
@@ -235,18 +237,11 @@ class ApplyOrographicEnhancement(BasePlugin):
 
         异常
         ------
-        ImportError
-            当找不到 check_for_meb_griddata 函数时抛出
         TypeError
             当输入数据类型不正确时抛出
         ValueError
             当时间匹配失败或其他参数错误时抛出
         """
-        if check_for_meb_griddata is None:
-            raise ImportError(
-                "未找到 check_for_meb_griddata，请确认已安装并可导入 "
-                "orographic_precipitation_downscaling.utils.utils"
-            )
         if not isinstance(orographic_enhancement_data, xr.DataArray):
             raise TypeError("orographic_enhancement_data 必须为 xarray.DataArray")
 
@@ -254,19 +249,19 @@ class ApplyOrographicEnhancement(BasePlugin):
         precip_items = (
             [precip_data] if is_single_input else list(precip_data)
         )
-        oe_data_checked = check_for_meb_griddata(orographic_enhancement_data)
+        oe_data_checked = meb.checkout_griddata(orographic_enhancement_data)
 
         updated: List[xr.DataArray] = []
         for precip_field in precip_items:
             if not isinstance(precip_field, xr.DataArray):
                 raise TypeError("precip_data 中的每个元素都必须为 xarray.DataArray")
-            precip_field = check_for_meb_griddata(precip_field)
+            precip_field = meb.checkout_griddata(precip_field)
             oe_field = self._select_orographic_enhancement_data(
                 precip_field, oe_data_checked, allowed_time_diff
             )
             updated_field = self._apply_orographic_enhancement(precip_field, oe_field)
             updated_field = self._apply_minimum_precip_rate(precip_field, updated_field)
-            updated_field = check_for_meb_griddata(updated_field)
+            updated_field = meb.checkout_griddata(updated_field)
             updated.append(updated_field)
 
         return updated[0] if is_single_input else updated
