@@ -1,0 +1,133 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# Copyright (c) 2019 NMC Developers.
+# Distributed under the terms of the GPL V3 License.
+"""应用层结递减率进行温度地形订正的 CLI 示例。
+
+Algorithm contributors: 郭云谦、王亭波.
+Software ownership: National Institute of Meteorological Sciences / NIMM.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Optional, Union
+
+import numpy as np
+import xarray as xr
+import meteva_base as meb
+
+def process(
+    temperature_path: str,
+    lapse_rate_path: str,
+    source_orography_path: str,
+    target_orography_path: str,
+    output_path: Optional[str] = None,
+) -> Union[xr.DataArray, np.ndarray]:
+    """将已计算的层结递减率应用到温度场。
+
+    参数
+    ----------
+    temperature_path : str
+        输入温度场 nc 文件路径。
+    lapse_rate_path : str
+        层结递减率场 nc 文件路径，单位通常为 ``K m-1``。
+    source_orography_path : str
+        温度原始网格对应的源地形高度场 nc 文件路径。
+    target_orography_path : str
+        目标地形高度场 nc 文件路径。
+    output_path : str, optional
+        输出 nc 文件路径；为 None 时不写文件，仅返回结果。
+
+    返回
+    -------
+    xr.DataArray or np.ndarray
+        地形订正后的温度场。
+    """
+    from importlib import import_module
+    _src = import_module("NIMM.00space_downscale.orographic_temperature_downscaling.lapse_rate")
+    ApplyGriddedLapseRate = _src.ApplyGriddedLapseRate
+        
+    _unbounded = (-np.inf, np.inf, np.nan)
+
+    temperature = meb.read_griddata_from_nc(temperature_path)
+    lapse_rate = meb.read_griddata_from_nc(lapse_rate_path)
+    source_orography = meb.read_griddata_from_nc(source_orography_path)
+    target_orography = meb.read_griddata_from_nc(target_orography_path)
+
+    temperature = meb.checkout_griddata(temperature, valid_val=_unbounded)
+    lapse_rate = meb.checkout_griddata(lapse_rate)
+    source_orography = meb.checkout_griddata(source_orography, valid_val=_unbounded)
+    target_orography = meb.checkout_griddata(target_orography, valid_val=_unbounded)
+
+    if not meb.checkout_griddata_same_coords([temperature, lapse_rate], is_time_match=True):
+        raise ValueError("层结递减率场与温度场的空间/时效坐标不一致")
+    if not meb.checkout_griddata_same_coords([temperature, source_orography], is_time_match=False):
+        raise ValueError("源地形高度场与温度场的坐标不一致")
+    if not meb.checkout_griddata_same_coords([temperature, target_orography], is_time_match=False):
+        raise ValueError("目标地形高度场与温度场的坐标不一致")
+
+    result = ApplyGriddedLapseRate()(
+        temperature,
+        lapse_rate,
+        source_orography,
+        target_orography,
+    )
+
+    if output_path is not None:
+        meb.write_griddata_to_nc(result, output_path, creat_dir=True)
+
+    return result
+
+
+def main() -> None:
+    import sys
+
+    #添加项目根目录到系统路径,可直接运行示例脚本
+    repo_root = Path(__file__).resolve().parents[3]
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+
+    #测试数据路径
+    data_root = (
+        repo_root
+        / "00temp"
+        / "orographic_temperature_downscaling"
+        / "test_data"
+        / "apply_lapse_rate_data"
+    )
+    cli_input_dir = data_root / "cli_input"
+    cli_output_dir = data_root / "cli_output"
+
+    temperature_path = str(cli_input_dir / "ukvx_temperature.nc")    #温度场nc文件路径
+    lapse_rate_path = str(cli_input_dir / "ukvx_lapse_rate.nc")    #层结递减率场nc文件路径
+    source_orography_path = str(cli_input_dir / "ukvx_orography.nc")    #源地形高度场nc文件路径
+    target_orography_path = str(cli_input_dir / "highres_orog.nc")    #目标地形高度场nc文件路径
+    output_path = str(cli_output_dir / "cli_apply_lapse_rate_result.nc")#地形订正后温度场nc文件路径
+
+    required_inputs = [
+        Path(temperature_path),
+        Path(lapse_rate_path),
+        Path(source_orography_path),
+        Path(target_orography_path),
+    ]
+    missing = [str(path) for path in required_inputs if not path.is_file()]
+    if missing:
+        print(
+            "示例输入不存在：\n  "
+            + "\n  ".join(missing)
+            + "\n请补齐样例数据，或先运行 00temp/orographic_temperature_downscaling/cli/preprocess_test_data.py，"
+            "也可在此处改为自己的输入/输出路径。"
+        )
+    else:
+        process(
+            temperature_path,
+            lapse_rate_path,
+            source_orography_path,
+            target_orography_path,
+            output_path=output_path,
+        )
+
+
+if __name__ == "__main__":
+    main()

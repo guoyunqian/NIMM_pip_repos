@@ -8,10 +8,10 @@
 | 中文名称 | 气温降尺度(地形) |
 | 原始路径 | `D:\workspace\improver\temperature`（原包名 `temperature`） |
 | 路径说明 | 体感温度相关内容已拆分至独立模块 `feels_like_temperature` |
-| 整理日期 | 2026-06-29（初整）；2026-07-06（NIMM 标准化）；2026-08-17（增量同步） |
+| 整理日期 | 2026-06-29（初整）；2026-07-06（NIMM 标准化）；2026-08-17（增量同步）；2026-08-18（正式归档） |
 | 算法贡献人 | 郭云谦、王亭波 |
 | 算法分类 | `00space_downscale` |
-| 当前状态 | 已整理至中间目录；导入已统一为模块名；待正式入库 |
+| 当前状态 | 已补充至正式算法仓库目录 |
 
 ## 算法理解
 
@@ -59,9 +59,34 @@ CLI 包括 `cli/dsc_temp_lapse_rate.py`（递减率）与 `cli/anc_lapse_rate.py
 
 - 初整至中间目录；当时导入仍为原始 `temperature` 包名，后续由 2026-07-06 标准化更新。
 
+## 2026-08-18 正式归档
+
+已将中间目录 `00temp/orographic_temperature_downscaling/` 重新补充到正式算法仓库，未删除中间目录文件。
+
+本次操作包括：
+
+- 核心源码归档到 `NIMM/00space_downscale/orographic_temperature_downscaling/`，包内改为相对导入。
+- CLI 归档到 `cli/00space_downscale/orographic_temperature_downscaling/`，命名为 `dsc_temp_lapse_rate_main.py`、`anc_lapse_rate_main.py`。官方样例预处理脚本不进入正式 `cli/`，仍保留在中间目录。
+- 测试、文档、notebook、资源说明归档到对应分类目录。
+- 因分类目录以数字开头，CLI 与测试使用 `importlib.import_module()` 动态导入。
+- 在 src 与 cli 中补充算法贡献人（郭云谦、王亭波）和软件产权说明。
+- 正式 CLI 仓库根使用 `parents[3]`，样例路径指向中间目录 `test_data/`；缺样例时提示而不崩溃。
+- 正式对照测试从 `00temp/orographic_temperature_downscaling/test_data/` 读取样例。
+- 正式目录 pytest：15 passed, 2 skipped（缺官方样例时对照测试 skip）；CLI 缺样例时提示而不崩溃。
+
+正式归档目录如下：
+
+| 正式目录 | 内容说明 |
+| --- | --- |
+| `NIMM/00space_downscale/orographic_temperature_downscaling/` | 核心插件与算法内 utils |
+| `cli/00space_downscale/orographic_temperature_downscaling/` | 业务调度 `dsc_temp_lapse_rate_main.py`、`anc_lapse_rate_main.py` |
+| `test/00space_downscale/orographic_temperature_downscaling/` | 单元测试与官方对照 |
+| `docs/00space_downscale/orographic_temperature_downscaling/` | 算法文档 |
+| `nbs/00space_downscale/orographic_temperature_downscaling/` | 验证 notebook |
+| `resource/00space_downscale/orographic_temperature_downscaling/` | 资源说明（无样例数据） |
+
 ## 仍存在问题（需人工补充）
 
-1. 补充至正式 `NIMM/00space_downscale/` 时需调整为仓库正式包路径。
-2. `BasePlugin` 正式入库时评估是否改为仓库统一基类。
-3. 测试样例在 `NIMM_pip_testdata/orographic_temperature_downscaling/`，中间目录未同步；正式入库前确认必要样例范围。
-4. `resource/` 当前为空，正式补充时确认是否保留。
+1. `BasePlugin` 仍为算法内本地类，待评估是否改为仓库统一基类。
+2. `resource/` 当前仅有说明文件，未附带地形或官方样例。
+3. `test_data/` 未同步到正式目录；官方对照测试缺数据时会 skip。
