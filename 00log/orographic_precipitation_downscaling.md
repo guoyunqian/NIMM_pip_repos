@@ -7,10 +7,10 @@
 | 算法名称 | `orographic_precipitation_downscaling` |
 | 中文名称 | 降水降尺度(地形) |
 | 原始路径 | `D:\workspace\improver\orographic_enhancement`（原包名 `orographic_enhancement`） |
-| 整理日期 | 2026-06-29（初整）；2026-07-06（NIMM 标准化目录结构整理）；2026-08-18（增量同步） |
+| 整理日期 | 2026-06-29（初整）；2026-07-06（NIMM 标准化）；2026-08-18（增量同步）；2026-08-19（正式归档） |
 | 算法贡献人 | 郭云谦、王亭波 |
 | 算法分类 | `00space_downscale` |
-| 当前状态 | 已整理至中间目录；导入已统一为模块名；待正式入库 |
+| 当前状态 | 已补充至正式算法仓库目录 |
 
 ## 算法理解
 
@@ -42,6 +42,16 @@ CLI 入口 `cli/dsc_orographic_enhancement.py` 读取温度、相对湿度、气
 | `00temp/orographic_precipitation_downscaling/00temp/`、`00log/` | 中间数据与包内整理日志 |
 | `00temp/orographic_precipitation_downscaling/NIMM_list.md` | 算法包内整理清单 |
 
+## 2026-06-29 更新
+
+- 初整至中间目录；当时导入仍为原始 `orographic_enhancement` 包名。
+
+## 2026-07-06 更新
+
+- NIMM 标准化：自 improver 重新同步源码与文档；导入统一为 `orographic_precipitation_downscaling`。
+- 原代码目录 pytest 全部通过（2026-07-06）。
+- 详细过程见：`00temp/orographic_precipitation_downscaling/00log/orographic_enhancement_整理_20260706.log`。
+
 ## 2026-08-18 更新
 
 - 从 `D:\workspace\improver\orographic_enhancement` 完整同步最新修改：
@@ -54,19 +64,34 @@ CLI 入口 `cli/dsc_orographic_enhancement.py` 读取温度、相对湿度、气
   - `nbs/orographic_enhancement_validation.ipynb`：同步最新验证 notebook。
   - `utils/base_plugin.py`、`utils/utils.py`：同步最新工具函数。
 
-## 2026-07-06 更新
+## 2026-08-19 正式归档
 
-- NIMM 标准化：自 improver 重新同步源码与文档；导入统一为 `orographic_precipitation_downscaling`。
-- 原代码目录 pytest 全部通过（2026-07-06）。
-- 详细过程见：`00temp/orographic_precipitation_downscaling/00log/orographic_enhancement_整理_20260706.log`。
+已将中间目录 `00temp/orographic_precipitation_downscaling/` 复制补充到正式算法仓库，未删除中间目录文件。
 
-## 2026-06-29 更新
+本次操作包括：
 
-- 初整至中间目录；当时导入仍为原始 `orographic_enhancement` 包名。
+- 核心源码归档到 `NIMM/00space_downscale/orographic_precipitation_downscaling/`，包内改为相对导入。
+- CLI 归档到 `cli/00space_downscale/orographic_precipitation_downscaling/`，命名为 `dsc_orographic_enhancement_main.py`。官方样例预处理脚本不进入正式 `cli/`，仍保留在中间目录。
+- 测试、文档、notebook、资源说明归档到对应分类目录。
+- 因分类目录以数字开头，CLI 与测试使用 `importlib.import_module()` 动态导入。
+- 在 src 与 cli 中补充算法贡献人（郭云谦、王亭波）和软件产权说明。
+- 正式目录 pytest：8 passed, 1 skipped（缺官方样例时对照测试 skip）；CLI 缺样例时提示而不崩溃。
+- 纠正正式包结构：去掉误保留的 `src/`，将 `_grid.py`、`_numerics.py`、`_svp.py`、`_apply.py` 并入包级 `utils/`，与风、气温降尺度正式目录一致。
+
+正式归档目录如下：
+
+| 正式目录 | 内容说明 |
+| --- | --- |
+| `NIMM/00space_downscale/orographic_precipitation_downscaling/` | 核心插件与算法内 utils |
+| `cli/00space_downscale/orographic_precipitation_downscaling/` | 业务调度 `dsc_orographic_enhancement_main.py` |
+| `test/00space_downscale/orographic_precipitation_downscaling/` | 单元测试与官方对照 |
+| `docs/00space_downscale/orographic_precipitation_downscaling/` | 算法文档 |
+| `nbs/00space_downscale/orographic_precipitation_downscaling/` | 验证 notebook |
+| `resource/00space_downscale/orographic_precipitation_downscaling/` | 资源说明（无样例数据） |
 
 ## 仍存在问题（需人工补充）
 
-1. 补充至正式 `NIMM/00space_downscale/` 时需调整为仓库正式包路径。
-2. `BasePlugin` 正式入库时评估是否改为仓库统一基类。
-3. 测试样例在 `NIMM_pip_testdata/orographic_precipitation_downscaling/`（含 CLI 输出对照），中间目录未同步；正式入库前筛选必要样例。
-4. `resource/` 当前为空，正式补充时确认是否保留。
+1. `BasePlugin` 仍为算法内本地类，待评估是否改为仓库统一基类。
+2. `resource/` 当前仅有说明文件，未附带地形或官方样例。
+3. `test_data/` 未同步到正式目录；官方对照测试缺数据时会 skip。
+
