@@ -23,7 +23,7 @@
 | 插件基类 | `utils/base_plugin.py` | BasePlugin 与 PostProcessingPlugin 本地提供 |
 | CLI | `cli/dsc_wind_downscaling.py`、`cli/preprocess_test_data.py` | 风速降尺度示例调度与官方样例预处理 |
 | 文档 | `docs/wind_downscaling.md`、`docs/orographic_wind_downscaling.md` | 算法说明 |
-| notebook | `nbs/wind_calculations.ipynb` | 验证与官方样例 |
+| notebook | `nbs/wind_calculations.ipynb`、`nbs/official_data_wind_calculations.ipynb` | 验证与官方样例 |
 | 测试 | `test/test_friction_velocity.py`、`test/test_official_wind_downscaling.py`、`test/test_infer_grid_resolution.py` 等 | 单元测试与官方样例 |
 | 整理日志 | `00log/wind_downscaling_整理_20260814.log` | 本次整理过程记录 |
 | 中间数据 | `00temp/wind_downscaling/` | 整理过程临时样本（当前为空） |

@@ -417,7 +417,7 @@ pytest orographic_wind_downscaling/test/test_official_wind_downscaling.py
 
 测试从 `cli_input/` 读入六维输入，与根目录 `kgo.nc`、`original_algorithm_result.nc` 对照。若 `cli_input/` 缺失，先运行上述预处理脚本生成。
 
-验证 Notebook：`nbs/wind_calculations.ipynb`（仅读取预处理结果并做方法调用与对照；预处理请先运行上述脚本）
+验证 Notebook：`nbs/official_data_wind_calculations.ipynb`（仅读取预处理结果并做方法调用与对照；预处理请先运行上述脚本）
 
 - **方案一**：投影维重命名路径（低误差对照）
 - **方案二**：真经纬重网格路径（`ppres` 度→米推断；对照场亦由预处理写出）

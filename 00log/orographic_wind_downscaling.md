@@ -11,7 +11,7 @@
 | 整理日期 | 2026-06-29（初整）；2026-07-06（NIMM 标准化）；2026-08-14（原目录增量同步） |
 | 算法贡献人 | 郭云谦、王亭波 |
 | 算法分类 | `00space_downscale` |
-| 当前状态 | 已补充至正式算法仓库目录 |
+| 当前状态 | 已整理至中间目录；导入已统一为模块名；待正式入库 |
 
 ## 算法理解
 
@@ -47,30 +47,10 @@ CLI 入口 `cli/dsc_wind_downscaling.py` 读取风速、地形高度标准差、
 - 原目录 pytest：32 passed；中间目录 pytest：30 passed, 2 skipped（缺官方样例时对照测试 skip）。
 - 详细过程见：`00temp/orographic_wind_downscaling/00log/wind_downscaling_整理_20260814.log`。
 
-## 2026-08-17 正式归档
+## 2026-08-17 恢复
 
-已将中间目录 `00temp/orographic_wind_downscaling/` 复制补充到正式算法仓库，未删除中间目录文件。
-
-本次操作包括：
-
-- 核心源码归档到 `NIMM/00space_downscale/orographic_wind_downscaling/`，包内改为相对导入。
-- CLI 归档到 `cli/00space_downscale/orographic_wind_downscaling/`，命名为 `dsc_wind_downscaling_main.py`。官方样例预处理脚本不进入正式 `cli/`，仍保留在中间目录。
-- 测试、文档、notebook、资源说明归档到对应分类目录。
-- 已删除旧命名重复 notebook `official_data_wind_calculations.ipynb`（与 `wind_calculations.ipynb` 为同一文件），正式与中间目录均只保留新命名。
-- 因分类目录以数字开头，CLI 与测试使用 `importlib.import_module()` 动态导入。
-- 在 src 与 cli 中补充算法贡献人（郭云谦、王亭波）和软件产权说明。
-- 正式目录 pytest：30 passed, 2 skipped（缺官方样例时对照测试 skip）；CLI 缺样例时提示而不崩溃。
-
-正式归档目录如下：
-
-| 正式目录 | 内容说明 |
-| --- | --- |
-| `NIMM/00space_downscale/orographic_wind_downscaling/` | 核心插件与算法内 utils |
-| `cli/00space_downscale/orographic_wind_downscaling/` | 业务调度 `dsc_wind_downscaling_main.py` |
-| `test/00space_downscale/orographic_wind_downscaling/` | 单元测试与官方对照 |
-| `docs/00space_downscale/orographic_wind_downscaling/` | 算法文档 |
-| `nbs/00space_downscale/orographic_wind_downscaling/` | 验证 notebook |
-| `resource/00space_downscale/orographic_wind_downscaling/` | 资源说明（无样例数据） |
+- 中间目录增量同步被误回退后，已按原目录重新复制并重映射导入。
+- 未重新做正式入库；当前状态仍为「已整理至中间目录，待正式入库」。
 
 ## 2026-07-06 更新
 
@@ -87,6 +67,7 @@ CLI 入口 `cli/dsc_wind_downscaling.py` 读取风速、地形高度标准差、
 
 ## 仍存在问题（需人工补充）
 
-1. `BasePlugin` 仍为算法内本地类，待评估是否改为仓库统一基类。
-2. `resource/` 当前仅有说明文件，未附带地形或官方样例。
-3. `test_data/` 未同步到正式目录；官方对照测试缺数据时会 skip。
+1. 补充至正式 `NIMM/00space_downscale/` 时需调整为仓库正式包路径。
+2. `BasePlugin` 正式入库时评估是否改为仓库统一基类。
+3. `resource/` 当前为空，正式补充时确认是否保留。
+4. `test_data/` 未同步；中间目录的官方对照测试缺数据时会 skip。

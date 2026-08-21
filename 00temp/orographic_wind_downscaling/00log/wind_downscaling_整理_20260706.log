@@ -16,7 +16,7 @@
   插件基类             → utils/base_plugin.py（BasePlugin 本地提供）
   CLI              → cli/dsc_wind_downscaling.py（风速降尺度示例调度）
   文档               → docs/wind_downscaling.md、docs/orographic_wind_downscaling.md（算法说明）
-  notebook         → nbs/wind_calculations.ipynb（官方样例验证）
+  notebook         → nbs/official_data_wind_calculations.ipynb（官方样例验证）
   测试               → test/test_friction_velocity.py、test/test_official_wind_downscaling.py 等（单元测试与官方样例）
   整理清单         → NIMM_list.md（本目录）
   整理中间数据     → 00temp/wind_downscaling/
