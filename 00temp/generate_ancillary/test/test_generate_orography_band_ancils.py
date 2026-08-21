@@ -239,7 +239,7 @@ def assert_matches_reference(result: xr.DataArray, expected: xr.DataArray) -> No
 
 def run_original_bands(thresholds_dict: dict, *, use_landmask: bool):
     """现场调用原算法（与 run_generate_ancillary_to_result.py 一致：process → concatenate_cube）。"""
-    from improver.generate_ancillaries.generate_ancillary import (
+    from improver.generate_ancillaries.generate_ancillary import (  # noqa: E402
         GenerateOrographyBandAncils as OrigBandsPlugin,
     )
 
@@ -260,6 +260,7 @@ def run_original_bands(thresholds_dict: dict, *, use_landmask: bool):
         )
         .concatenate_cube()
     )
+
 
 def assert_matches_original_cube(result: xr.DataArray, original_cube) -> None:
     """比较迁移版结果与原算法 Iris Cube 的数值与地形带中心。"""

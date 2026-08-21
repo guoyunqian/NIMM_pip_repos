@@ -5,14 +5,15 @@
 """地形相关辅助场生成算法。
 
 本模块实现了地形相关辅助场生成算法，包括地形带掩码生成和海陆掩码纠正。
+地形带折叠权重见同目录 ``generate_topographic_zone_weights.py``。
 
-算法面向 xarray.DataArray 与 numpy.ndarray 双输入，同时兼容 meteva_base 常见六维网格（member, level, time, dtime, lat, lon）。
+算法面向双输入：
+- ``xarray.DataArray``：即 meteva_base 六维网格（``member, level, time, dtime, lat, lon``）；
+- ``numpy.ndarray``：纯数值数组。
 
 算法不依赖空间坐标的物理数值进行计算，坐标仅参与 xarray 的维度对齐与广播，其值从未被读取或用于数值运算。因此：
 - 输入场可以是任意空间坐标系（投影坐标 projection_x/y_coordinate 或地理坐标 lat/lon），不影响计算正确性。
 - 若上游数据保留 grid_mapping 属性（如 lambert_azimuthal_equal_area 的投影参数），本模块会将其随输出场透传，供下游消费方按需重建 CRS 并做投影转换。
-
-为避免不必要的投影往返转换带来的精度损失与额外依赖，当前并未实现投影坐标与经纬坐标的转换，并且测试数据在预处理阶段也并未进行坐标转换，投影坐标只是映射到经纬维度。
 
 """
 
@@ -22,14 +23,16 @@ from typing import Any, Dict, Optional, Sequence, Union
 
 import numpy as np
 import xarray as xr
+
+import meteva_base as meb
 from cf_units import Unit as CfUnit
 from numpy import ndarray
 from numpy.ma.core import MaskedArray
 
+from generate_ancillary.src.utils._make_mask_griddata import make_mask_griddata
 from generate_ancillary.utils.base_plugin import BasePlugin
-from generate_ancillary.utils.utils import check_for_meb_griddata
 
-#以下字典定义了默认的以米为单位的地形高度带
+# 以下字典定义了默认的以米为单位的地形高度带（亦可作为 thresholds_dict 缺省配置）
 THRESHOLDS_DICT = {
     "bounds": [
         [-500.0, 50.0],
@@ -65,8 +68,8 @@ class CorrectLandSeaMask(BasePlugin):
     - 格点值 >= 0.5：判定为陆，置为 1
     输出为 int8 类型的二值掩码场。
 
-    输入输出均为 meteva_base 标准六维网格数据（member, level, time, dtime, lat, lon），
-    维度保持不变，仅修改格点值。
+    输入为 ``xarray.DataArray``（meteva_base 六维）时，输出同为六维 DataArray，
+    维度与坐标保持不变；输入为 ``ndarray`` 时返回 ``ndarray``。
     """
 
     def __init__(self) -> None:
@@ -96,21 +99,29 @@ class CorrectLandSeaMask(BasePlugin):
             输入为 ndarray 时，返回 ndarray。
         """
         if isinstance(standard_landmask, xr.DataArray):
-            # xarray 输入统一按 meteva_base 六维网格约定检查。
+            # DataArray 输入按 meteva_base 六维网格约定检查。
             unbounded = (-np.inf, np.inf, np.nan)
-            standard_landmask = check_for_meb_griddata(
+            standard_landmask = meb.checkout_griddata(
                 standard_landmask, valid_val=unbounded
             )
             data = np.asarray(standard_landmask.values, dtype=np.float32).copy()
             data[data < 0.5] = 0
             data[data >= 0.5] = 1
-            return xr.DataArray(
+            result = xr.DataArray(
                 data.astype(np.int8),
                 dims=standard_landmask.dims,
                 coords=standard_landmask.coords,
-                attrs=standard_landmask.attrs,
                 name="land_binary_mask",
             )
+            # 对齐原库就地改名思路：仅透传 CRS，units 硬编码，其余走 meb 缺省
+            new_attrs = {}
+            gm = standard_landmask.attrs.get("grid_mapping_attrs")
+            if gm is not None:
+                new_attrs["grid_mapping_attrs"] = gm
+            result.attrs = new_attrs
+            meb.set_griddata_attrs(result, units="1", is_default=True)
+            result.name = "land_binary_mask"
+            return result
 
         data = np.asarray(standard_landmask, dtype=np.float32).copy()
         data[data < 0.5] = 0
@@ -121,24 +132,15 @@ class CorrectLandSeaMask(BasePlugin):
 class GenerateOrographyBandAncils(BasePlugin):
     """生成地形带掩码辅助场。
 
-    功能逻辑：
-    根据地形高度场，将区域按海拔划分为多个连续的地形带（如 -500~50m、50~100m 等），
-    每个地形带生成一张二值掩码图，标记哪些格点落在该海拔区间内。
-
-    核心处理流程：
-    1. 接收地形高度场、海陆掩码（可选）、阈值配置
-    2. 遍历每个地形带区间：
-       a. 单位换算（将阈值转换到地形场的单位）
-       b. 阈值比较：lower < orog <= upper，生成二值掩码
-       c. 海点处理：若提供了海陆掩码，将海点置为 0
-       d. 将结果包装为标准六维 DataArray，地形带映射到 level 维
-    3. 将所有地形带沿 level 维堆叠，返回完整结果
+    按海拔阈值将地形高度场划分为多个连续地形带，每个带输出一张二值掩码
+    （带内陆点为 1，其余为 0）。若提供海陆掩码，则每个带内海点置 0；
+    若不提供，则陆海格点均参与分带。
 
     输出格式：
-    - xarray 输入：返回 xr.DataArray，维度为 (member, level, time, dtime, lat, lon)
-      level 维长度为地形带数量，level 坐标值为各地形带的中心值
-      level 坐标附带 level_lower_bound 和 level_upper_bound 两个辅助坐标
-    - ndarray 输入：返回 ndarray，第一维为地形带索引
+    - DataArray（meteva_base 六维）输入：返回同结构六维，地形带映射到 ``level``，
+      ``level`` 长度为带数，坐标为带中心，并附带
+      ``level_lower_bound`` / ``level_upper_bound``；
+    - ndarray 输入：返回 ndarray，第一维为地形带索引。
     """
 
     def __repr__(self) -> str:
@@ -245,7 +247,7 @@ class GenerateOrographyBandAncils(BasePlugin):
         -------
         xr.DataArray or ndarray
             单个地形带的二值掩码。
-            xarray 输入时返回标准六维 DataArray，level 维长度为 1；
+            DataArray 输入时返回 meteva_base 六维，level 长度为 1；
             ndarray 输入时返回 ndarray，第一维长度为 1。
         """
         orography_is_xarray = isinstance(standard_orography, xr.DataArray)
@@ -292,50 +294,19 @@ class GenerateOrographyBandAncils(BasePlugin):
             mask_data = orog_band
             sea_points_included = True
 
-        # 核心步骤4：包装输出，将地形带映射到 level 维
+        # 核心步骤4：包装输出，将地形带映射到 level 维（对齐原库 _make_mask_cube）
         if orography_is_xarray:
-            # 校验输入 level 维长度为 1（地形带将映射到此维）
-            if standard_orography.sizes.get("level", 0) != 1:
-                raise ValueError("地形带映射到 level 时要求输入 level 维长度为 1")
-
             bounds = self._coerce_threshold_bounds(converted_thresholds)
-            level_center = np.mean(bounds).astype(np.float32)
-
-            # 先去除 level 维（输入 level 维长度为 1）
-            base = xr.DataArray(
-                np.asarray(mask_data, dtype=np.int32),
-                dims=standard_orography.dims,
-                coords=standard_orography.coords,
+            # level 坐标单位与换算后的阈值一致（即地形场单位）
+            return make_mask_griddata(
+                mask_data,
+                standard_orography,
+                bounds,
+                str(target_units),
+                sea_points_included=sea_points_included,
                 name="topography_mask",
-                attrs={
-                    "units": "1",
-                    "topographic_zones_include_seapoints": str(
-                        bool(sea_points_included)
-                    ),
-                },
-            ).isel(level=0, drop=True)
-
-            # 用地形带中心值重建 level 维，实现地形带到 level 维的映射
-            result = base.expand_dims(
-                level=xr.DataArray(
-                    np.asarray([level_center], dtype=np.float32),
-                    dims=("level",),
-                    attrs={"units": str(target_units)},
-                )
+                dtype=np.int32,
             )
-            result.coords["level"].attrs["units"] = str(target_units)
-            # 附加地形带边界信息作为 level 的辅助坐标
-            result = result.assign_coords(
-                level_lower_bound=(
-                    ("level",),
-                    np.asarray([bounds[0]], dtype=np.float32),
-                ),
-                level_upper_bound=(
-                    ("level",),
-                    np.asarray([bounds[1]], dtype=np.float32),
-                ),
-            )
-            return result.transpose("member", "level", "time", "dtime", "lat", "lon")
 
         return np.asarray(mask_data, dtype=np.int32)[np.newaxis, ...]
 
@@ -347,37 +318,53 @@ class GenerateOrographyBandAncils(BasePlugin):
     ) -> Union[xr.DataArray, ndarray]:
         """针对多个地形带循环生成掩码并堆叠输出。
 
-        功能逻辑：
-        遍历 thresholds_dict["bounds"] 中的每个地形带区间，依次调用
-        gen_orography_masks 生成单个地形带的掩码，然后将所有地形带
-        沿 level 维堆叠，形成完整的地形带掩码场。
+        遍历 ``thresholds_dict["bounds"]`` 中每个地形带区间，调用
+        ``gen_orography_masks`` 生成单带掩码，再沿 ``level`` 维（或数组第 0 轴）堆叠。
 
         Parameters
         ----------
         orography : xr.DataArray or ndarray
-            地形高度场，应为 meteva_base 标准六维网格数据。
+            标准网格上的地形高度场。DataArray 须为 meteva_base 六维网格。
         thresholds_dict : dict
-            阈值配置字典，包含：
-            - "bounds": 由多个 [lower, upper] 组成的区间列表
-            - "units": str，阈值单位
+            所需地形带定义，须含：
+
+            - ``bounds``：各地形带上下界列表，例如
+              ``[[0, 100], [100, 200]]``；
+            - ``units``：上下界单位字符串，例如 ``"m"``。
+
+            完整示例::
+
+                {"bounds": [[0, 100], [100, 200]], "units": "m"}
+
+            未另行指定时，CLI 等入口可使用模块默认 ``THRESHOLDS_DICT``，形如::
+
+                {
+                    "bounds": [
+                        [-500.0, 50.0], [50.0, 100.0], [100.0, 150.0],
+                        [150.0, 200.0], [200.0, 250.0], [250.0, 300.0],
+                        [300.0, 400.0], [400.0, 500.0], [500.0, 650.0],
+                        [650.0, 800.0], [800.0, 950.0], [950.0, 6000.0],
+                    ],
+                    "units": "m",
+                }
+
         landmask : xr.DataArray or ndarray or None, default=None
-            海陆掩码，可选。若提供，用于屏蔽海洋格点。
+            标准网格海陆掩码，陆=1、海=0。若提供，则每个带内海点置 0；
+            若未提供，则陆海格点均参与分带。
 
         Returns
         -------
         xr.DataArray or ndarray
             地形带掩码场。
-            xarray 输入时返回 xr.DataArray，维度为
-            (member, level, time, dtime, lat, lon)，
-            level 维长度为地形带数量；
+            DataArray 输入时返回 meteva_base 六维，``level`` 长度为地形带数量；
             ndarray 输入时返回 ndarray，第一维为地形带索引。
         """
-        # 在入口统一做一次 xarray 六维校验
+        # 在入口统一做一次六维网格校验
         if isinstance(orography, xr.DataArray):
             unbounded = (-np.inf, np.inf, np.nan)
-            orography = check_for_meb_griddata(orography, valid_val=unbounded)
+            orography = meb.checkout_griddata(orography, valid_val=unbounded)
             if isinstance(landmask, xr.DataArray):
-                landmask = check_for_meb_griddata(landmask, valid_val=unbounded)
+                landmask = meb.checkout_griddata(landmask, valid_val=unbounded)
 
         # 校验阈值配置
         if "bounds" not in thresholds_dict or not thresholds_dict["bounds"]:
@@ -397,11 +384,8 @@ class GenerateOrographyBandAncils(BasePlugin):
         ]
 
         if isinstance(orography, xr.DataArray):
-            # 核心步骤：将所有地形带沿 level 维堆叠
-            # 每个单带结果已是标准六维（level 维长度为 1）
+            # 对齐原库：各带已由 make_mask_griddata 组装，此处仅沿 level 拼接
             result = xr.concat(band_results, dim="level")
-            result.name = "topography_mask"
-            result = result.transpose("member", "level", "time", "dtime", "lat", "lon")
-            return result
+            return result.transpose("member", "level", "time", "dtime", "lat", "lon")
 
         return np.concatenate([np.asarray(item) for item in band_results], axis=0)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""地形带掩码辅助场生成 CLI 示例。"""
+"""地形带权重辅助场生成 CLI 示例。"""
 
 from __future__ import annotations
 
@@ -18,36 +18,46 @@ def process(
     thresholds_path: Optional[str] = None,
     output_path: Optional[str] = None,
 ) -> xr.DataArray:
-    """读取输入数据并生成地形带掩码辅助场。
+    """读取输入数据并生成地形带折叠权重。
 
-    按海拔阈值将地形高度场分带，每个带输出二值掩码（带内陆点为 1）。
-    若提供海陆掩码，则每个带内海点置 0；若不提供，则陆海均参与分带。
+    读取地形高度与可选海陆掩码，生成各地形带权重：格点在带中心时该带权重为 1.0；
+    在带边界时上下带各为 0.5；其余在中心与边界之间线性变化。
 
     参数
     ----------
     orography_path : str
         标准网格地形高度场 nc 路径。
     landmask_path : str, optional
-        标准网格海陆掩码 nc 路径（陆=1，海=0）。若提供则每个带内海点置 0；
-        为空时对陆点与海点均生成掩码。
+        标准网格海陆掩码 nc 路径（陆=1，海=0）。若提供则屏蔽海点；
+        为空时对陆点与海点均生成权重。
     thresholds_path : str, optional
         地形带配置 JSON 路径。字典格式示例::
 
-            {"bounds": [[0, 100], [100, 200]], "units": "m"}
+            {"bounds": [[0, 50], [50, 200]], "units": "m"}
 
-        为空时使用默认 ``THRESHOLDS_DICT``（约 ``[-500, 50], [50, 100], …,
-        [950, 6000]``，单位 ``m``，见 ``generate_ancillary.THRESHOLDS_DICT``）。
+        为空时使用默认 ``THRESHOLDS_DICT``，形如::
+
+            {
+                "bounds": [
+                    [-500.0, 50.0], [50.0, 100.0], [100.0, 150.0],
+                    [150.0, 200.0], [200.0, 250.0], [250.0, 300.0],
+                    [300.0, 400.0], [400.0, 500.0], [500.0, 650.0],
+                    [650.0, 800.0], [800.0, 950.0], [950.0, 6000.0],
+                ],
+                "units": "m",
+            }
+
     output_path : str, optional
-        输出 nc 路径；为空时仅返回结果。写盘时结果转为 ``float32``。
+        输出 nc 路径；为空时仅返回结果。
 
     返回
     -------
     xr.DataArray
-        沿 ``level`` 维堆叠的地形带掩码（meteva_base 六维）。
+        沿 ``level`` 维堆叠的地形带权重（meteva_base 六维）。
     """
-    from generate_ancillary.src.generate_ancillary import (
-        THRESHOLDS_DICT,
-        GenerateOrographyBandAncils,
+    from generate_ancillary.src.generate_ancillary import THRESHOLDS_DICT
+    from generate_ancillary.src.generate_topographic_zone_weights import (
+        GenerateTopographicZoneWeights,
     )
 
     orography = meb.read_griddata_from_nc(orography_path)
@@ -62,15 +72,13 @@ def process(
         meb.read_griddata_from_nc(landmask_path) if landmask_path is not None else None
     )
 
-    result = GenerateOrographyBandAncils().process(
+    result = GenerateTopographicZoneWeights().process(
         orography=orography,
         thresholds_dict=thresholds_dict,
         landmask=landmask,
     )
 
     if output_path is not None:
-        # meteva_base 写盘默认使用 scale_factor + int32 编码；
-        # 对 int32 掩码直接写盘会触发 xarray 编码阶段的 dtype 冲突。
         meb.write_griddata_to_nc(result.astype("float32"), output_path, creat_dir=True)
     return result
 
@@ -78,16 +86,15 @@ def process(
 if __name__ == "__main__":
     import sys
 
-    # 添加项目根目录到系统路径，可直接运行示例脚本
     repo_root = Path(__file__).resolve().parents[2]
     if str(repo_root) not in sys.path:
         sys.path.insert(0, str(repo_root))
 
-    # Notebook 预处理后、可被 meb.read_griddata_from_nc 直接读取的数据
+    # 复用地形带权重官方样例输入
     test_data_root = (
         Path(__file__).resolve().parents[1]
         / "test_data"
-        / "generate-topography-bands-mask"
+        / "generate-topography-bands-weights"
     )
     cli_input_root = test_data_root / "basic" / "cli_inputs"
     cli_output_root = test_data_root / "basic" / "cli_outputs"
@@ -95,7 +102,7 @@ if __name__ == "__main__":
     orography_path = cli_input_root / "input_orog_meb.nc"
     landmask_path = cli_input_root / "input_land_meb.nc"
     thresholds_path = test_data_root / "basic" / "bounds.json"
-    output_path = cli_output_root / "cli_topography_bands_mask_result.nc"
+    output_path = cli_output_root / "cli_topographic_zone_weights_result.nc"
 
     if not orography_path.is_file():
         print(

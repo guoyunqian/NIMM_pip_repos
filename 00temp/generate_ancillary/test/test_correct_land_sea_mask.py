@@ -5,13 +5,40 @@
 from pathlib import Path
 import sys
 
+import iris
 import numpy as np
 import pytest
 import xarray as xr
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_REPO_ROOT))
+sys.path.insert(0, str(_REPO_ROOT / "improver-1.18.7"))
 
-from generate_ancillary.src.generate_ancillary import CorrectLandSeaMask
+from generate_ancillary.src.generate_ancillary import CorrectLandSeaMask  # noqa: E402
+
+RESOURCE_ROOT = (
+    Path(__file__).resolve().parents[1] / "test_data" / "generate-landmask"
+)
+
+_requires_official_data = pytest.mark.skipif(
+    not (RESOURCE_ROOT / "basic" / "input.nc").is_file(),
+    reason="未同步 test_data/generate-landmask",
+)
+
+
+def _improver_available() -> bool:
+    try:
+        import improver  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+_requires_improver = pytest.mark.skipif(
+    not _improver_available(),
+    reason="未提供 improver-1.18.7（包旁路径）",
+)
 
 
 def make_landmask_dataarray() -> xr.DataArray:
@@ -87,3 +114,60 @@ def test_process_rejects_non_meb6d_xarray_landmask():
     )
     with pytest.raises(ValueError, match="griddata dims must be"):
         plugin.process(invalid_landmask)
+
+
+def to_meb6d_grid(data: xr.DataArray) -> xr.DataArray:
+    """将二维网格场包装为 meteva_base 六维格式。"""
+    if data.dims[-2:] == ("projection_y_coordinate", "projection_x_coordinate"):
+        data = data.rename(
+            {
+                "projection_y_coordinate": "lat",
+                "projection_x_coordinate": "lon",
+            }
+        )
+    elif data.dims[-2:] != ("lat", "lon"):
+        data = data.rename({data.dims[-2]: "lat", data.dims[-1]: "lon"})
+
+    expanded = data.expand_dims(
+        member=np.array([0], dtype=np.int32),
+        level=np.array([0], dtype=np.int32),
+        time=np.array(["2024-01-01T00:00:00"], dtype="datetime64[ns]"),
+        dtime=np.array([0], dtype=np.int32),
+    )
+    return expanded.transpose("member", "level", "time", "dtime", "lat", "lon")
+
+
+def load_primary_dataarray(path: Path) -> xr.DataArray:
+    """读取 NetCDF 文件中的主变量。"""
+    dataset = xr.open_dataset(path, decode_timedelta=False)
+    for name, data_array in dataset.data_vars.items():
+        if "bnds" not in name and name != "lambert_azimuthal_equal_area":
+            return data_array
+    raise ValueError(f"未在 {path} 中找到主数据变量。")
+
+
+# 官方数据回归测试
+
+@_requires_improver
+@_requires_official_data
+def test_official_basic_matches_kgo_and_original():
+    """官方样例：迁移版与 KGO、原算法二值化结果一致。"""
+    from improver.generate_ancillaries.generate_ancillary import (  # noqa: E402
+        CorrectLandSeaMask as OrigLandSeaMask,
+    )
+
+    landmask = to_meb6d_grid(
+        load_primary_dataarray(RESOURCE_ROOT / "basic" / "input.nc")
+    )
+    kgo = load_primary_dataarray(RESOURCE_ROOT / "basic" / "kgo.nc")
+    original = OrigLandSeaMask().process(
+        iris.load_cube(str(RESOURCE_ROOT / "basic" / "input.nc")).copy()
+    )
+
+    result = CorrectLandSeaMask().process(landmask)
+    result_2d = np.asarray(result.squeeze(drop=True).values)
+
+    np.testing.assert_array_equal(result_2d, np.asarray(kgo.values))
+    np.testing.assert_array_equal(result_2d, np.asarray(original.data))
+    assert result.name == "land_binary_mask"
+    assert result.dtype == np.int8
