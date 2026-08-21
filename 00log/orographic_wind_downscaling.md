@@ -8,7 +8,7 @@
 | 中文名称 | 风降尺度(地形) |
 | 原始路径 | `D:\workspace\improver\wind_calculations`（原包名 `wind_calculations`） |
 | 路径说明 | 2026-06-29 初整曾基于汇总副本；2026-07-06 以本地 improver 目录为准完成 NIMM 标准化；2026-08-14 再从该原目录增量同步 |
-| 整理日期 | 2026-06-29（初整）；2026-07-06（NIMM 标准化）；2026-08-14（原目录增量同步） |
+| 整理日期 | 2026-06-29（初整）；2026-07-06（NIMM 标准化）；2026-08-14（原目录增量同步）；2026-08-21（中间目录说明清理） |
 | 算法贡献人 | 郭云谦、王亭波 |
 | 算法分类 | `00space_downscale` |
 | 当前状态 | 已整理至中间目录；导入已统一为模块名；待正式入库 |
@@ -35,9 +35,13 @@ CLI 入口 `cli/dsc_wind_downscaling.py` 读取风速、地形高度标准差、
 | `00temp/orographic_wind_downscaling/utils/` | 网格校验工具与本地 `BasePlugin` / `PostProcessingPlugin` |
 | `00temp/orographic_wind_downscaling/test/` | 单元测试与官方样例对照 |
 | `00temp/orographic_wind_downscaling/docs/`、`nbs/` | 文档与 notebook |
-| `00temp/orographic_wind_downscaling/00temp/` | 整理过程中间数据（`wind_downscaling/`） |
-| `00temp/orographic_wind_downscaling/00log/` | 整理过程日志（一次整理一份） |
-| `00temp/orographic_wind_downscaling/NIMM_list.md` | 算法包内整理清单 |
+
+## 2026-08-21 更新
+
+- 正式入库提交已撤回，当前仍为中间目录整理状态。
+- 保留 `docs/orographic_wind_downscaling.md`。
+- 中间目录说明与 CLI 提示对齐原目录 `D:\workspace\improver\wind_calculations`：验证 notebook 统一为 `nbs/wind_calculations.ipynb`。
+- 删除包内 `00log/`、`00temp/`、`NIMM_list.md`。
 
 ## 2026-08-14 更新
 
@@ -45,20 +49,13 @@ CLI 入口 `cli/dsc_wind_downscaling.py` 读取风速、地形高度标准差、
 - 导入路径仍统一为中间目录模块名 `orographic_wind_downscaling`。
 - 未同步 `test_data/`；CLI 缺样例时提示而不崩溃。
 - 原目录 pytest：32 passed；中间目录 pytest：30 passed, 2 skipped（缺官方样例时对照测试 skip）。
-- 详细过程见：`00temp/orographic_wind_downscaling/00log/wind_downscaling_整理_20260814.log`。
-
-## 2026-08-17 恢复
-
-- 中间目录增量同步被误回退后，已按原目录重新复制并重映射导入。
-- 未重新做正式入库；当前状态仍为「已整理至中间目录，待正式入库」。
 
 ## 2026-07-06 更新
 
 - NIMM 标准化目录结构整理：自 `improver/wind_calculations` 同步 `src/`、`utils/`、`cli/`、`test/`、`docs/`、`nbs/`。
 - 导入路径由 `wind_calculations` 统一为中间目录模块名 `orographic_wind_downscaling`。
-- `RoughnessCorrection` 已继承本地 `BasePlugin`；建立算法内 `00log/`、`00temp/`、`NIMM_list.md`、`.gitignore`。
+- `RoughnessCorrection` 已继承本地 `BasePlugin`。
 - 原代码目录 pytest 全部通过（2026-07-06）。
-- 详细过程见：`00temp/orographic_wind_downscaling/00log/wind_downscaling_整理_20260706.log`。
 
 ## 2026-06-29 更新
 

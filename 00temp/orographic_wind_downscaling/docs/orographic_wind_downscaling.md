@@ -26,7 +26,7 @@
 | 辅助源码 | `utils/utils.py` | `meteva_base` 网格数据校验与输出封装工具 |
 | CLI | `cli/dsc_wind_downscaling.py` | 风速降尺度示例调度脚本 |
 | CLI | `cli/preprocess_test_data.py` | 官方样例预处理（投影维重命名 / 经纬重网格） |
-| 文档 | `docs/wind_downscaling.md` | 原始算法分析文档 |
+| 文档 | `docs/wind_downscaling.md` | 算法分析与 CLI 参数说明（对照原目录 `wind_calculations/docs/wind_downscaling.md`） |
 | notebook | `nbs/wind_calculations.ipynb` | 投影与经纬路径验证 |
 | 测试 | `test/test_RoughnessCorrection.py` | 粗糙度订正主流程测试 |
 | 测试 | `test/test_official_wind_downscaling.py` | 官方样例数据对照测试 |
@@ -57,10 +57,10 @@
 
 已完成：
 
-- 原始源码、CLI、文档、notebook、测试脚本复制到 `00temp/orographic_wind_downscaling/`。
+- 原始源码、CLI、文档、notebook、测试脚本整理到 `00temp/orographic_wind_downscaling/`。
 - 2026-07-06 完成 NIMM 标准化；2026-08-14 从 `D:\workspace\improver\wind_calculations` 增量同步。
 - 导入路径已统一为中间目录模块名 `orographic_wind_downscaling`。
-- 2026-08-17 误回退后已按原目录重新同步恢复。
+- 2026-08-21：说明文档与 CLI 提示对齐原目录，验证 notebook 统一为 `nbs/wind_calculations.ipynb`；删除包内 `00log/`、`00temp/`、`NIMM_list.md`。
 
 待处理：
 
