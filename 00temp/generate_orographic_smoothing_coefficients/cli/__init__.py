@@ -7,4 +7,5 @@ from pathlib import Path
 
 def main() -> None:
     """打印可运行脚本路径。"""
+    print(Path(__file__).with_name("preprocess_test_data.py"))
     print(Path(__file__).with_name("dsc_generate_orographic_smoothing_coefficients.py"))

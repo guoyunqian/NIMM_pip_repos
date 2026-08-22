@@ -117,7 +117,29 @@ coeff_x, coeff_y = process(
 )
 ```
 
-## 7. 测试情况
+## 7. 测试数据预处理
+
+官方投影样例需先预处理，再供 CLI / Notebook 读取。脚本：
+
+`generate_orographic_smoothing_coefficients/cli/preprocess_test_data.py`
+
+仓库根目录运行：
+
+```text
+python generate_orographic_smoothing_coefficients/cli/preprocess_test_data.py
+```
+
+写出目录：
+
+| 路径 | 内容 | 用途 |
+| --- | --- | --- |
+| `test_data/cli_inputs/` | 投影维重命名 meb（`lat`/`lon` units 为米） | 方案一：迁移方法 / CLI |
+| `test_data/latlon/` | Iris 规则经纬 Cube（分辨率 0.01°） | 方案二：原 IMPROVER 方法 |
+| `test_data/latlon/cli_inputs/` | 同源 meb（lat/lon 为 float64，不写坐标 units） | 方案二：迁移方法 |
+
+方案二不与投影 KGO 对比（格距不同）。Notebook 只读盘对照，不再内嵌预处理。
+
+## 8. 测试情况
 
 - 单元测试：
   - 投影：等间距米制、`km` 单位换算、合成场、mask 边界、参数校验

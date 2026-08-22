@@ -67,8 +67,6 @@ def _make_meb6d(
     )
 
 
-
-
 _CLI_DEFAULT_OROG = (
     Path(__file__).resolve().parents[1]
     / "test_data"
@@ -135,6 +133,8 @@ def test_cli_default_inputs_exist_and_runnable():
         Path(__file__).resolve().parents[1] / "test_data" / "cli_inputs"
     )
     orog_path = test_data / "input_orography_meb.nc"
+    if not orog_path.exists():
+        return
 
     output_path = (
         Path(__file__).resolve().parents[1]

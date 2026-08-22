@@ -17,13 +17,14 @@ from typing import Optional, Union
 
 import numpy as np
 import xarray as xr
+
+import meteva_base as meb
 from numpy import ndarray
 
 from generate_orographic_smoothing_coefficients.src.utils._gradient import (
     adjacent_gradients_projected,
 )
 from generate_orographic_smoothing_coefficients.utils.base_plugin import BasePlugin
-from generate_orographic_smoothing_coefficients.utils.utils import check_for_meb_griddata
 
 
 class OrographicSmoothingCoefficients(BasePlugin):
@@ -224,7 +225,7 @@ class OrographicSmoothingCoefficients(BasePlugin):
           x 方向 lat 全长、lon 少 1；y 方向 lat 少 1、lon 全长。
         """
         if isinstance(orography, xr.DataArray):
-            orography = check_for_meb_griddata(
+            orography = meb.checkout_griddata(
                 orography, is_single=True, valid_val=(-np.inf, np.inf, np.nan)
             )
             values_2d = np.asarray(orography.values.squeeze(), dtype=np.float32)
@@ -250,7 +251,7 @@ class OrographicSmoothingCoefficients(BasePlugin):
         mask_2d = None
         if mask is not None:
             if isinstance(mask, xr.DataArray):
-                mask = check_for_meb_griddata(
+                mask = meb.checkout_griddata(
                     mask, is_single=True, valid_val=(-np.inf, np.inf, np.nan)
                 )
                 if not np.array_equal(

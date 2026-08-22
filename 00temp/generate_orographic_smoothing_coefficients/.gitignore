@@ -1,8 +1,3 @@
-# 整理过程中间数据（保留目录结构与 README）
-00temp/**/*
-!00temp/README.md
-!00temp/**/.gitkeep
-
 # Python
 __pycache__/
 *.py[cod]
@@ -14,3 +9,4 @@ __pycache__/
 
 # 本地验证临时输出
 *_tmp.nc
+cli_smoke_from_default_inputs.nc
