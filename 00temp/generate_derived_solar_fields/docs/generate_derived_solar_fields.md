@@ -220,7 +220,29 @@ solar_radiation_result = clearsky_cli_process(
 
 ---
 
-## 6. 测试情况
+## 6. 测试数据预处理
+
+官方投影样例需先预处理，再供 CLI / Notebook 读取。脚本：
+
+`generate_derived_solar_fields/cli/preprocess_test_data.py`
+
+仓库根目录运行：
+
+```text
+python generate_derived_solar_fields/cli/preprocess_test_data.py
+```
+
+写出目录（`cli_inputs/` 文件名保持不变）。官方输入无 time 维，脚本从对应 KGO 注入时刻。
+
+| 路径 | 内容 | 用途 |
+| --- | --- | --- |
+| `<数据集>/cli_inputs/` | 投影维重命名后的 meb 六维（含 `grid_mapping_attrs`） | 方案一：迁移方法 / CLI |
+| `<数据集>/latlon/` | 投影→规则经纬后的 Iris Cube | 方案二：原 IMPROVER 方法 |
+| `<数据集>/latlon/cli_inputs/` | 与 `latlon/` 同源数值的 meb 六维 | 方案二：迁移方法 |
+
+`kgo.nc` 与原方法结果不转换。Notebook 只读上述写出结果做对照，不再内嵌预处理。
+
+## 7. 测试情况
 
 当前已覆盖的测试与验证主要包括：
 
@@ -236,7 +258,7 @@ solar_radiation_result = clearsky_cli_process(
 
 ---
 
-## 7. 当前输入适配实现的注意项
+## 8. 当前输入适配实现的注意项
 
 当前输入适配总体可用，但存在以下约束（建议在使用时明确）：
 

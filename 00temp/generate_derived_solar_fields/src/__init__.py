@@ -3,7 +3,7 @@
 # Copyright (c) 2019 NMC Developers.
 # Distributed under the terms of the GPL V3 License.
 
-from generate_derived_solar_fields.src.generate_derived_solar_fields import (
+from .generate_derived_solar_fields import (
     GenerateClearskySolarRadiation,
     GenerateSolarTime,
 )

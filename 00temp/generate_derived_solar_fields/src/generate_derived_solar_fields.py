@@ -12,6 +12,8 @@ from typing import Sequence, Union
 
 import numpy as np
 import xarray as xr
+
+import meteva_base as meb
 from numpy import ndarray
 
 from generate_derived_solar_fields.utils.base_plugin import BasePlugin
@@ -25,7 +27,6 @@ from generate_derived_solar_fields.src.utils.solar import (
     get_hour_of_day,
 )
 from generate_derived_solar_fields.src.utils.grid_mapping import extract_lat_lon_mesh
-from generate_derived_solar_fields.utils.utils import check_for_meb_griddata
 
 DEFAULT_TEMPORAL_SPACING_IN_MINUTES = 30
 
@@ -72,7 +73,7 @@ class GenerateSolarTime(BasePlugin):
         - `xr.DataArray`：与 `target_grid` 同维度结构的地方太阳时结果，
           变量名为 `local_solar_time`，单位为 `hours`。
         """
-        target_grid = check_for_meb_griddata(
+        target_grid = meb.checkout_griddata(
             target_grid, is_single=True, valid_val=(-np.inf, np.inf, np.nan)
         )
         if not isinstance(time, datetime):
@@ -138,7 +139,7 @@ class GenerateClearskySolarRadiation(BasePlugin):
             surface_altitude.attrs = dict(surface_altitude.attrs)
             surface_altitude.attrs["units"] = "m"
         else:
-            surface_altitude = check_for_meb_griddata(
+            surface_altitude = meb.checkout_griddata(
                 surface_altitude, is_single=True, valid_val=(-np.inf, np.inf, np.nan)
             )
             if not np.array_equal(surface_altitude.coords["lat"].values, target_grid.coords["lat"].values) or not np.array_equal(
@@ -153,7 +154,7 @@ class GenerateClearskySolarRadiation(BasePlugin):
             linke_turbidity.attrs = dict(linke_turbidity.attrs)
             linke_turbidity.attrs["units"] = "1"
         else:
-            linke_turbidity = check_for_meb_griddata(
+            linke_turbidity = meb.checkout_griddata(
                 linke_turbidity, is_single=True, valid_val=(-np.inf, np.inf, np.nan)
             )
             if not np.array_equal(linke_turbidity.coords["lat"].values, target_grid.coords["lat"].values) or not np.array_equal(
@@ -269,7 +270,7 @@ class GenerateClearskySolarRadiation(BasePlugin):
           `integral_of_surface_downwelling_shortwave_flux_in_air_assuming_clear_sky_wrt_time`，
           单位为 `W s m-2`，并附带时间上下界与积分相关属性。
         """
-        target_grid = check_for_meb_griddata(
+        target_grid = meb.checkout_griddata(
             target_grid, is_single=True, valid_val=(-np.inf, np.inf, np.nan)
         )
         if not isinstance(time, datetime):

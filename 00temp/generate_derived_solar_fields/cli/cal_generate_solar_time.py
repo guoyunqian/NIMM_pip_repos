@@ -20,7 +20,25 @@ def process(
     new_title: Optional[str] = None,
     output_path: Optional[str] = None,
 ) -> xr.DataArray:
-    """读取目标网格并计算地方太阳时。"""
+    """读取目标网格并计算地方太阳时。
+
+    参数
+    ----------
+    target_grid_path :
+        目标网格 meb 六维 nc（``member, level, time, dtime, lat, lon``）。
+        投影输入须含 ``grid_mapping_attrs``；亦可使用预处理后的经纬 meb。
+    time :
+        计算时刻（``datetime``），用于推算地方太阳时。
+    new_title :
+        可选，写出前覆盖 ``attrs["title"]``。
+    output_path :
+        可选输出 nc 路径；为 ``None`` 时不写文件。
+
+    返回
+    -------
+    xr.DataArray
+        地方太阳时场（``local_solar_time``，单位 hours，范围 0–24）。
+    """
     from generate_derived_solar_fields.src.generate_derived_solar_fields import GenerateSolarTime
 
     if not isinstance(time, datetime):
