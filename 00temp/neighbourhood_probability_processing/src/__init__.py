@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2019 NMC Developers.
 # Distributed under the terms of the GPL V3 License.
-"""neighbourhood_probability_processing 迁移版算法模块。"""
+"""nbhood 迁移版算法模块。"""
 
 from .nbhood import (
     BaseNeighbourhoodProcessing,

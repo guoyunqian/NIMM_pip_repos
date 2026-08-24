@@ -74,8 +74,7 @@ def process(
         GeneratePercentilesFromANeighbourhood,
         NeighbourhoodProcessing,
     )
-    from neighbourhood_probability_processing.cli.io import read_mask_or_weights_from_nc
-    
+
     if percentiles is None:
         percentiles = DEFAULT_PERCENTILES
 
@@ -94,13 +93,13 @@ def process(
     if degrees_as_complex and shape == "circular":
         raise RuntimeError("complex 角度模式不支持 circular 邻域。")
 
-    from neighbourhood_probability_processing.utils.utils import check_for_meb_griddata
-
-    input_data = check_for_meb_griddata(meb.read_griddata_from_nc(input_data_path), valid_val=(-np.inf, np.inf, np.nan))
+    
+    input_data = meb.checkout_griddata(meb.read_griddata_from_nc(input_data_path), valid_val=(-np.inf, np.inf, np.nan))
+    # 掩码不一定是六维 meb，按单变量 nc 读取。
     mask = (
         None
         if mask_path is None
-        else read_mask_or_weights_from_nc(mask_path)
+        else xr.open_dataarray(mask_path, decode_timedelta=False)
     )
 
     radius_or_radii, parsed_lead_times = radius_by_lead_time(list(radii), lead_times)
@@ -142,8 +141,31 @@ def process(
     result = result.astype(np.float32, copy=False)
 
     if output_path is not None:
-        # 无效格点已是 NaN，meb 会量化为 int32 哨兵，读回可还原（见 nbs/nbhood.ipynb）。
-        meb.write_griddata_to_nc(result, output_path, creat_dir=True)
+        # meb.write_griddata_to_nc 会把 NaN 量化成 int32 哨兵，改用 xarray 直写。
+        # 先写临时文件再替换，减轻 Windows 上目标文件被占用时的直接覆盖失败。
+        output_file = Path(output_path)
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        var_name = result.name if result.name else "neighbourhood_result"
+        tmp = output_file.with_suffix(output_file.suffix + ".tmp")
+        if tmp.exists():
+            tmp.unlink()
+        result.to_dataset(name=var_name).to_netcdf(
+            tmp,
+            mode="w",
+            encoding={
+                var_name: {
+                    "dtype": "float32",
+                    "_FillValue": np.float32(np.nan),
+                }
+            },
+        )
+        try:
+            tmp.replace(output_file)
+        except PermissionError as err:
+            raise PermissionError(
+                f"无法覆盖 {output_file}（可能被 Jupyter 或其他进程占用）。"
+                f"临时文件已写至 {tmp}，请关闭占用后重试。"
+            ) from err
 
     return result
 
@@ -163,7 +185,7 @@ if __name__ == "__main__":
     output_dir.mkdir(parents=True, exist_ok=True)
 
     #各输入文件的路径映射
-    input_data_path = str(input_dir / "input.nc")   #待处理输入场nc文件路径
+    input_data_path = input_dir / "input.nc"   #待处理输入场nc文件路径
     mask_path = None   #外部掩码nc文件路径
     output_path = str(output_dir / "cli_nbhood_square_result.nc")   #输出nc文件路径
 
@@ -176,16 +198,22 @@ if __name__ == "__main__":
     area_sum = False   #是否返回邻域和而非邻域平均
     halo_radius = None   #结果外圈裁剪半径（米）
 
-    result = process(
-        input_data_path,
-        neighbourhood_output,
-        radii,
-        mask_path=mask_path,
-        output_path=output_path,
-        neighbourhood_shape=neighbourhood_shape,
-        lead_times=lead_times,
-        degrees_as_complex=degrees_as_complex,
-        weighted_mode=weighted_mode,
-        area_sum=area_sum,
-        halo_radius=halo_radius,
-    )
+    if not input_data_path.is_file():
+        print(
+            f"示例输入不存在：{input_data_path}\n"
+            "请补充 test_data 后重试，或在此处配置自己的输入与输出路径。"
+        )
+    else:
+        result = process(
+            str(input_data_path),
+            neighbourhood_output,
+            radii,
+            mask_path=mask_path,
+            output_path=output_path,
+            neighbourhood_shape=neighbourhood_shape,
+            lead_times=lead_times,
+            degrees_as_complex=degrees_as_complex,
+            weighted_mode=weighted_mode,
+            area_sum=area_sum,
+            halo_radius=halo_radius,
+        )

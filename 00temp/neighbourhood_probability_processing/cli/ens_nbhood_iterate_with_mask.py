@@ -14,6 +14,14 @@ import xarray as xr
 import meteva_base as meb
 
 
+def _read_band_field(path: str) -> xr.DataArray:
+    """读取地形带 mask/weights：优先 meb 六维，失败则退回 xarray。"""
+    try:
+        return meb.read_griddata_from_nc(path)
+    except Exception:
+        return xr.open_dataarray(path, decode_timedelta=False)
+
+
 def process(
     input_data_path: str,
     mask_path: str,
@@ -34,12 +42,13 @@ def process(
         待处理输入场 nc 文件路径。
     mask_path : str
         掩码分层数据 nc 文件路径，需包含 ``coord_for_masking`` 维。
+        推荐为 Generate* 六维 meb（带维 ``level``）。
     coord_for_masking : str
-        掩码分层维名称，例如 ``topographic_zone``。
+        掩码分层维名称；与 generate_ancillary 对齐时为 ``level``。
     radii : sequence of float
         邻域半径（米），可单值或多值。
     weights_path : str, optional
-        掩码维折叠权重 nc 文件路径。
+        掩码维折叠权重 nc 文件路径（同样推荐六维 meb）。
     output_path : str, optional
         输出 nc 文件路径；为 None 时不写文件。
     neighbourhood_shape : str, default="square"
@@ -56,19 +65,15 @@ def process(
     """
     from neighbourhood_probability_processing.src.utils._helpers import radius_by_lead_time
     from neighbourhood_probability_processing.src.use_nbhood import ApplyNeighbourhoodProcessingWithAMask
-    from neighbourhood_probability_processing.cli.io import read_mask_or_weights_from_nc
-    from neighbourhood_probability_processing.utils.utils import check_for_meb_griddata
 
-
-    input_data = check_for_meb_griddata(meb.read_griddata_from_nc(input_data_path), valid_val=(-np.inf, np.inf, np.nan))
-    mask = read_mask_or_weights_from_nc(mask_path)
+    input_data = meb.checkout_griddata(
+        meb.read_griddata_from_nc(input_data_path),
+        valid_val=(-np.inf, np.inf, np.nan),
+    )
+    mask = _read_band_field(mask_path)
     if coord_for_masking not in mask.dims:
         raise ValueError(f"mask 中缺少分层维 {coord_for_masking}")
-    weights = (
-        None
-        if weights_path is None
-        else read_mask_or_weights_from_nc(weights_path)
-    )
+    weights = None if weights_path is None else _read_band_field(weights_path)
 
     radius_or_radii, parsed_lead_times = radius_by_lead_time(list(radii), lead_times)
     result = ApplyNeighbourhoodProcessingWithAMask(
@@ -80,25 +85,42 @@ def process(
         sum_only=area_sum,
     ).process(input_data, mask)
 
+    result = result.astype(np.float32, copy=False)
     if output_path is not None:
+        # meb.write_griddata_to_nc 会把 NaN 量化成 int32 哨兵，改用 xarray 直写。
+        output_file = Path(output_path)
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        var_name = result.name if result.name else "neighbourhood_result"
         if result.name is None:
             result = result.copy()
-            result.name = "neighbourhood_result"
-        # 无效格点已是 NaN，meb 会量化为 int32 哨兵，读回可还原。
-        meb.write_griddata_to_nc(result, output_path, creat_dir=True)
-
+            result.name = var_name
+        tmp = output_file.with_suffix(output_file.suffix + ".tmp")
+        if tmp.exists():
+            tmp.unlink()
+        result.to_dataset(name=var_name).to_netcdf(
+            tmp,
+            mode="w",
+            encoding={var_name: {"dtype": "float32", "_FillValue": None}},
+        )
+        try:
+            tmp.replace(output_file)
+        except PermissionError:
+            fallback = output_file.with_name(
+                f"{output_file.stem}_new{output_file.suffix}"
+            )
+            if fallback.exists():
+                fallback.unlink()
+            tmp.replace(fallback)
     return result
 
 
 if __name__ == "__main__":
     import sys
 
-    #添加项目根目录到系统路径,可直接运行示例脚本
     repo_root = Path(__file__).resolve().parents[2]
     if str(repo_root) not in sys.path:
         sys.path.insert(0, str(repo_root))
-        
-      #测试数据路径：输入取自 cli_input，结果写到 cli_output
+
     scenario_dir = (
         Path(__file__).resolve().parent.parent
         / "test_data"
@@ -108,26 +130,32 @@ if __name__ == "__main__":
     input_dir = scenario_dir / "cli_input"
     output_dir = scenario_dir / "cli_output"
 
-    #各输入文件的路径映射
-    input_data_path = str(input_dir / "thresholded_input.nc")   #待处理输入场
-    mask_path = str(input_dir / "orographic_bands_mask.nc")   #掩码分层数据
-    weights_path = str(input_dir / "orographic_bands_weights.nc")   #掩码维折叠权重
-    output_path = str(output_dir / "cli_iterated_result.nc")   #带权重折叠输出nc文件路径
+    input_data_path = input_dir / "thresholded_input.nc"
+    mask_path = str(input_dir / "orographic_bands_mask.nc")
+    weights_path = str(input_dir / "orographic_bands_weights.nc")
+    output_path = str(output_dir / "cli_iterated_result.nc")
 
-    coord_for_masking = "topographic_zone"   #掩码分层维名称
-    neighbourhood_shape = "square"   #邻域形状
-    radii: List[float] = [10000.0]   #邻域半径（米），折叠场景与官方 KGO 对齐
-    lead_times = None   #与radii对应的时效（小时）
-    area_sum = False   #是否输出邻域和（True）而非邻域平均（False）
+    # 与 GenerateOrographyBandAncils / GenerateTopographicZoneWeights 一致
+    coord_for_masking = "level"
+    neighbourhood_shape = "square"
+    radii: List[float] = [10000.0]
+    lead_times = None
+    area_sum = False
 
-    result = process(
-        input_data_path,
-        mask_path,
-        coord_for_masking,
-        radii,
-        weights_path=weights_path,
-        output_path=output_path,
-        neighbourhood_shape=neighbourhood_shape,
-        lead_times=lead_times,
-        area_sum=area_sum,
-    )
+    if not input_data_path.is_file():
+        print(
+            f"示例输入不存在：{input_data_path}\n"
+            "请补充 test_data 后重试，或在此处配置自己的输入与输出路径。"
+        )
+    else:
+        process(
+            str(input_data_path),
+            mask_path,
+            coord_for_masking,
+            radii,
+            weights_path=weights_path,
+            output_path=output_path,
+            neighbourhood_shape=neighbourhood_shape,
+            lead_times=lead_times,
+            area_sum=area_sum,
+        )

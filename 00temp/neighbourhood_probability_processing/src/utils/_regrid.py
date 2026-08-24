@@ -58,7 +58,11 @@ def _is_distance_unit(unit: Optional[str]) -> bool:
 
 
 def is_projected_spatial_dataarray(data: xr.DataArray) -> bool:
-    """判断最后两维是否为米制投影坐标输入。"""
+    """判断最后两维是否为米制投影坐标输入。
+
+    meb 约定：常规经纬输入 ``lat/lon`` 可无 ``units``；Improver 兼容投影 meb
+    在空间坐标写距离 ``units``，且主变量通常带 ``grid_mapping_attrs``。
+    """
     if data.ndim < 2:
         return False
     y_dim, x_dim = data.dims[-2], data.dims[-1]
@@ -72,7 +76,7 @@ def is_projected_spatial_dataarray(data: xr.DataArray) -> bool:
 def is_geographic_spatial_dataarray(data: xr.DataArray) -> bool:
     """判断最后两维是否应按经纬输入处理。
 
-    两维 ``units`` 均为距离单位 → 投影；其余（缺失、degree 等）→ 经纬。
+    两维 ``units`` 均为距离单位 → 投影；其余（缺失、degree 等）→ 经纬（meb 默认）。
     """
     if data.ndim < 2:
         return False
@@ -247,6 +251,21 @@ def prepare_geographic_input(
     if isinstance(mask, xr.DataArray):
         projected_mask = regrid_dataarray_to_projected(mask, ctx)
     return projected_data, projected_mask, ctx
+
+
+def prepare_grid_spacing_dataarray(data: xr.DataArray) -> xr.DataArray:
+    """返回用于推断米制格距的 DataArray（空间坐标轴）。
+
+    meb 约定：``lat/lon`` 无 ``units`` 或为度 → 经纬网，经 LAEA 轴换算为米制后推断；
+    空间坐标带距离 ``units``（通常与 ``grid_mapping_attrs`` 配套）→ 投影网，直接用原坐标。
+    格点值与索引不变，仅替换/换算空间坐标标签供 ``infer_equal_area_grid_spacing_m`` 等使用。
+    """
+    if is_projected_spatial_dataarray(data):
+        return data
+    if not is_geographic_spatial_dataarray(data):
+        return data
+    projected, _, ctx = prepare_geographic_input(data)
+    return projected if ctx is not None else data
 
 
 def restore_geographic_output(

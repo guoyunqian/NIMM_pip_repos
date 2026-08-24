@@ -121,12 +121,12 @@
 
 本模块新增了 `xr.DataArray` 输入分支以对接 `meteva_base` 六维网格，而 **xarray 不保留** `MaskedArray` **语义**：`DataArray.values` 是普通 `ndarray`，构造时的 `mask` 位会被丢弃（通常写成 `NaN`）；同时算法入口与原方法一致**拒绝裸** `NaN` **输入**。二者叠加，`DataArray` 分支既读不到 `mask` 位、也不能用 `NaN` 表达内部缺测，因此**内部掩码只能通过** `MaskedArray` **类型输入**（并显式给 `grid_spacing` 走 numpy 路径）。
 
-`DataArray` **分支的 re_mask 输出**：`re_mask=True` 时把无效格点写为 `NaN`（有效格点为邻域统计值），而不是像 `MaskedArray` 那样返回带 `mask` 的数组——因为 `NaN` 能直接交给 `meteva_base.write_griddata_to_nc` 写盘（量化为哨兵、读回可还原）。`re_mask=False` 时无效位保留邻域统计值。
+`DataArray` **分支的 re_mask 输出**：`re_mask=True` 时把无效格点写为 `NaN`（有效格点为邻域统计值），而不是像 `MaskedArray` 那样返回带 `mask` 的数组。CLI 用 float32 `to_netcdf`（`_FillValue=NaN`）写出，无效格点保持为 `NaN`；不要用 `meb.write_griddata_to_nc`，它会把 `NaN` 量化成约 `-2.147e6` 的 int32 哨兵。`re_mask=False` 时无效位保留邻域统计值。
 
 其余说明：
 
 - **外部掩码输入**：两条路径都支持；与 `MaskedArray` 内部掩码同时给出时无效格点取并集。
-- **内部掩码不经 CLI**：CLI 用 `meb.read_griddata_from_nc` + `check_for_meb_griddata` 读盘，会把大填充值夹成 `NaN`，无法承载 `MaskedArray` 内部掩码，故内部掩码仅作算法层演示；外部掩码不受影响。
+- **内部掩码不经 CLI**：CLI 读盘得到普通 `DataArray`，算法入口拒绝裸 `NaN`，无法承载 `MaskedArray` 内部掩码，故内部掩码仅作算法层演示；外部掩码不受影响。
 
 要点：
 
@@ -179,17 +179,14 @@
 
 ### 4.2 xarray 六维网格输入
 
-将`percentile`维度与输入数据的`member`维度联合后映射到新的 `member` 维。输出维度为标准六维：
+输入要求集合连续场、`level` 长度为 1（无物理层次占位）。输出保持六维：
 
 - `member, level, time, dtime, lat, lon`
 
-百分位信息通过以下坐标/属性保留：
+邻域百分位写入 `level` 坐标（如 25 / 50 / 75），`member` 仍为输入集合成员（对齐原 Iris 的 `realization` + `percentile` 语义）：
 
-- 坐标：`member_percentile`
-- 坐标：`member_input_member`
-- 属性：`member_is_stacked="True"`
-- 属性：`member_stack_dims="member,percentile"`
-- 属性：`member_units="%"`
+- 属性：`level_type="neighbourhood_percentile"`
+- 属性：`level_units="%"`
 
 ## 5. 空间坐标与网格处理
 
@@ -290,7 +287,7 @@ flowchart LR
 
 - 仅支持**圆形**邻域；
 - 不支持 masked 输入；
-- xarray + meb 六维输出时，将「成员 × 百分位」映射回标准六维 `member` 维。
+- xarray + meb 六维输出时，将邻域百分位写入 `level` 维（`member` 不变）。
 
 ## 7. 关键函数说明
 
@@ -407,7 +404,8 @@ da = xr.DataArray(
 plugin = GeneratePercentilesFromANeighbourhood(radii=20000.0, percentiles=[25.0, 50.0, 75.0])
 result = plugin.process(da)
 print(result.dims, result.shape)
-print("coords:", [c for c in result.coords if "percentile" in c or "member" in c])
+print("level (percentiles):", result.coords["level"].values)
+print("level_type:", result.attrs.get("level_type"))
 ```
 
 ### 8.5 GeneratePercentilesFromANeighbourhood（numpy 输入）
@@ -425,6 +423,24 @@ print(result.shape)  # (3, 4, 50, 60)
 ## 9. CLI 用法
 
 示例脚本：`neighbourhood_probability_processing/cli/ens_nbhood.py`
+
+### 9.0 官方样例预处理
+
+Notebook / pytest 使用的六维输入由独立脚本生成（`nbhood.ipynb` 与 `use_nbhood.ipynb` 均不再内嵌预处理）：
+
+```bash
+python neighbourhood_probability_processing/cli/preprocess_test_data.py
+```
+
+约定：
+
+- 写出目录：
+  - `neighbourhood_probability_processing/test_data/official_test_nbhood/cli_input/{basic,mask,percentile}/`
+  - `neighbourhood_probability_processing/test_data/official_test_use_nbhood/{iterate_with_mask,land_and_sea}/cli_input/`
+- 官方投影维仅重命名为 `lat` / `lon`（数值仍为投影米制）
+- **阈值维 `threshold` → 六维 `level`**（与 `reliability_calibration` 一致）；`realization` → `member`
+- 概率场典型形状：`(member=1, level=阈值数, time, dtime, lat, lon)`
+- use_nbhood 的地形带 mask/weights 为六维 meb（带维 `level`）；`iterate_with_mask` 由 Generate* 生成，`land_and_sea` 由官方 band 组装；亦兼容历史三维 `topographic_zone`
 
 ### 9.1 运行方式
 
@@ -450,7 +466,7 @@ result = process(
 )
 ```
 
-其他场景（圆形、**外部掩码**、百分位等）见 `neighbourhood_probability_processing/nbs/nbhood.ipynb` CLI 验证小节；结果均写出到 `cli_output/`。CLI 仅支持外部掩码（`mask_path=`），不支持内部掩码（见 §3.2）。
+其他场景（圆形、**外部掩码**、百分位等）见 `neighbourhood_probability_processing/nbs/nbhood.ipynb` CLI 验证单元格；结果均写出到 `cli_output/`。CLI 仅支持外部掩码（`mask_path=`），不支持内部掩码（见 §3.2）。
 
 ### 9.2 `process()` 主要参数
 

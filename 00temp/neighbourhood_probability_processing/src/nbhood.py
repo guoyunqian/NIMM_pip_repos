@@ -12,11 +12,13 @@ from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import xarray as xr
+
+import meteva_base as meb
 from numpy import ndarray
 from scipy.ndimage import correlate
 
-from neighbourhood_probability_processing.utils.base_plugin import BasePlugin
-from neighbourhood_probability_processing.utils.utils import check_for_meb_griddata, rebuild_to_meb_griddata
+from neighbourhood_probability_processing.utils.base_plugin import PostProcessingPlugin
+from neighbourhood_probability_processing.utils.utils import rebuild_to_meb_griddata
 from neighbourhood_probability_processing.src.utils._grid import (
     _distance_to_number_of_grid_cells,
     _extract_lead_times_from_xarray,
@@ -84,7 +86,7 @@ def circular_kernel(ranges: int, weighted_mode: bool) -> ndarray:
     return kernel
 
 
-class BaseNeighbourhoodProcessing(BasePlugin):
+class BaseNeighbourhoodProcessing(PostProcessingPlugin):
     """邻域处理基础类。
 
     负责邻域算法共享的前置逻辑：
@@ -168,7 +170,7 @@ class BaseNeighbourhoodProcessing(BasePlugin):
         """
         # 拦截裸 NaN；内部掩码仅通过 MaskedArray.mask 表达。
         if isinstance(data, xr.DataArray):
-            data = check_for_meb_griddata(data, valid_val=(-np.inf, np.inf, np.nan))
+            data = meb.checkout_griddata(data, valid_val=(-np.inf, np.inf, np.nan))
             values = np.asarray(data.values)
             if np.isnan(values).any():
                 raise ValueError("输入数据中存在未掩码的 NaN 值。")
@@ -221,7 +223,7 @@ class NeighbourhoodProcessing(BaseNeighbourhoodProcessing):
     re_mask : bool, default=True
         是否在输出中标记无效格点。
         ``MaskedArray`` 路径返回 ``MaskedArray``：无效位**数值**仍为邻域统计结果，以 ``mask`` 标记（与上游 IMPROVER 一致）。
-        ``DataArray`` 六维路径在 ``re_mask=True`` 时将无效格点写为 ``NaN``，直接兼容 ``meteva_base.write_griddata_to_nc`` 与 float32 写盘器；``re_mask=False`` 时无效位保留邻域统计值。
+        ``DataArray`` 六维路径在 ``re_mask=True`` 时将无效格点写为 ``NaN``，供 CLI 以 float32 直写 NetCDF 保留缺测；``re_mask=False`` 时无效位保留邻域统计值。
 
     Raises
     ------
@@ -243,7 +245,7 @@ class NeighbourhoodProcessing(BaseNeighbourhoodProcessing):
     Examples
     --------
     >>> import numpy as np
-    >>> from nbhood import NeighbourhoodProcessing
+    >>> from neighbourhood_probability_processing import NeighbourhoodProcessing
     >>> 
     >>> # 创建示例数据
     >>> data = np.random.rand(10, 20, 30)  # 前导维 + 空间维
@@ -590,10 +592,9 @@ class GeneratePercentilesFromANeighbourhood(BaseNeighbourhoodProcessing):
     -----
     1. 本插件仅支持圆形邻域，不支持方形邻域。
     2. 当输入为标准 meb 六维 xarray.DataArray 时：
-        - 输出会重组为六维 xarray
-        - 将 (member, percentile) 合并映射到 member 维
-        - 添加辅助坐标 member_input_member 和 member_percentile
-        - 在属性中添加 member_is_stacked="True" 标记
+        - 输出保持六维；``member`` 仍为集合成员
+        - 邻域百分位写入 ``level`` 坐标（输入 ``level`` 长度须为 1，即无物理层次占位）
+        - 属性 ``level_type="neighbourhood_percentile"``、``level_units="%"``
     3. 对于 numpy.ndarray 输入，输出数组的首轴为 percentile 维。
     4. 不支持 masked array 输入。
 
@@ -606,7 +607,7 @@ class GeneratePercentilesFromANeighbourhood(BaseNeighbourhoodProcessing):
     --------
     >>> import xarray as xr
     >>> import numpy as np
-    >>> from nbhood import GeneratePercentilesFromANeighbourhood
+    >>> from neighbourhood_probability_processing import GeneratePercentilesFromANeighbourhood
     >>> 
     >>> # 创建 meb 格式的示例数据
     >>> data = xr.DataArray(
@@ -621,7 +622,8 @@ class GeneratePercentilesFromANeighbourhood(BaseNeighbourhoodProcessing):
     ... )
     >>> result = processor.process(data)
     >>> print(result.dims)  # 输出: ('member', 'level', 'time', 'dtime', 'lat', 'lon')
-    >>> print(result.attrs.get('member_is_stacked', "False"))  # 输出: "True"
+    >>> print(result.sizes["level"])  # 百分位个数，如 3
+    >>> print(result.attrs.get("level_type"))  # neighbourhood_percentile
     """
 
     def __init__(
@@ -664,8 +666,7 @@ class GeneratePercentilesFromANeighbourhood(BaseNeighbourhoodProcessing):
         1. 基类校验输入并准备半径；
         2. 展平前导维并逐二维切片计算圆形邻域百分位；
         3. ndarray 路径输出首轴为 percentile；
-        4. 标准 meb 六维 xarray 路径将 ``(member, percentile)`` 合并映射后，
-           返回六维结果。
+        4. 标准 meb 六维 xarray 路径将邻域百分位写入 ``level`` 维（``member`` 不变）。
 
         参数
         ----------
@@ -747,13 +748,21 @@ class GeneratePercentilesFromANeighbourhood(BaseNeighbourhoodProcessing):
             "lon",
         }:
             template = data.transpose("member", "level", "time", "dtime", "lat", "lon")
-            result_da = xr.DataArray(
-                np.asarray(result, dtype=np.float32),
-                dims=("percentile", "member", "level", "time", "dtime", "lat", "lon"),
+            n_input_level = int(template.sizes["level"])
+            if n_input_level != 1:
+                raise ValueError(
+                    "六维 meb 百分位邻域要求输入 level 长度为 1（无物理层次占位）；"
+                    f"当前 level={n_input_level}。"
+                )
+
+            # result: (percentile, member, level=1, time, dtime, lat, lon)
+            result_vals = np.asarray(result, dtype=np.float32)[:, :, 0, :, :, :, :]
+            merged = xr.DataArray(
+                np.moveaxis(result_vals, 0, 1),
+                dims=("member", "level", "time", "dtime", "lat", "lon"),
                 coords={
-                    "percentile": np.asarray(self.percentiles, dtype=np.float32),
                     "member": template.coords["member"].values,
-                    "level": template.coords["level"].values,
+                    "level": np.asarray(self.percentiles, dtype=np.float32),
                     "time": template.coords["time"].values,
                     "dtime": template.coords["dtime"].values,
                     "lat": template.coords["lat"].values,
@@ -762,32 +771,8 @@ class GeneratePercentilesFromANeighbourhood(BaseNeighbourhoodProcessing):
                 attrs=dict(template.attrs),
                 name=data.name if data.name is not None else "neighbourhood_result",
             )
-
-            # 将输入 member 与新增 percentile 先合并为联合成员维，
-            # 再映射回标准六维中的 member，保证输出结构仍为 meb 六维。
-            stacked = result_da.stack(stacked_member=("member", "percentile"))
-            member_index = stacked.indexes["stacked_member"]
-            input_member = np.asarray(member_index.get_level_values("member"))
-            member_percentile = np.asarray(
-                member_index.get_level_values("percentile"), dtype=np.float32
-            )
-            # 清理同名 level 坐标，避免维度重命名冲突。
-            drop_names = [name for name in ("member", "percentile") if name in stacked.coords]
-            if drop_names:
-                stacked = stacked.drop_vars(drop_names)
-            stacked = stacked.transpose(
-                "stacked_member", "level", "time", "dtime", "lat", "lon"
-            ).rename({"stacked_member": "member"})
-
-            merged = stacked.assign_coords(
-                member=np.arange(stacked.sizes["member"], dtype=np.int32),
-                member_input_member=("member", input_member),
-                member_percentile=("member", member_percentile),
-            ).transpose("member", "level", "time", "dtime", "lat", "lon")
-            merged.attrs.update(dict(template.attrs))
-            merged.attrs["member_is_stacked"] = "True"
-            merged.attrs["member_stack_dims"] = "member,percentile"
-            merged.attrs["member_units"] = "%"
+            merged.attrs["level_type"] = "neighbourhood_percentile"
+            merged.attrs["level_units"] = "%"
             if merged.name is None:
                 merged = merged.copy()
                 merged.name = "neighbourhood_result"
