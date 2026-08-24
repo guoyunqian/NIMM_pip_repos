@@ -200,6 +200,7 @@ def process_single(para_path, beta_path, is_obs_bjt, clip_coords, split_lat, spl
 def process_multi(params, pro_count, para_path, beta_path, is_obs_bjt, clip_coords, split_lat, split_lon, predict_valid_list):
     """多进程批量处理多个 ``time_input``。"""
     sw_all = datetime.datetime.now()
+    print("=----------------------------------------> ???")
     parallel_tool = SimpleParallelTool(
         target_func=process_single,
         parallel_mode="async",
@@ -263,15 +264,22 @@ def process(*,
 
 if __name__ == "__main__":
     # 直接运行：在此修改 process 传参即可；命令行请用 python -m cli ...
+    target_dateime = datetime.datetime.now().replace(hour=8, minute=0, second=0)
+    target_dateime = target_dateime.replace(day=target_dateime.day - 2)
+    # target_dateime = datetime.datetime(2026,8,9,8)
+    time_inputs = [(target_dateime + datetime.timedelta(hours=h)).strftime("%Y%m%d%H00") for h in [0, 12]]
+    print(time_inputs)
+
     process(
-        time_inputs=["202605240800"],
+        # time_inputs=["202605240800"],
+        time_inputs=time_inputs,
         predict_valid_list=[36, 60, 84, 108, 132, 156, 180, 204, 228, 252],
         para_path=None,
         beta_path=None,
         is_obs_bjt=True,
         is_multi=False,
         clip_coords=[70.0, 140.0, 0.0, 60.0, 0.1, 0.1],
-        pro_count=4,
+        pro_count=6,
         split_lat=1,
         split_lon=1,
     )

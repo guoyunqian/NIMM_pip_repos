@@ -4,9 +4,9 @@ import matplotlib.pyplot as plt
 import datetime
 
 
-ecmwf_v2 = r'D:/Work/optimize_TP_24H_250402/resource/output/rain24/ecmwf/YYYYMMDDHH/YYYYMMDDHH.TTT.m4'
-ecmwf_nimm = r'D:/Work/optimize_tp_24h/resource/output/rain24/ecmwf/YYYYMMDDHH/YYYYMMDDHH.TTT.m4'
-png_dir = r'D:/Work/optimize_tp_24h/resource/output/pngs/YYYYMMDD'
+ecmwf_v2 = r'D:/Work/multi_optimize_tp_24h_250402/resource/output/rain24/ecmwf/YYYYMMDDHH/YYYYMMDDHH.TTT.m4'
+ecmwf_nimm = r'D:/Work/multi_optimize_tp_24h/resource/output/rain24/ecmwf/YYYYMMDDHH/YYYYMMDDHH.TTT.m4'
+png_dir = r'D:/Work/multi_optimize_tp_24h/resource/output/pngs/YYYYMMDD'
 dtime = 36
 ftime = '2025100100'
 
@@ -28,8 +28,8 @@ meb.add_contourf(axs[1], ec2_grd, cmap='rainbow', clevs=clevs, add_colorbar=True
 # plt.savefig(f"{pg_path}/{ftime}_{dtime:03d}_1.png", bbox_inches='tight')
 
 
-ecmwf_v2 = r'D:/Work/optimize_TP_24H_250402/resource/output/rain24/ecmwf/YYYYMMDDHH/YYYYMMDDHH.TTT.m3'
-ecmwf_nimm = r'D:/Work/optimize_tp_24h/resource/output/rain24/ecmwf/YYYYMMDDHH/YYYYMMDDHH.TTT.m3'
+ecmwf_v2 = r'D:/Work/multi_optimize_tp_24h_250402/resource/output/rain24/ecmwf/YYYYMMDDHH/YYYYMMDDHH.TTT.m3'
+ecmwf_nimm = r'D:/Work/multi_optimize_tp_24h/resource/output/rain24/ecmwf/YYYYMMDDHH/YYYYMMDDHH.TTT.m3'
 dtime = 36
 ec_2_path = meb.get_path(ecmwf_v2, fo_time, dtime)
 ec_1_path = meb.get_path(ecmwf_nimm, fo_time, dtime)

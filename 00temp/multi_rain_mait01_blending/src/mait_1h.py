@@ -270,13 +270,18 @@ def process(*,
 
 if __name__ == "__main__":
     # 直接运行：在此修改 process 传参即可；命令行请用 python -m cli ...
+    # target_dateime = datetime.datetime.now().replace(hour=0, minute=0, second=0)
+    # target_dateime = target_dateime.replace(day=target_dateime.day - 1)
+    target_dateime = datetime.datetime(2026,8,9,8)
+    time_inputs = [(target_dateime + datetime.timedelta(hours=h)).strftime("%Y%m%d%H00") for h in range(24)]
+    print(time_inputs)
     process(
-        time_inputs=["202605260000"],
-        predict_valid_list=[1, 2, 3],
+        time_inputs=time_inputs,
+        predict_valid_list=list(range(1, 48 + 1, 1)),
         para_path=None,
         beta_path=None,
-        is_obs_bjt=None,
-        is_multi=False,
+        is_obs_bjt=True,
+        is_multi=True,
         clip_coords=None,
         pro_count=4,
         split_lat=1,

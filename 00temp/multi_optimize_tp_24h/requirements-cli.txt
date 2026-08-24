@@ -1,6 +1,0 @@
-meteva
-pandas
-numpy
-xarray
-scipy
-python-dateutil

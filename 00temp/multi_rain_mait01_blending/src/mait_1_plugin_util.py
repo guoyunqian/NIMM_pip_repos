@@ -193,6 +193,7 @@ def _read_history_source_micaps3(predict_valid, ctx: RunContext):
     dt_fact, dt_valid, dt_model_current = _analysis_time2(md_current_datetime, predict_valid, num3, is_obs_bjt)
     # 瀹炲喌鏄寳浜椂
     sta_rain_file_path = meb.get_path(fact_path, dt_fact, 000)
+    print("=-------------------------------------------->>> :: ", sta_rain_file_path)
     if not os.path.exists(sta_rain_file_path):
         # simple_log.error(sta_rain_file_path + " is not exist")
         # predict_valid += predict_interval

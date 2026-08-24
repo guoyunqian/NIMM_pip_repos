@@ -6,7 +6,7 @@
 # @Software: PyCharm
 import numpy as np
 import xarray as xr
-from data_proc import clear_to_num_less_than_grd
+from utils.data_proc import clear_to_num_less_than_grd
 
 class similarity:
 

@@ -344,11 +344,12 @@ class MetevaSpatialAnalisis:
         grid_lat_start = gd_background_data.lat_start
         grid_xn = gd_background_data.xn
         grid_yn = gd_background_data.yn
+        grid_data0 = np.zeros_like(grid_data)
         # 站点数据
         sta_num = len(sta_lon)
         # 站点数据
         sd_from_background_data = sta_data0
-        sd_delta_input_data_data = np.asarray(sta_data, dtype=float)
+        sd_delta_input_data_data = sta_data
 
         influence_grid = int(distance_limit / grid_lon_interval)
 
@@ -371,14 +372,17 @@ class MetevaSpatialAnalisis:
             total_weight = np.sum(single_weight)
             sd_from_background_data[n] = val_tmp / total_weight if total_weight >= 1e-05 else sta_data[n]
 
-        # 站点残差 = 站点值 - 背景在站点处的加权平均
+        # 站点数据相减
         sd_delta_input_data_data = sd_delta_input_data_data - sd_from_background_data
+        # 格点
+        gd_output_data = copy_data(gd_background_data)
+        gd_weight_data = copy_data(gd_background_data)
+        gd_points_data_data = grid_data0
 
-        # 用独立数组累加，避免 arr[切片][mask] += 只改到临时拷贝、写不回原场
-        acc = np.zeros_like(grid_data, dtype=float)
-        wacc = np.zeros_like(grid_data, dtype=float)
-        cacc = np.zeros_like(grid_data, dtype=float)
+        gd_output_data.clear_to_num(0.0)
+        gd_weight_data.clear_to_num(0.0)
 
+        # for n in tqdm(range(sta_num)):
         for n in range(sta_num):
             ix = int((sta_lon[n] - grid_lon_start) / grid_lon_interval)
             iy = int((sta_lat[n] - grid_lat_start) / grid_lat_interval)
@@ -391,26 +395,24 @@ class MetevaSpatialAnalisis:
             lat_distance = grid_lat[iy_start:iy_end + 1] - sta_lat[n]
             total_distance = np.sqrt(lon_distance ** 2 + lat_distance ** 2)
             mask = total_distance <= distance_limit
-            if not np.any(mask):
-                continue
             single_weight = 1.0 / np.power(total_distance[mask] + smooth, power_param)
-            ii, jj = np.nonzero(mask)
-            acc[ix_start + ii, iy_start + jj] += single_weight * sd_delta_input_data_data[n]
-            wacc[ix_start + ii, iy_start + jj] += single_weight
-            cacc[ix_start + ii, iy_start + jj] += 1.0
 
-        gd_output_data = copy_data(gd_background_data)
-        update_condition = (wacc >= 1e-5) & (cacc >= number_limit)
-        gd_output_data_update = np.zeros_like(grid_data, dtype=float)
-        valid = update_condition
-        gd_output_data_update[valid] = acc[valid] / wacc[valid] + grid_data[valid]
+            gd_output_data.data[ix_start:ix_end + 1, iy_start:iy_end + 1][mask] += single_weight * \
+                                                                                   sd_delta_input_data_data[
+                                                                                       n]
+            gd_weight_data.data[ix_start:ix_end + 1, iy_start:iy_end + 1][mask] += single_weight
+            gd_points_data_data[ix_start:ix_end + 1, iy_start:iy_end + 1][mask] += 1.0
 
-        gd_output_data.data[valid] = np.where(
-            gd_output_data_update[valid] <= rain_limit,
-            grid_data[valid],
-            gd_output_data_update[valid]
+        update_condition = (gd_weight_data.data >= 1e-5) & (gd_points_data_data >= number_limit)
+        gd_output_data_update = gd_output_data.data / gd_weight_data.data + grid_data
+
+        gd_output_data.data[update_condition] = np.where(
+            gd_output_data_update[update_condition] <= rain_limit,
+            grid_data[update_condition],
+            gd_output_data_update[update_condition]
         )
-        gd_output_data.data[~valid] = grid_data[~valid]
+
+        gd_output_data.data[~update_condition] = grid_data[~update_condition]
         return gd_output_data
 
     @staticmethod
@@ -695,7 +697,8 @@ class GridData():
             for j in range(self._yn):
                 for i in range(self._xn):
                     self.data[i][j] = val_tmp[i][j]
-            # 不在平滑迭代中途强制 ≤0→0，避免过早掐掉小雨扩散；最终由 clear_to_num_less_than 处理
+                    if self.data[i][j] <= 0.0:
+                        self.data[i][j] = 0.0
         self._data = self.data
 
     def multi_val(self, input):
@@ -859,7 +862,8 @@ class NcData():
             for j in range(self._yn):
                 for i in range(self._xn):
                     self.data[i][j] = val_tmp[i][j]
-            # 不在平滑迭代中途强制 ≤0→0，避免过早掐掉小雨扩散；最终由 clear_to_num_less_than 处理
+                    if self.data[i][j] <= 0.0:
+                        self.data[i][j] = 0.0
         self._data = self.data
 
     def multi_val(self, input):

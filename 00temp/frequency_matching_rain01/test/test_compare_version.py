@@ -5,8 +5,8 @@ import datetime
 
 
 ecmwf_v2 = r'D:/Work/QpfFrequencyMatch_Rain01/output/rain01/ecmwf_V2/YYYYMMDD/YYYYMMDDHH.TTT.m4'
-ecmwf_nimm = r'D:/Work/qpf_fm_rain01/resource/data/output/rain01/ecmwf_nimm/YYYYMMDD/YYYYMMDDHH.TTT.m4'
-png_dir = r'D:/Work/qpf_fm_rain01/resource/data/output/pngs/YYYYMMDD'
+ecmwf_nimm = r'D:/Work/multi_qpf_fm_rain01/resource/data/output/rain01/ecmwf_nimm/YYYYMMDD/YYYYMMDDHH.TTT.m4'
+png_dir = r'D:/Work/multi_qpf_fm_rain01/resource/data/output/pngs/YYYYMMDD'
 dtime = 1
 ftime = '2025100100'
 
@@ -29,7 +29,7 @@ meb.add_contourf(axs[1], ec2_grd, cmap='rainbow', clevs=clevs, add_colorbar=True
 
 
 ecmwf_v2 = r'D:/Work/QpfFrequencyMatch_Rain01/output/rain01/ecmwf_V2/YYYYMMDD/YYYYMMDDHH.TTT.m3'
-ecmwf_nimm = r'D:/Work/qpf_fm_rain01/resource/data/output/rain01/ecmwf_nimm/YYYYMMDD/YYYYMMDDHH.TTT.m3'
+ecmwf_nimm = r'D:/Work/multi_qpf_fm_rain01/resource/data/output/rain01/ecmwf_nimm/YYYYMMDD/YYYYMMDDHH.TTT.m3'
 dtime = 1
 ec_2_path = meb.get_path(ecmwf_v2, fo_time, dtime)
 ec_1_path = meb.get_path(ecmwf_nimm, fo_time, dtime)

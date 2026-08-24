@@ -315,13 +315,12 @@ def prepare_dataset_on_foTime(para, recover=True, times=None):
                 times = []
                 time1 = para["begin_time"]
                 while time1 <= para["end_time"]+datetime.timedelta(hours=252):
+                # while time1 <= para["end_time"]:
                     times.append(time1)
-                    time1 = time1 + datetime.timedelta(hours=12)
+                    time1 = time1 + datetime.timedelta(hours=1)
 
             sta_ob = creat_ob_dataset_on_foTime_multi(para, times=times, num_process=num_process)
-        print("=--------------------------------------------------------->>>>>>>> sta_ob")
-        print(sta_ob, hdf_path)
-        print("=--------------------------------------------------------->>>>>>>> sta_ob")
+
         sta_ob = sta_list_to_df(sta_ob, para, hdf_path)
         print("=-------------------------------------------------->>>> sta_ob: \n", sta_ob)
         operation = para["ob_data"]["operation"]
@@ -807,7 +806,6 @@ def creat_ob_dataset_on_obTime(para, ele="ob", times=None, recover=True):
             else:
                 file_exit = False
                 path = meb.get_path(dir_ob, file_time)
-                print("=------------------------------------->>> ob path: ", path)
                 if is_gds:
                     if path in gds_file_list:
                         file_exit = True
@@ -1018,9 +1016,7 @@ def creat_fo_dataset_on_foTime(model, para, times=None):
 
                                 # meb.set_stadata_coords(dat, time=time1, dtime=dt)
                                 meb.set_stadata_coords(dat, time=time1+datetime.timedelta(hours=8), dtime=dt)
-                                print("=----------------------------------------->>>>")
-                                print(dt)
-                                print("=----------------------------------------->>>>")
+
                                 data_name0 = meb.get_stadata_names(dat)
                                 if len(data_name0) == 2:
                                     data_name1 = ["u_" + model, "v_" + model]
@@ -1142,9 +1138,6 @@ def creat_ob_dataset_on_foTime(para, ele="ob", times=None, recover=True):
             n_times.append(_time+datetime.timedelta(hours=8))
         times = n_times
 
-    print("=--------------------------------------------->>> :: dir_ob ", dir_ob)
-    print(times, exist_time_list)
-    print("=--------------------------------------------->>> :: dir_ob ", dir_ob)
     for time1 in times:
         if time1.hour in hours:
             if time1 not in exist_time_list:
@@ -1159,7 +1152,6 @@ def creat_ob_dataset_on_foTime(para, ele="ob", times=None, recover=True):
                         # file_time = time1 + datetime.timedelta(hours=8)
                         file_time = time1
 
-                print("=--------------------------------------->>>> file_time: ", file_time)
                 if dir_ob is None:
                     dat = read_method(**read_para, time=file_time)
                     if dat is not None:
@@ -1179,7 +1171,6 @@ def creat_ob_dataset_on_foTime(para, ele="ob", times=None, recover=True):
                 else:
                     file_exit = False
                     path = meb.get_path(dir_ob, file_time)
-                    print("=----------------------------------->>>> path: ", path)
                     if is_gds:
                         if path in gds_file_list:
                             file_exit = True
@@ -1189,23 +1180,19 @@ def creat_ob_dataset_on_foTime(para, ele="ob", times=None, recover=True):
                     if file_exit:
                         try:
                             dat = read_method(path, time=file_time, **read_para)
-                            print("=----------------------------------->>>> 0 dat: \n", dat)
                             if dat is not None:
                                 dat = meb.fun.comp.put_stadata_on_station(dat, station)
                                 if not isinstance(dat, pd.DataFrame):
                                     interp = para["interp"]
                                     dat = interp(dat, station)
-                                print("=----------------------------------->>>> * dat: \n", dat)
                                 if reasonable_value is not None:
                                     dat = meb.sele_by_para(dat, value=reasonable_value)
-                                print("=----------------------------------->>>> 1 dat: \n", dat)
 
                                 data_name0 = meb.get_stadata_names(dat)
                                 if len(data_name0) == 1:
                                     meb.set_stadata_names(dat, data_name)
                                 meb.set_stadata_coords(dat, time=time1)
 
-                                print("=----------------------------------->>>> 2 dat: \n", dat)
                                 sta_list.append(dat)
                                 print("success read data from " + path)
                             else:

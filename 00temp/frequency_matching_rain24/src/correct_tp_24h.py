@@ -6,15 +6,28 @@
 # @Software: PyCharm
 
 import os, sys, json
-from config import *
+
+# 直跑/导入时确保项目根在 path 前，utils 走根目录合并包
+_SRC_DIR = os.path.dirname(os.path.abspath(__file__))
+_ROOT_DIR = os.path.dirname(_SRC_DIR)
+for _p in (_ROOT_DIR, _SRC_DIR):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+from utils.config import *
 from datetime import timedelta, datetime
-from multiprocessing import Pool
 from utils.logger import logger
-from utils.util_env import get_resolved_paths, get_runtime_config
+from utils.util_env import (
+    get_resolved_paths,
+    get_runtime_config,
+    get_default_is_multi,
+    get_default_pro_count,
+)
+from utils.multipro_plugin import SimpleParallelTool
 from dateutil.relativedelta import relativedelta
 from concurrent.futures import ThreadPoolExecutor
 
-from data_save import *
+from utils.data_save import *
 from interpolation import *
 from cal_similarity import similarity
 from cal_slice_tp import correct_by_opticalFlow
@@ -35,7 +48,7 @@ report_inter = _CFG["report_inter"]
 res = _CFG["res"]
 slon, elon, slat, elat = _CFG["slon"], _CFG["elon"], _CFG["slat"], _CFG["elat"]
 slon_l, elon_l, slat_l, elat_l = _CFG["slon_l"], _CFG["elon_l"], _CFG["slat_l"], _CFG["elat_l"]
-pool_num = _CFG["pool_num"]
+pool_num = _CFG["pro_count"]  # 兼容旧名；外层并行改用 is_multi / pro_count
 
 class gain_dataset:
     """
@@ -336,34 +349,114 @@ def correctTP_24(parafile, report_time, dtime):
     correct_tp_obj = correct_24H_TP(parafile, report_time, dtime)
     correct_tp_obj.mainProc()
 
-def mainProcess(parafile):
-    if len(rpt_list) == 0:
+
+def _expand_report_times(rpt_list_override=None):
+    """由 ini ``rpt_list``（或覆盖列表）展开起报时间序列（由近到远）。"""
+    rlist = rpt_list if rpt_list_override is None else list(rpt_list_override)
+    if len(rlist) == 0:
         etime = datetime.now() - timedelta(hours=datetime.now().hour % report_inter)
         stime = etime - timedelta(days=1)
-    elif len(rpt_list) == 1:
-        stime = datetime.strptime(str(rpt_list[0]), '%Y%m%d%H')
+    elif len(rlist) == 1:
+        stime = datetime.strptime(str(rlist[0]), "%Y%m%d%H")
         etime = stime
-    elif len(rpt_list) == 2:
-        stime = datetime.strptime(str(rpt_list[0]), '%Y%m%d%H')
-        etime = datetime.strptime(str(rpt_list[1]), '%Y%m%d%H')
+    elif len(rlist) == 2:
+        stime = datetime.strptime(str(rlist[0]), "%Y%m%d%H")
+        etime = datetime.strptime(str(rlist[1]), "%Y%m%d%H")
     else:
-        raise ('输入参数有误, 请输入%Y%m%d%H')
+        raise ValueError("输入参数有误, 请输入%Y%m%d%H")
 
-    res_list = []
-    multiPool = Pool(pool_num)
+    times = []
+    cur = etime
+    while cur >= stime:
+        times.append(cur)
+        cur -= timedelta(hours=report_inter)
+    return times
 
-    while etime >= stime:
-        begin_dtime = start_dtime
-        while begin_dtime <= end_dtime:
-            inter_dtime = inter_dtime1 if begin_dtime < 60 else inter_dtime2
-            res_list.append(multiPool.starmap_async(correctTP_24, [[parafile, etime, begin_dtime]]))
-            begin_dtime += inter_dtime
-        etime -= timedelta(hours=report_inter)
 
-    for res in res_list:
-        try:
-            res.get()
-        except:
-            continue
-    multiPool.close()
-    multiPool.join()
+def _expand_dtime_list():
+    """由 ini 起止时效与步长展开预报时效列表。"""
+    out = []
+    begin_dtime = start_dtime
+    while begin_dtime <= end_dtime:
+        out.append(begin_dtime)
+        inter_dtime = inter_dtime1 if begin_dtime < 60 else inter_dtime2
+        begin_dtime += inter_dtime
+    return out
+
+
+def process_single(plugin, **params):
+    """单个任务：一个起报 × 一个时效。
+
+    只调用原 ``correctTP_24``，不改订正逻辑；异常吞掉后继续（等同原 Pool ``get`` 失败跳过）。
+    """
+    report_time = params["param"]["report_time"]
+    dtime = params["param"]["dtime"]
+    try:
+        correctTP_24(plugin, report_time, dtime)
+    except Exception as e:
+        logger.error("订正失败 report=%s dtime=%s: %s", report_time, dtime, e)
+
+
+def process_multi(params, pro_count, plugin):
+    """用 SimpleParallelTool 调度本算法任务列表（非照搬 mait 业务结构）。"""
+    sw_all = datetime.now()
+    parallel_tool = SimpleParallelTool(
+        target_func=process_single,
+        parallel_mode="async",
+        with_return=True,
+        num_process=pro_count,
+        fixed_params={"plugin": plugin},
+    )
+    parallel_tool.process({"param": params})
+    print(">>> Time elasped: " + str((datetime.now() - sw_all).total_seconds()))
+
+
+def process(plugin=None, is_multi=None, pro_count=None, rpt_times=None):
+    """可调度入口：按 plugin 配置跑 24h 降水频率匹配订正。
+
+    调度约定（保证结果与原算法一致）：
+    - 任务仍是「起报 × 时效」，与原 ``Pool.starmap_async(correctTP_24, ...)`` 一一对应；
+    - 每个任务仍只进 ``correctTP_24`` → ``correct_24H_TP.mainProc``，算法体未改；
+    - ``SimpleParallelTool`` 仅替换进程池实现；``is_multi=false`` 时串行同一任务集。
+
+    :param plugin: 模式路径 JSON；``None`` 时用 ini ``default_plugin``
+    :param is_multi: 是否多进程；``None`` 读 ini（默认 true，贴近原常开 Pool）
+    :param pro_count: 进程数；``None`` 读 ini ``pro_count``（或旧键 ``pool_num``）
+    :param rpt_times: 起报字符串列表覆盖 ini ``rpt_list``；``None`` 用 ini
+    """
+    parafile = plugin or get_resolved_paths()["default_plugin"]
+    if is_multi is None:
+        is_multi = get_default_is_multi()
+    if pro_count is None:
+        pro_count = get_default_pro_count()
+
+    report_times = _expand_report_times(rpt_times)
+    dtime_list = _expand_dtime_list()
+    # 与原双层 while + starmap 相同：按 (起报, 时效) 展开
+    params = [
+        {"report_time": t, "dtime": d}
+        for t in report_times
+        for d in dtime_list
+    ]
+
+    if not is_multi:
+        for param in params:
+            process_single(parafile, **{"param": param})
+    else:
+        process_multi(params, pro_count, parafile)
+
+
+def mainProcess(parafile):
+    """兼容旧名：等价于 ``process(plugin=parafile)``（多进程策略读 ini）。"""
+    return process(plugin=parafile)
+
+
+if __name__ == "__main__":
+    # 直接运行：在此修改 process 传参；命令行请用 python -m cli ...
+    now = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    stime = (now - timedelta(days=10) - timedelta(hours=12)).strftime("%Y%m%d%H")
+    etime = (now - timedelta(days=10)).strftime("%Y%m%d%H")
+    print(stime, etime)
+    # process(plugin="../resource/ecmwf.json", is_multi=True, pro_count=4, rpt_times=[stime, etime])
+    # process(plugin="../resource/ecmwf.json", is_multi=True, pro_count=4)
+    process(plugin="../resource/ecmwf.json", is_multi=True, pro_count=4, rpt_times=['2026081200', '2026081312'])

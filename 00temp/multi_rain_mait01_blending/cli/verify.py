@@ -62,8 +62,8 @@ para_example = {
     "fo_data": {
         "mait_st": {
             "dir_fo": r"/data100/st_qpf/rain01/mait_st/sfc/YYYY/YYYYMMDD/YYYYMMDDHH.TTT.m3",
-            "hour": [8, 20, 12],
-            "dtime": [0, 24, 1],
+            "hour": [0, 23, 1],
+            "dtime": [0, 36, 1],
             "read_method": meteva.base.io.read_stadata_from_micaps3,
             "read_para": {},
             "reasonable_value": [0, 1000],
@@ -73,10 +73,10 @@ para_example = {
             "move_fo_time": 0,
             "file_time_type": "UT",
         },
-        "mait_chen": {
-            "dir_fo": r"/data234/GUO_data/250825_smqpf/rain01/mait_chen/YYYYMMDD/YYYYMMDDHH.TTT.m3",
-            "hour": [0, 12, 12],
-            "dtime": [0, 24, 1],
+        "mait_01": {
+            "dir_fo": r"/data/code/nimm_pip_repos/multi_rain_mait01_blending/resource/data/output/YYYYMMDD/YYYYMMDDHH.TTT.m3",
+            "hour": [0, 23, 1],
+            "dtime": [0, 36, 1],
             "read_method": meteva.base.io.read_stadata_from_micaps3,
             "read_para": {},
             "reasonable_value": [0, 1000],
@@ -87,7 +87,7 @@ para_example = {
             "file_time_type": "UT",
         },
     },
-    "output_dir": r"/data/code/mait_1_test/verify_mait_1",
+    "output_dir": r"/data/code/nimm_pip_repos/multi_rain_mait01_blending/resource/data/output/verify_mait_1",
 }
 
 
@@ -129,7 +129,7 @@ def get_verify_result(sta_all):
     grade_list = [0.1, 10, 25, 50, 100]
 
     # 定义预报时效列表
-    dtimes = [36, 60, 84, 108, 132, 156, 180, 204, 228, 252]
+    dtimes = [n for n in range(1, 37, 1)]
 
     # 创建验证结果DataFrame
     verify_df_08 = pd.DataFrame({"dtime": dtimes})
@@ -415,7 +415,13 @@ def _make_cli_commands():
 
 
 def main():
-    """Clize 命令行入口。"""
+    """
+    Clize 命令行入口。
+    python -m cli.verify ts prepare   # 第一步：生成检验数据集h5
+    python -m cli.verify ts result   # 第二步：读取h5，手动计算hfmc、ts输出csv/h5
+    python -m cli.verify ts ts       # 第三步：meteva.score批量算TS，绘图存入h5
+    python -m cli.verify ts plot_dt  # 第四步：读取已经算好的ts结果，画单时效柱状图
+    """
     from clize.runner import SubcommandDispatcher, run
 
     run(SubcommandDispatcher(commands=_make_cli_commands()))

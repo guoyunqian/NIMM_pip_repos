@@ -5,7 +5,7 @@
 # @File : cal_sliceTP.py
 # @Software: PyCharm
 
-from config import *
+from utils.config import *
 from cal_optical_flow import *
 from interpolation import *
 from cal_frequency_match import FrequencyMatch

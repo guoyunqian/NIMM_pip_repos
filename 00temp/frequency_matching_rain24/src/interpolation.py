@@ -5,7 +5,7 @@
 # @File : interpolation.py
 # @Software: PyCharm
 import math
-from data_proc import *
+from utils.data_proc import *
 # from numba import njit, prange
 
 def GressManInterpolation(sta, grd, distance_limits, num_limit=1.0, smooth=0.001, power_param=2.0, rain_limit=None):

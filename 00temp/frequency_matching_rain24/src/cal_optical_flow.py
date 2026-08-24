@@ -8,7 +8,7 @@ import numpy as np
 import xarray as xr
 import meteva.base as meb
 from scipy.sparse.linalg import lsqr
-from data_proc import creat_M3_grd
+from utils.data_proc import creat_M3_grd
 from interpolation import GressManInterpolation, mesh_val
 
 class OpticalFlow:
