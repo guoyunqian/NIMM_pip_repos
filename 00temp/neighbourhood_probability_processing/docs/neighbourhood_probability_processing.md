@@ -25,11 +25,11 @@
 | 核心源码 | `src/use_nbhood.py` | 按分层掩码迭代执行邻域处理，并支持权重折叠 |
 | 辅助源码 | `src/utils/` | 可变半径、角度复数转换、halo 裁剪、网格与重网格等内部工具 |
 | 辅助源码 | `utils/base_plugin.py` | 插件基类 |
-| 辅助源码 | `utils/utils.py` | `meteva_base` 网格数据校验与输出封装工具 |
-| CLI I/O | `cli/io.py` | 掩码/权重 nc 读取 |
+| 辅助源码 | `utils/utils.py` | `meb.checkout_griddata` 与输出重组装 |
 | CLI | `cli/ens_nbhood.py` | 普通邻域概率和百分位生成调度脚本 |
 | CLI | `cli/ens_nbhood_iterate_with_mask.py` | 按分层掩码迭代邻域处理调度脚本 |
 | CLI | `cli/ens_nbhood_land_and_sea.py` | 陆海/地形带分区邻域处理调度脚本 |
+| CLI | `cli/preprocess_test_data.py` | 官方投影样例预处理（threshold → level） |
 | 文档 | `docs/nbhood.md` | 邻域概率和百分位算法说明 |
 | 文档 | `docs/use_nbhood.md` | 掩码分层邻域处理说明 |
 | 测试 | `test/` | 核心邻域处理和掩码邻域处理测试 |
@@ -81,14 +81,14 @@
 
 已完成：
 
-- 自 `D:\workspace\improver\nbhood` 同步 src/（含 src/utils/）、utils/、cli/、test/、docs/、nbs/（2026-07-09）。
+- 自 `D:\workspace\improver\nbhood` 增量同步 src/（含 src/utils/）、utils/、cli/、test/、docs/、nbs/（2026-08-24）。
 - 导入路径已统一为中间目录模块名 `neighbourhood_probability_processing`。
-- 建立算法内 00log/、00temp/、NIMM_list.md、.gitignore。
-- improver 原代码目录全部 pytest 已通过（2026-07-09）。
-- 未同步 test_data/。
+- 核心与 CLI 改用 `meb.checkout_griddata()`；补齐 `cli/preprocess_test_data.py`；已删除原目录没有的 `cli/io.py` 与包内脚手架。
+- 未同步 `test_data/`（约 10.89MB、84 文件）；CLI / 预处理缺样例时中文提示后退出。
+- 原目录 pytest：53 passed；中间目录：42 passed / 11 skipped（缺 test_data 时官方对照 skip）。
 
 待处理：
 
-- 补充至 NIMM/07probability/ 时需将导入路径调整为仓库正式包路径。
-- test_data 体量较大，且包含 CLI 输出结果文件，正式入库前建议筛选必要小样例。
+- 补充至 `NIMM/07probability/` 时需将导入路径调整为仓库正式包路径。
+- `test_data` 体量较大，正式入库前建议筛选必要小样例。
 

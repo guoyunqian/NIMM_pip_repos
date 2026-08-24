@@ -6,7 +6,7 @@
 该算法用于在一组分层掩码上重复执行邻域处理，并可按权重将分层结果折叠回原网格场。
 
 典型场景：地形带分层处理。
-输入掩码包含一个分层维（例如 `topographic_zone`），每层对应一张二维空间掩码。算法会逐层调用 `NeighbourhoodProcessing`，仅允许当前层有效点参与统计。
+输入掩码包含一个分层维（meb 地形带为 `level`，与 `GenerateOrographyBandAncils` 一致；历史样例也可为 `topographic_zone`），每层对应一张二维空间掩码。算法会逐层调用 `NeighbourhoodProcessing`，仅允许当前层有效点参与统计。六维 meb 掩码/权重中长度为 1 的 `member` / `time` / `dtime` 会在归一化时自动挤压。
 
 ## 2. 核心算法说明
 
@@ -85,7 +85,7 @@ flowchart TD
 
 | 参数 | 类型 | 说明 |
 | --- | --- | --- |
-| `coord_for_masking` | `str` | 掩码分层维名称，如 `topographic_zone` |
+| `coord_for_masking` | `str` | 掩码分层维名称；meb 地形带为 `level`，历史三维样例可为 `topographic_zone` |
 | `neighbourhood_method` | `str` | 邻域方法，支持 `square` / `circular` |
 | `radii` | `float` 或 `list[float]` | 邻域半径（米） |
 | `lead_times` | `list[int]` 或 `None` | 与 `radii` 对应的时效（小时） |
@@ -119,7 +119,7 @@ flowchart TD
 - 输入 `(y, x)` -> 输出 `(n_mask, y, x)`；
 - 输入 `(*leading_dims, y, x)` -> 输出 `(*leading_dims, n_mask, y, x)`。
 
-对 `xarray.DataArray`，不传 `collapse_weights` 时，输出不会保留 `topographic_zone` 维；而是将 `topographic_zone` 与输入 `member` 联合后映射到新的 `member` 维。
+对 `xarray.DataArray`，不传 `collapse_weights` 时，掩码分层维与输入 `level`（阈值或占位）联合后写回 `level`；`member` 仍表示集合/实现。可用辅助坐标 `threshold`、`topographic_zone` 及属性 `is_threshold_zone_stacked` 还原联合关系（`threshold` 为输入 `level` 联合前的原值，可为阈值或占位 `0`）。这与原 Iris 未折叠的 `(realization, topographic_zone, …)` 在 meb 下的对应一致（realization→member，zone→level）。
 
 ### 5.2 折叠结果
 
@@ -197,7 +197,7 @@ mask = np.array(
 )
 
 plugin = ApplyNeighbourhoodProcessingWithAMask(
-    coord_for_masking="topographic_zone",
+    coord_for_masking="level",
     neighbourhood_method="square",
     radii=1.0,
 )
@@ -214,8 +214,8 @@ result = plugin.process(data, mask, grid_spacing=1.0)
 - `data` 的最后两维应为空间维（示例中是 `y,x`）；
 - `mask` 维度必须包含分层维（示例中是 `topographic_zone`）且空间维与 `data` 对齐；
 - 建议 `y/x` 携带距离单位（`m`），便于网格间距推断；
-- **不传** `collapse_weights` **时，输出不会保留** `topographic_zone` **维；而是将** `topographic_zone` **与输入** `member` **联合后映射到新的** `member` **维**；
-- 输出中会附加用于还原联合关系的坐标/属性（如 `member_input_member`、`member_topographic_zone`、`member_is_stacked`）。
+- **不传** `collapse_weights` **时，掩码分层维与输入** `level` **联合后写回** `level`（`member` 不变）；
+- 输出中会附加用于还原联合关系的坐标/属性（如 `threshold`、`topographic_zone`、`is_threshold_zone_stacked`）。
 
 ```python
 import numpy as np
@@ -257,7 +257,7 @@ mask = xr.DataArray(
 )
 
 plugin = ApplyNeighbourhoodProcessingWithAMask(
-    coord_for_masking="topographic_zone",
+    coord_for_masking="level",
     neighbourhood_method="square",
     radii=1000.0,
     collapse_weights=None,  # 不折叠
@@ -269,10 +269,11 @@ print(result.shape)
 
 # 当前实现下，输出示例：
 # result.dims  -> ("member", "level", "time", "dtime", "lat", "lon")
-# member 维长度 = 输入 member 数 * topographic_zone 层数
+# level 维长度 = 输入 level 数 * 地形带层数；member 仍为集合/实现
 # 并通过附加坐标记录联合来源，例如：
-#   result.coords["member_input_member"]
-#   result.coords["member_topographic_zone"]
+#   result.coords["threshold"]          # 输入 level 联合前的原值（阈值或占位）
+#   result.coords["topographic_zone"]   # 地形带层中点
+#   result.attrs["is_threshold_zone_stacked"]
 ```
 
 ### 8.3 带权重折叠
@@ -308,7 +309,7 @@ weights = xr.DataArray(
 )
 
 plugin = ApplyNeighbourhoodProcessingWithAMask(
-    coord_for_masking="topographic_zone",
+    coord_for_masking="level",
     neighbourhood_method="square",
     radii=1000.0,
     collapse_weights=weights,  # 启用折叠
@@ -355,7 +356,7 @@ output_dir = f"{scenario}/cli_output"
 process(
     input_data_path=f"{input_dir}/input.nc",
     mask_path=f"{input_dir}/mask.nc",
-    coord_for_masking="topographic_zone",
+    coord_for_masking="level",
     radii=[20000.0],
     output_path=f"{output_dir}/cli_unfolded_square_result.nc",
     neighbourhood_shape="square",
@@ -374,7 +375,7 @@ output_dir = f"{scenario}/cli_output"
 process(
     input_data_path=f"{input_dir}/thresholded_input.nc",
     mask_path=f"{input_dir}/orographic_bands_mask.nc",
-    coord_for_masking="topographic_zone",
+    coord_for_masking="level",
     radii=[10000.0],
     weights_path=f"{input_dir}/orographic_bands_weights.nc",
     output_path=f"{output_dir}/cli_iterated_result.nc",
@@ -491,13 +492,26 @@ process(
 
 | 路径 | 内容 |
 | --- | --- |
-| `*/cli_input/` | Notebook 预处理后的六维输入（`member, level, time, dtime, lat, lon`），供算法与 CLI 使用 |
+| `*/cli_input/` | 预处理后的六维输入（`member, level, time, dtime, lat, lon`），供算法、CLI 与 Notebook 使用 |
 | `*/cli_output/` | CLI 示例脚本写出结果 |
 | 场景子目录（如 `basic_collapse_bands/`、`no_topographic_bands/`） | 投影坐标下的 KGO、原算法参考；部分场景保留仅用于 `MaskedArray` 路径的原始输入（如 `mask/input_masked.nc`） |
+
+地形带输入约定：
+
+- **`iterate_with_mask`**：`orographic_bands_mask` / `orographic_bands_weights` 与展开用 `mask.nc` 由预处理脚本调用迁后的 `GenerateOrographyBandAncils` / `GenerateTopographicZoneWeights` 在对应网格上原生生成，**六维 meb、带维为 `level`**（与 `generate_ancillary` 一致）。
+- **`land_and_sea`**：`topographic_bands_land` / `weights_land` / `ukvx_landmask` **沿用官方**文件，预处理仅做投影维重命名与 meb 六维组装（地形带 `topographic_zone` → `level`；海陆掩码为单层 `level=1`），不重算分带。官方 band 与现今 Generate*（同一 ancillary orog/land）不完全一致；原方法对地形带场景 KGO 亦有约 0.05 量级缝，故不以 Generate* 替换官方 band。CLI 仅在掩码 `level`（或 `topographic_zone`）长度 > 1 时走地形带分支，故单层 meb 海陆掩码与原先二维路径语义一致。
+
+算法侧 `ApplyNeighbourhoodProcessingWithAMask(coord_for_masking="level")` 可直接消费；阈值场自身的 `level` 与掩码的 `level` 分属不同 DataArray，无冲突。经纬 `latlon/` **仅覆盖** `iterate_with_mask`；`land_and_sea` 只保留投影 `cli_input/` 供 CLI 验证。
 
 `pytest` 对照说明：
 
 - `neighbourhood_probability_processing/test/test_use_nbhood.py`：从 `iterate_with_mask/cli_input/` 读入，与 `basic_collapse_bands/` 中 KGO 比对
 - `neighbourhood_probability_processing/test/test_nbhood.py`：六维输入取自 `official_test_nbhood/cli_input/`，参考结果取自 `basic/`、`mask/`、`percentile/` 等子目录
 
-预处理流程见 `neighbourhood_probability_processing/nbs/use_nbhood.ipynb`。
+官方样例预处理脚本（同时覆盖 `official_test_nbhood` 与 `official_test_use_nbhood`；阈值 `threshold` → `level`）：
+
+```bash
+python neighbourhood_probability_processing/cli/preprocess_test_data.py
+```
+
+Notebook（`nbhood.ipynb` / `use_nbhood.ipynb`）仅读取对应 `cli_input/`，不再内嵌预处理。

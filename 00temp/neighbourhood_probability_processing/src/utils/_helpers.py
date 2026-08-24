@@ -23,8 +23,8 @@ def apply_missing_fill(
 ) -> np.ndarray:
     """将 ``invalid`` 为 True 的格点写为缺测值（默认 ``NaN``）。
 
-    DataArray 路径 ``re_mask=True`` 时用它标记无效格点。写盘为 ``NaN`` 可直接
-    兼容 ``meteva_base.write_griddata_to_nc``（内部量化为哨兵、读回可还原），无需再约定专用大填充值。
+    DataArray 路径 ``re_mask=True`` 时用它标记无效格点。CLI 以 float32 直写
+    NetCDF，``NaN`` 可原样保留，无需再约定专用大填充值。
     """
     out = np.asarray(values, dtype=np.float32)
     invalid = np.broadcast_to(invalid, out.shape)

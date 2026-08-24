@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2019 NMC Developers.
 # Distributed under the terms of the GPL V3 License.
-"""neighbourhood_probability_processing 模块单元测试。"""
+"""nbhood 模块单元测试。"""
 
 from pathlib import Path
 import sys
@@ -20,23 +20,29 @@ from neighbourhood_probability_processing.src.nbhood import (
     check_radius_against_distance,
     circular_kernel,
 )
-def _resolve_existing_dir(candidates):
+def _find_existing_dir(candidates):
     for candidate in candidates:
         if candidate.exists():
             return candidate
-    raise FileNotFoundError(f"未找到可用测试目录: {candidates}")
+    return None
 
 
-RESOURCE_ROOT = _resolve_existing_dir(
+RESOURCE_ROOT = _find_existing_dir(
     [
         Path(__file__).resolve().parents[1]
         / "test_data"
         / "official_test_nbhood",
-        Path(__file__).resolve().parents[1] / "resource" / "official_test_nbhood",
+        Path(__file__).resolve().parents[1] / "resource" / "official_test_nohood",
     ]
 )
-CLI_INPUT_ROOT = RESOURCE_ROOT / "cli_input"
+CLI_INPUT_ROOT = (RESOURCE_ROOT / "cli_input") if RESOURCE_ROOT is not None else None
 FILL_VALUE_THRESHOLD = 1.0e20
+_requires_official_data = pytest.mark.skipif(
+    RESOURCE_ROOT is None
+    or CLI_INPUT_ROOT is None
+    or not (CLI_INPUT_ROOT / "basic" / "input.nc").is_file(),
+    reason="未同步 test_data/official_test_nbhood",
+)
 
 
 def make_dataarray(data, dtime_values=None):
@@ -164,7 +170,11 @@ def valid_mask_from_external(mask) -> np.ndarray:
 
 
 def align_result_to_reference(result, reference) -> tuple[np.ndarray, np.ndarray]:
-    """将六维算法输出与官方参考场对齐到同一形状。"""
+    """将六维算法输出与官方参考场对齐到同一形状。
+
+    参考场常为 ``(threshold, y, x)`` 或 ``(realization, percentile, y, x)``；
+    六维结果按 ``member`` / ``level`` 维切片后与参考对齐。
+    """
     result_arr = (
         np.asarray(result.values)
         if isinstance(result, xr.DataArray)
@@ -174,7 +184,14 @@ def align_result_to_reference(result, reference) -> tuple[np.ndarray, np.ndarray
     if result_arr.shape == ref_arr.shape:
         return result_arr, ref_arr
     if result_arr.ndim == 6:
-        sliced = result_arr[:, 0, 0, 0, :, :]
+        n_member, n_level = result_arr.shape[0], result_arr.shape[1]
+        if ref_arr.ndim == 4 and n_level > 1:
+            # 百分位邻域：(member, level=percentile, time, dtime, y, x)
+            sliced = result_arr[:, :, 0, 0, :, :]
+        elif n_member == 1 and n_level >= 1:
+            sliced = result_arr[0, :, 0, 0, :, :]
+        else:
+            sliced = result_arr[:, 0, 0, 0, :, :]
         if sliced.shape == ref_arr.shape:
             return sliced, ref_arr
         if sliced.size == ref_arr.size:
@@ -188,6 +205,9 @@ def spatial_array_from_six_dim(data) -> np.ndarray:
     """提取六维网格中的空间切片数组。"""
     arr = np.asarray(data.values if isinstance(data, xr.DataArray) else data)
     if arr.ndim == 6:
+        n_member, n_level = arr.shape[0], arr.shape[1]
+        if n_member == 1 and n_level >= 1:
+            return arr[0, :, 0, 0, :, :]
         return arr[:, 0, 0, 0, :, :]
     return arr
 
@@ -381,8 +401,24 @@ class TestGeneratePercentilesFromANeighbourhood:
         plugin = GeneratePercentilesFromANeighbourhood(radii=1.0, percentiles=[90.0, 10.0])
         result_np = plugin.process(data, grid_spacing=1.0)
         result_xr = plugin.process(make_dataarray(data))
-        actual = np.asarray(result_xr)[:, 0, 0, 0, :, :]
+        actual = np.asarray(result_xr)[0, :, 0, 0, :, :]
         np.testing.assert_allclose(actual, result_np)
+
+    def test_xarray_percentile_on_level_dimension(self):
+        """六维输出：member 保持集合维，level 为邻域百分位坐标。"""
+        data = make_dataarray(np.arange(9, dtype=np.float32).reshape(3, 3))
+        plugin = GeneratePercentilesFromANeighbourhood(
+            radii=1.0, percentiles=[25.0, 75.0]
+        )
+        result = plugin.process(data)
+        assert result.dims == ("member", "level", "time", "dtime", "lat", "lon")
+        assert result.sizes["member"] == 1
+        assert result.sizes["level"] == 2
+        np.testing.assert_allclose(
+            result.coords["level"].values, np.array([25.0, 75.0], dtype=np.float32)
+        )
+        assert result.attrs.get("level_type") == "neighbourhood_percentile"
+        assert result.attrs.get("level_units") == "%"
 
     def test_expected_2d_values(self):
         """测试二维样例在圆形邻域下得到预期的百分位结果。"""
@@ -448,7 +484,94 @@ class TestGeographicRegridPath:
         assert is_projected_spatial_dataarray(data)
         assert not is_geographic_spatial_dataarray(data)
 
+    def test_geographic_full_path_matches_adapted_laea_projected_path(self):
+        """经纬完整路径 ≡ 同一场挂在适配 LAEA 米轴上的投影路径（数值自洽）。"""
+        from neighbourhood_probability_processing.src.utils._regrid import (
+            is_projected_spatial_dataarray,
+            prepare_geographic_input,
+        )
 
+        values = np.arange(7 * 7, dtype=np.float32).reshape(7, 7)
+        data = make_geographic_dataarray(values)
+        plugin = NeighbourhoodProcessing("square", radii=2000.0, re_mask=False)
+
+        result_geo = plugin.process(data)
+        projected, _, ctx = prepare_geographic_input(data)
+        assert ctx is not None
+        assert is_projected_spatial_dataarray(projected)
+        result_on_laea = plugin.process(projected)
+
+        np.testing.assert_allclose(
+            np.asarray(result_geo.values, dtype=np.float64),
+            np.asarray(result_on_laea.values, dtype=np.float64),
+            equal_nan=True,
+            atol=0.0,
+            rtol=0.0,
+        )
+        np.testing.assert_array_equal(result_geo.coords["lat"].values, data.coords["lat"].values)
+        np.testing.assert_array_equal(result_geo.coords["lon"].values, data.coords["lon"].values)
+
+    def test_geographic_with_mask_matches_adapted_laea_path(self):
+        """带外部掩码时，经纬完整路径仍与适配米轴投影路径数值一致。"""
+        from neighbourhood_probability_processing.src.utils._regrid import prepare_geographic_input
+
+        values = np.arange(7 * 7, dtype=np.float32).reshape(7, 7)
+        data = make_geographic_dataarray(values)
+        mask_2d = np.ones((7, 7), dtype=np.float32)
+        mask_2d[:2, :] = 0.0
+        mask = make_geographic_dataarray(mask_2d)
+        plugin = NeighbourhoodProcessing("square", radii=2000.0, re_mask=True)
+
+        result_geo = plugin.process(data, mask=mask)
+        projected, projected_mask, ctx = prepare_geographic_input(data, mask)
+        assert ctx is not None
+        result_on_laea = plugin.process(projected, mask=projected_mask)
+
+        np.testing.assert_allclose(
+            np.asarray(result_geo.values, dtype=np.float64),
+            np.asarray(result_on_laea.values, dtype=np.float64),
+            equal_nan=True,
+            atol=0.0,
+            rtol=0.0,
+        )
+
+    def test_percentile_geographic_matches_adapted_laea_path(self):
+        """百分位插件：经纬完整路径 ≡ 适配 LAEA 米轴投影路径。"""
+        from neighbourhood_probability_processing.src.utils._regrid import prepare_geographic_input
+
+        values = np.arange(7 * 7, dtype=np.float32).reshape(7, 7)
+        data = make_geographic_dataarray(values)
+        plugin = GeneratePercentilesFromANeighbourhood(2000.0, percentiles=[50.0])
+
+        result_geo = plugin.process(data)
+        projected, _, ctx = prepare_geographic_input(data)
+        assert ctx is not None
+        result_on_laea = plugin.process(projected)
+
+        np.testing.assert_allclose(
+            np.asarray(result_geo.values, dtype=np.float64),
+            np.asarray(result_on_laea.values, dtype=np.float64),
+            equal_nan=True,
+            atol=0.0,
+            rtol=0.0,
+        )
+
+    def test_adapted_laea_spacing_yields_expected_grid_cells(self):
+        """适配后米制格距应对半径给出可预期的格点数。"""
+        from neighbourhood_probability_processing.src.utils._grid import _distance_to_number_of_grid_cells
+        from neighbourhood_probability_processing.src.utils._regrid import build_geographic_regrid_context
+
+        data = make_geographic_dataarray(np.ones((7, 7), dtype=np.float32))
+        ctx = build_geographic_regrid_context(data)
+        spacing = float(np.mean(np.abs(np.diff(ctx.projected_lat))))
+        assert spacing > 0.0
+        # 0.01° 在约 30°N 量级为千米级；半径取 2*spacing 应得到至少 2 格
+        radius = 2.0 * spacing
+        cells = _distance_to_number_of_grid_cells(radius, spacing)
+        assert cells == 2
+
+
+@_requires_official_data
 class TestOfficialBasicNeighbourhood:
     """测试官方基础邻域样例（方形/圆形）。"""
 
@@ -482,6 +605,7 @@ class TestOfficialBasicNeighbourhood:
         np.testing.assert_allclose(actual, expected, equal_nan=True, atol=1.0e-6)
 
 
+@_requires_official_data
 class TestOfficialMaskedNeighbourhood:
     """测试官方掩码邻域样例（内部掩码/外部掩码）。"""
 
@@ -574,6 +698,7 @@ class TestOfficialMaskedNeighbourhood:
         assert "missing_value" not in external_result.attrs
 
 
+@_requires_official_data
 class TestOfficialPercentileNeighbourhood:
     """测试官方百分位邻域样例。"""
 
