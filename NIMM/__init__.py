@@ -1,2 +1,0 @@
-"""NIMM algorithm package."""
-

@@ -10,7 +10,7 @@
 | 整理日期 | 2026-06-29 |
 | 算法贡献人 | 郭云谦、曹勇、陈荣 |
 | 算法分类 | `04single_calibration` |
-| 当前状态 | 已补充至正式算法仓库目录 |
+| 当前状态 | 已整理至 `00temp/kalman_element_forecast_correction/`，尚未正式归档 |
 
 ## 算法理解
 
@@ -76,7 +76,7 @@
 
 ## 已发现问题与后续建议
 
-1. `00temp/` 中间目录仍保持原始 `nimm_kalman...` 包名；正式归档目录已调整为仓库内相对导入或动态导入。
+1. `00temp/` 中间目录仍保持原始 `nimm_kalman...` 包名；此前创建的正式归档目录已于 2026-08-26 撤销，当前以中间目录为准。
 2. 默认生产路径包含 `/data234/GUO_data/Kalman_data`、`/data234/DataPool/01CLDAS/00HRCLDAS/Hourly`、`/data/mnt/model_RT/globalECMWF_D1D/...`，正式测试需替换为仓库内可复现样例。
 3. 原始目录没有独立 `test_data/`，需要补充最小 NetCDF 测试样例。
 4. 完整业务流程依赖 `meteva_base`、`xarray`、`numpy` 和真实网格数据环境。
@@ -130,4 +130,12 @@
 
 - 完整业务流程仍依赖生产路径、`meteva_base` 和真实 NetCDF 网格资料。
 - 独立最小端到端测试数据仍未补充。
+
+## 2026-08-26 目录纠正
+
+- 根据仓库当前整理流程，本算法现阶段只应更新到 `00temp/kalman_element_forecast_correction/`，不应提前拆分到正式归档目录。
+- 已确认 `00temp/kalman_element_forecast_correction/` 保留 2026-08-17 同步后的最新算法代码、CLI、文档、notebook、资源和测试。
+- 撤销此前在 `NIMM/`、`cli/`、`docs/`、`nbs/`、`resource/` 和 `test/` 下创建的 Kalman 正式归档内容。
+- 上文“正式归档操作”及其后续正式目录更新仅作为历史记录保留，当前归档状态以本节为准：尚未正式归档。
+- 算法计算逻辑和 `00temp/` 中的原始包结构未在本次目录纠正中修改。
 

@@ -27,3 +27,20 @@
 
 完整业务运行仍依赖真实模式数据、地形数据、站点文件和配置路径。
 
+## 成果展示
+
+以下图片展示 `nimm_g_interp` 对 2 米气温（`2t`）进行快速精细化插值的输出结果。
+
+### FH006 原始 `g_interp` 格点场
+
+![FH006 原始 g_interp 2 米气温格点场](figures/006_2t_g_interp_grid.png)
+
+### FH006 `nimm_g_interp` 格点场
+
+![FH006 nimm_g_interp 2 米气温格点场](figures/006_2t_nimm_g_interp_grid.png)
+
+### 原始算法与改进算法数值对比
+
+站点 `54511`、`58362`、`59287` 的 2 米气温图示结果一致。
+
+![原始 g_interp 与 nimm_g_interp 的 2 米气温对比](figures/2t_original_vs_modified_bar.png)
