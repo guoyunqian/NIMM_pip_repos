@@ -68,8 +68,8 @@ para_example= {
         "time_type": "BT",   #数据文件是以北京时还是世界时命名，BT表示北京时，UT表示世界时
     },
     "fo_data":{
-        "ec_dz": {
-            "dir_fo": r"/data/mnt/107_sm_qpf/v2021/rain03/ecmwf/sfc/YYYYMMDD/YYYYMMDDHH.TTT.m3",
+        "QPFFrequencyMatch_Rain03": {
+            "dir_fo": r"/data/code/nimm_pip_repos/QPF_FrequencyMatch_Rain03/output/ecmwf/YYYYMMDD/YYYYMMDDHH.TTT.m3",
             "hour": [0, 12, 12],
             "dtime": [3, 144, 3],
             "read_method": meteva.base.io.read_stadata_from_micaps3,
@@ -81,8 +81,8 @@ para_example= {
             "move_fo_time": 0,
             "file_time_type": "UT"
         },
-        "multi_qpf_fm_rain01": {
-            "dir_fo": r"/data/code/nimm_pip_repos/frequency_matching_rain03/resource/data/output/ecwmf/YYYYMMDD/YYYYMMDDHH.TTT.m3",
+        "frequency_matching_rain03": {
+            "dir_fo": r"/data/code/nimm_pip_repos/frequency_matching_rain03/resource/data/output/ecmwf/YYYYMMDD/YYYYMMDDHH.TTT.m3",
             "hour": [0, 12, 12],
             "dtime": [3, 144, 3],
             "read_method": meteva.base.io.read_stadata_from_micaps3,
@@ -95,19 +95,36 @@ para_example= {
             "file_time_type": "UT"
         },
     },
-    "output_dir":r"/data/code/nimm_pip_repos/frequency_matching_rain03/resource/data/output/ecwmf"
+    "output_dir":r"/data/code/nimm_pip_repos/frequency_matching_rain03/resource/data/output/ecmwf"
 }
 
 if __name__ == "__main__":
+    print("开始准备检验数据（先读实况，再逐产品读预报；缺文件会刷屏，不是卡死）", flush=True)
     sta_all = prepare_dataset(para_example)
+    print("prepare_dataset 结束", flush=True)
+    if sta_all is None or (hasattr(sta_all, "empty") and sta_all.empty):
+        raise RuntimeError(
+            "没有拼出检验样本。上面的 does not exist / there is not file data "
+            "表示该 dir_fo 在 begin_time–end_time 内一个 .m3 都没读到。"
+            "请先确认产品已写出，且路径、起报、时效与 para 一致。"
+        )
     print(sta_all)
     sta_all.to_hdf("h5_file", key="df")
     sta_all = sta_all[~(sta_all["ob"] >= 999)].copy()
     sta_all = sta_all.reset_index(drop=True)
-    # sta_all = pd.read_hdf(h5_file, key="sta_all")
-    # print(sta_all)
-    # product_list = ["QpfFrequencyMatch_Rain01", "multi_qpf_fm_rain01"]
-    # grade_list = [0.1, 10, 25, 50, 100]
     grade_list = [0.1, 10, 25, 50]
-    # get_ts(sta_all, grade_list, product_list, h5_file)  # 保存ts评分结果
-    result = mpd.score(sta_all, mem.ts, grade_list=grade_list, g="dtime", plot="bar", ncol=1, save_path=f"ts_bar.png", show=True)
+    # 业务机无显示器时 show=True 会卡住
+    result = mpd.score(
+        sta_all, mem.ts, grade_list=grade_list, g="dtime",
+        plot="bar", ncol=1, save_path="ts_bar.png", show=False)
+    print("TS 图已写入 ts_bar.png", flush=True)
+
+    # file = "/data/code/nimm_pip_repos/frequency_matching_rain03/resource/data/output/ecmwf/20260820/2026082000.003.m3"
+    # sta = meteva.base.io.read_stadata_from_micaps3(file)
+    # print(sta)
+    #
+    # file = "/data/code/nimm_pip_repos/QPF_FrequencyMatch_Rain03/output/ecmwf/20260820/2026082000.003.m3"
+    # sta = meteva.base.io.read_stadata_from_micaps3(file)
+    # print(sta)
+
+

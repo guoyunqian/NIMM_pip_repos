@@ -18,7 +18,7 @@ $$
 目标是用「与当前预报最像」的历史模式–实况对，把当前场的量级分布拉到与实况同频，再客观分析到网格。
 
 1. **资料与任务展开**  
-   读 `path.json` 模式/实况/输出模板、`config.json` 网格、`sta.info` 站点、陆地掩膜。对每个起报时刻回溯 0–24 h（再减 8 h，对齐北京时），时效 3–252 h、步长 3。路径用 `meb.get_path` 展开；无后缀则试 `.m4`/`.nc`。输出 `.m3`+`.m4` 已存在或模式输入缺失则跳过。
+   读 `path.json` 模式/实况/输出模板、`config.json` 网格、`sta.info` 站点、陆地掩膜。对每个起报时刻回溯 0–24 h（再减 8 h，对齐北京时），时效 3–252 h、步长 3。路径用 `meb.get_path` 展开；无后缀则试 `.m4`/`.nc`。读写格点/站点走 `meteva_base`。输出 `.m3`+`.m4` 已存在或模式输入缺失则跳过。
 
 2. **历史相似个例**  
    回溯 4 年：当年取 \([t-15\,\mathrm{d},\,t-1\,\mathrm{d}]\)，往年取 \([t-365j-15\,\mathrm{d},\,t-365j+15\,\mathrm{d}]\)。历史模式 9 点平滑 30 次，掩膜后粗网格（\(5\Delta\lambda\)）上算多阈值 TS+Bias（默认 25、50 mm）。\(H+M+F\le 10\) 时该阈值记为无效。按评分从高到低累加，超过 \(2.4\) 后截断；频率匹配至少用 \(\max(\lfloor N/2\rfloor,\,n_{\mathrm{cut}})\) 个个例。
@@ -52,7 +52,7 @@ $$
 
 1. `_load_path_configs` / `_load_grid_config`；读站点与掩膜。  
 2. 未设 `QPF_DISABLE_LEADTIME_MP` 时，按时效切子进程并行（`QPF_LEADTIME_WORKERS`，默认最多 8）。  
-3. 用 `meb.get_path` 展开模式路径（无后缀则试 `.m4`/`.nc`），读当前模式格点并裁到大区网格。  
+3. 用 `meb.get_path` 展开模式路径（无后缀则试 `.m4`/`.nc`），`meb.read_griddata_from_micaps4` 读入后裁到大区网格。  
 4. 扫历史窗，成对读模式格点与实况站点（`.m3`）；平滑后 `get_similarity_index_by_ts_and_bias`。  
 5. `get_used_model_level_and_extend` + `correct_model_data` 订正当前场；插到站点写 `.m3`。  
 6. 伪站 + Cressman + 格点 FM → `.m4` / `.nc`。

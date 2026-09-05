@@ -341,20 +341,18 @@ def _run_single_task_subprocess(task):
 
 
 def _describe_task_io(model_tpl, output_tpl, date_time, predict_valid):
-    """展开输出/模式路径，并判断是否已产出或模式文件缺失。"""
+    """展开输出/模式路径，无后缀时尝试 ``.m4`` / ``.nc``。"""
     desc = StringProcess.date_replace("YYYYMMDDHH_VVV", date_time, predict_valid)
-    out_base = expand_data_path(output_tpl, date_time, predict_valid)
-    out_m3 = out_base + ".m3"
-    out_m4 = out_base + ".m4"
+    out_m3 = expand_data_path(output_tpl + ".m3", date_time, predict_valid)
+    out_m4 = expand_data_path(output_tpl + ".m4", date_time, predict_valid)
     model_raw, model_path = find_grid_file(model_tpl, date_time, predict_valid)
     return {
         "desc": desc,
-        "out_base": out_base,
         "out_m3": out_m3,
         "out_m4": out_m4,
         "model_raw": model_raw,
         "model_path": model_path,
-        "output_exists": os.path.isfile(out_m3) and os.path.isfile(out_m4),
+        "output_exists": os.path.exists(out_m3) and os.path.exists(out_m4),
         "model_missing": model_path is None,
     }
 
@@ -370,10 +368,6 @@ def _run_parallel_lead_time_tasks(script_path, cwd, argv, tasks, text2, text4, l
         path2 = io_info["out_m3"]
         path3 = io_info["out_m4"]
         path4 = io_info["model_path"] or io_info["model_raw"]
-        print("=-------------------------->>>> desc: ", desc)
-        print("=-------------------------->>>> path2: ", path2)
-        print("=-------------------------->>>> path3: ", path3)
-        print("=-------------------------->>>> path4: ", path4)
 
         if io_info["output_exists"] or io_info["model_missing"]:
             if io_info["output_exists"]:
@@ -577,10 +571,6 @@ def main(argv=None):
                 path3 = io_info["out_m4"]
                 path4 = io_info["model_path"] or io_info["model_raw"]
 
-                print("=-------------------------->>>> path2: ", path2)
-                print("=-------------------------->>>> path3: ", path3)
-                print("=-------------------------->>>> path4: ", path4)
-
                 if io_info["output_exists"] or io_info["model_missing"]:
                     if io_info["output_exists"]:
                         log.write_info(f"[SKIP] {task_desc}: output files already exist", 0)
@@ -620,6 +610,11 @@ def main(argv=None):
                     configure_data.large_lon_left, configure_data.large_lon_right,
                     configure_data.large_lat_bottom, configure_data.large_lat_top,
                     configure_data.dlon, configure_data.dlat)
+                log.write_info(
+                    f"Current model after mesh: max={gd_current_model.max_value():.3f} "
+                    f"n>=10={int((gd_current_model.val >= 10).sum())} "
+                    f"n>=25={int((gd_current_model.val >= 25).sum())} "
+                    f"n>=50={int((gd_current_model.val >= 50).sum())}", 0)
 
                 print("Read the History ModelData...")
                 num6 = 15  # 同期窗半径（天）
@@ -690,8 +685,10 @@ def main(argv=None):
 
                         date_time4 = date_time4 + timedelta(days=1)
 
+                fact_max = max((sd.max_value() for sd in ltsd_fact), default=0.0)
                 log.write_info(
-                    f"History data for {task_desc}: found={hist_found}, missing={hist_missing}, bad={hist_bad}", 0)
+                    f"History data for {task_desc}: found={hist_found}, missing={hist_missing}, "
+                    f"bad={hist_bad}, fact_max={fact_max:.3f}", 0)
 
                 dy_n_used = len(ltgd_model_raw)
                 if dy_n_used <= 0:
@@ -845,6 +842,10 @@ def main(argv=None):
                                 # 相似个例站点场建分位映射（两端各丢 5 个样本）
                                 used_model_level_and_extend2 = FrequencyMatch.get_used_model_level_and_extend(
                                     sd_sentive_model, sd_sentive_fact, fact_level, 5)
+                                log.write_info(
+                                    f"Subregion FM levels={len(used_model_level_and_extend2[0])} "
+                                    f"model={used_model_level_and_extend2[0]} "
+                                    f"fact={used_model_level_and_extend2[1]}", 0)
 
                                 grid_data6 = gd_current_model_smooth.mesh_val(
                                     large_lon_left[ix], large_lon_right[ix],
@@ -957,18 +958,18 @@ def main(argv=None):
                         if (ix, jy) in sd_correct_model:
                             scatter_data2.read_from_sactter_data(sd_correct_model[(ix, jy)])
 
-                # 输出站点数据
+                # 输出站点数据（meb：sta_data → write_stadata_to_micaps3）
                 scatter_data3 = scatter_data2.copy_scatter_data()
-                str_header = StringProcess.date_replace(
-                    "diamond 3 YYYY年MM月DD日HH时VVV时效" + f"{num2:03d}" +
-                    "小时累积降水 00 01 04 08  -1 0 1 0 0",
-                    date_time, predict_valid)
                 text9 = expand_data_path(text4 + ".m3", date_time, predict_valid)
                 print(text9)
                 scatter_data3.clear_to_num_less_than(0.0, 0.01)
                 try:
-                    scatter_data3.writer_to_micaps3(text9, str_header)
-                    log.write_info(f"Output station data: {text9}", 0)
+                    scatter_data3.writer_to_micaps3(
+                        text9, dt_input=date_time, i_valid=predict_valid)
+                    sta_max = scatter_data3.max_value() if scatter_data3.length else 0.0
+                    log.write_info(
+                        f"Output station data: {text9} max={sta_max:.3f} "
+                        f"nsta={scatter_data3.length}", 0)
                 except Exception as e:
                     log.write_error(
                         f"[FAIL] {task_desc}: cannot write .m3 file {text9}\n"
@@ -1042,18 +1043,17 @@ def main(argv=None):
 
                 grid_data3.clear_to_num_less_than(0.0, 0.01)
 
-                str_header2 = StringProcess.date_replace(
-                    " diamond 4 YYYYMMDDHH_VVV时效" + f"{num2:03d}" +
-                    "小时降水预报场 YYYY MM DD HH VVV 0 " +
-                    grid_data3.str_range_info() + "  5  0 200 0  0",
-                    date_time, predict_valid)
+                # meb：grid_data → write_griddata_to_micaps4 / write_griddata_to_nc
                 text10 = expand_data_path(text4, date_time, predict_valid)
+                m4_title = StringProcess.date_replace(
+                    f"YYYYMMDDHH_VVV时效{num2:03d}小时降水预报场",
+                    date_time, predict_valid)
 
                 # .cybin 和 .m4raw 输出暂时关闭
                 # grid_data3.write_val_to_cybin(text10 + ".cybin")
                 try:
                     grid_data3.write_val_to_micaps4(
-                        text10 + ".m4", str_header2,
+                        text10 + ".m4", title=m4_title,
                         dt_input=date_time, i_valid=predict_valid)
                     log.write_info(f"Output grid data: {text10}.m4", 0)
                 except Exception as e:

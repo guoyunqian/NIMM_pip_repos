@@ -68,7 +68,6 @@ class GridData:
             resolved = resolve_existing_path(str_input_file_path, (".m4", ".nc"))
             if resolved:
                 str_input_file_path = resolved
-            # 根据文件扩展名自动检测 nc 格式
             if (len(args) == 1 or em_file_flag == FileFlag.m4) and str_input_file_path.lower().endswith('.nc'):
                 em_file_flag = FileFlag.nc
             if em_file_flag == FileFlag.m4:
@@ -104,11 +103,15 @@ class GridData:
 
     @property
     def lon_end(self):
-        return self._lon[-1] if self._lon else 0.0
+        if self._lon is None or len(self._lon) == 0:
+            return 0.0
+        return float(self._lon[-1])
 
     @property
     def lat_end(self):
-        return self._lat[-1] if self._lat else 0.0
+        if self._lat is None or len(self._lat) == 0:
+            return 0.0
+        return float(self._lat[-1])
 
     @property
     def lon_interval(self):
@@ -128,22 +131,16 @@ class GridData:
         return float(np.mean(self.val))
 
     def _fill_from_meb_grd(self, grd):
-        """把 ``meb`` 格点填进本对象；``val`` 保持 ``(yn, xn)``。"""
+        """把 ``meb`` 格点填进本对象；``val`` 为 ``(yn, xn)``。"""
         lon = np.asarray(grd["lon"].values, dtype=np.float64)
         lat = np.asarray(grd["lat"].values, dtype=np.float64)
         vals = np.asarray(grd.values, dtype=np.float64).squeeze()
         if vals.ndim != 2:
             raise ValueError(f"grid_data 不是二维: shape={vals.shape}")
-        if lon.size > 1 and lon[0] > lon[-1]:
-            lon = lon[::-1].copy()
-            vals = vals[:, ::-1] if vals.shape[1] == lon.size else vals
-        if lat.size > 1 and lat[0] > lat[-1]:
-            lat = lat[::-1].copy()
-            vals = vals[::-1, :] if vals.shape[0] == lat.size else vals
         self.lon_start = float(lon[0])
         self.lat_start = float(lat[0])
-        self.d_lon = float(abs(lon[1] - lon[0])) if lon.size > 1 else 0.1
-        self.d_lat = float(abs(lat[1] - lat[0])) if lat.size > 1 else 0.1
+        self.d_lon = float(lon[1] - lon[0]) if lon.size > 1 else 0.1
+        self.d_lat = float(lat[1] - lat[0]) if lat.size > 1 else 0.1
         self.xn = int(lon.size)
         self.yn = int(lat.size)
         self._lon = lon.copy()
@@ -156,6 +153,7 @@ class GridData:
             raise ValueError(f"格点形状 {vals.shape} 与网格 {self.yn}x{self.xn} 不一致")
 
     def _to_meb_grid(self, dt_input=None, i_valid=None):
+        """由本对象组 ``grid_data``，经纬起止与间隔与读入时一致。"""
         kwargs = {}
         if dt_input is not None:
             kwargs["gtime"] = [dt_input]
@@ -169,10 +167,29 @@ class GridData:
         return meb.grid_data(grid, data=data)
 
     def _read_val_from_micaps4(self, str_input_file_path):
-        grd = meb.read_griddata_from_micaps4(str_input_file_path)
-        if grd is None:
+        """meb 读入，再与原版南北约定对齐（业务场上 meb 可能相对原版颠倒）。"""
+        from utils.io_meb import (
+            align_meb_grid_to_original,
+            parse_micaps4_like_original,
+            read_griddata_from_micaps4,
+        )
+        grd = read_griddata_from_micaps4(str_input_file_path)
+        if grd is not None:
+            self._fill_from_meb_grd(grd)
+            self.val = align_meb_grid_to_original(self.val, str_input_file_path)
+            return
+        parsed = parse_micaps4_like_original(str_input_file_path)
+        if parsed is None:
             raise RuntimeError(f"meb.read_griddata_from_micaps4 失败: {str_input_file_path}")
-        self._fill_from_meb_grd(grd)
+        self.lon_start = float(parsed["lon0"])
+        self.lat_start = float(parsed["lat0"])
+        self.d_lon = float(parsed["dlon"])
+        self.d_lat = float(parsed["dlat"])
+        self.xn = int(parsed["xn"])
+        self.yn = int(parsed["yn"])
+        self._lon = self.lon_start + np.arange(self.xn, dtype=np.float64) * self.d_lon
+        self._lat = self.lat_start + np.arange(self.yn, dtype=np.float64) * self.d_lat
+        self.val = parsed["val"].copy()
 
     def read_float_val_from_bin(self, input_file_path):
         data = np.fromfile(input_file_path, dtype=np.float32)
@@ -321,18 +338,22 @@ class GridData:
                 f"{self._lat[0]:.2f} {self._lat[self.yn - 1]:.2f} "
                 f"{self.xn} {self.yn}")
 
-    def write_val_to_micaps4(self, str_file_path, str_header, str_fortmat=None,
+    def write_val_to_micaps4(self, str_file_path, title=None, str_fortmat=None,
                             dt_input=None, i_valid=None):
+        """写出 Micaps4：组 ``grid_data`` 交给 ``meb.write_griddata_to_micaps4``。
+
+        网格范围与时效来自 ``grd``；``title`` 仅作说明文字（可选），
+        不要传原版整行 ``diamond 4 …`` 文件头。
+        """
+        del str_fortmat
         grd = self._to_meb_grid(dt_input, i_valid)
-        title = str_header.strip() if str_header else None
         kwargs = {'creat_dir': True, 'effectiveNum': 2, 'inte': 5, 'vmin': 0, 'vmax': 200}
         if title:
-            kwargs['title'] = title
+            kwargs['title'] = str(title).strip()
         meb.write_griddata_to_micaps4(grd, str_file_path, **kwargs)
 
     def write_val_to_micaps4_with_simple_header(self, str_file_path, str_simple_header='simple_header'):
-        header = f'diamond 4 {str_simple_header} 0000 01 01 00 00 000 {self.str_range_info()} 2.0 0.0 20.0 1 00'
-        self.write_val_to_micaps4(str_file_path, header)
+        self.write_val_to_micaps4(str_file_path, title=str_simple_header)
 
     def write_val_to_nc(self, str_file_path, dt_input=None, i_valid=0):
         grd = self._to_meb_grid(dt_input, i_valid)

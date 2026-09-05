@@ -125,7 +125,8 @@ class ScatterData:
         for line in _read_text_lines(str_input_file_path):
             arr = line.replace('\r', ' ').replace('\n', ' ').replace('\t', ' ').split()
             if len(arr) >= 3:
-                text = arr[0].strip()
+                from utils.io_meb import norm_sta_id
+                text = norm_sta_id(arr[0].strip())
                 db_lon = float(arr[1].strip())
                 db_lat = float(arr[2].strip())
                 if text not in dct:
@@ -140,7 +141,8 @@ class ScatterData:
         for line in _read_text_lines(str_input_file_path):
             arr = line.replace('\r', ' ').replace('\n', ' ').replace('\t', ' ').split()
             if len(arr) >= 4:
-                text = arr[0].strip()
+                from utils.io_meb import norm_sta_id
+                text = norm_sta_id(arr[0].strip())
                 db_lon = float(arr[1].strip())
                 db_lat = float(arr[2].strip())
                 num = float(arr[3].strip())
@@ -180,8 +182,11 @@ class ScatterData:
                     pd.val = val
                     break
 
-    def writer_to_micaps3(self, str_file_path, str_header):
-        """写出 Micaps3。"""
+    def writer_to_micaps3(self, str_file_path, dt_input=None, i_valid=0, title=None):
+        """写出 Micaps3：组站点表交给 ``meb.write_stadata_to_micaps3``。
+
+        ``title`` 仅作说明文字（可选），不要传原版整行 ``diamond 3 …`` 文件头。
+        """
         from utils.io_meb import write_stadata_m3
         write_stadata_m3(
             (pd.id for pd in self.sta_data),
@@ -189,12 +194,13 @@ class ScatterData:
             (pd.lat for pd in self.sta_data),
             (pd.val for pd in self.sta_data),
             str_file_path,
+            dt_input=dt_input,
+            i_valid=i_valid,
+            title=title,
         )
 
     def writer_to_micaps3_with_simple_header(self, str_file_path, str_simple_header="simple_header"):
-        os.makedirs(os.path.dirname(str_file_path), exist_ok=True)
-        header = f"diamond 3 {str_simple_header} 20 02 26 09  -1 0 1 0 0"
-        self.writer_to_micaps3(str_file_path, header)
+        self.writer_to_micaps3(str_file_path, title=str_simple_header)
 
     def copy_scatter_data(self):
         sd = ScatterData(self.sta_data)
