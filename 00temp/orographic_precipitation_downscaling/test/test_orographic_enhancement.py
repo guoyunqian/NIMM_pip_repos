@@ -7,13 +7,14 @@ import numpy as np
 import pytest
 import xarray as xr
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+TEMP_ROOT = Path(__file__).resolve().parents[2]
+if str(TEMP_ROOT) not in sys.path:
+    sys.path.insert(0, str(TEMP_ROOT))
 
 from orographic_precipitation_downscaling.src.orographic_enhancement import MetaOrographicEnhancement, OrographicEnhancement
 
-DATA_ROOT = PROJECT_ROOT / "test_data" / "orographic_enhancement_data"
+DATA_ROOT = PACKAGE_ROOT / "test_data" / "orographic_enhancement_data"
 CLI_INPUT_DIR = DATA_ROOT / "cli_input"
 REFERENCE_DIR = DATA_ROOT
 MEB_DIMS = ("member", "level", "time", "dtime", "lat", "lon")
@@ -57,6 +58,16 @@ def create_test_xarray_data():
 
 def to_meb6d(data_2d: xr.DataArray) -> xr.DataArray:
     """Wrap a 2D lat/lon field into a singleton 6D MEB-style grid."""
+    lat_coord = xr.DataArray(
+        np.asarray(data_2d.coords["lat"].values),
+        dims=("lat",),
+        attrs=dict(data_2d.coords["lat"].attrs),
+    )
+    lon_coord = xr.DataArray(
+        np.asarray(data_2d.coords["lon"].values),
+        dims=("lon",),
+        attrs=dict(data_2d.coords["lon"].attrs),
+    )
     wrapped = xr.DataArray(
         np.asarray(data_2d.values, dtype=np.float32)[None, None, None, None, :, :],
         dims=MEB_DIMS,
@@ -65,14 +76,41 @@ def to_meb6d(data_2d: xr.DataArray) -> xr.DataArray:
             "level": [1000.0],
             "time": [np.datetime64("1970-01-01T00:00:00")],
             "dtime": [0],
-            "lat": data_2d.coords["lat"].values,
-            "lon": data_2d.coords["lon"].values,
+            "lat": lat_coord,
+            "lon": lon_coord,
         },
         attrs=dict(data_2d.attrs),
         name=data_2d.name,
     )
     wrapped.coords["level"].attrs["units"] = "m"
     return wrapped
+
+
+def create_test_projected_xarray_data():
+    """与 numpy 默认 1 km 格距对齐的投影兼容网格（lat/lon 维存米）。"""
+    temperature, humidity, pressure, uwind, vwind, topography = create_test_data()
+    lat = np.arange(10, dtype=np.float64) * 1000.0
+    lon = np.arange(10, dtype=np.float64) * 1000.0
+
+    def _da(values: np.ndarray, units: str) -> xr.DataArray:
+        return xr.DataArray(
+            values,
+            coords={
+                "lat": ("lat", lat, {"units": "m"}),
+                "lon": ("lon", lon, {"units": "m"}),
+            },
+            dims=["lat", "lon"],
+            attrs={"units": units},
+        )
+
+    return (
+        _da(temperature, "K"),
+        _da(humidity, "1"),
+        _da(pressure, "Pa"),
+        _da(uwind, "m s-1"),
+        _da(vwind, "m s-1"),
+        _da(topography, "m"),
+    )
 
 
 def open_resource_dataarray(filename: str, variable_name: str) -> xr.DataArray:
@@ -154,11 +192,12 @@ class TestOrographicEnhancement:
         assert "time" in result.coords
         assert result.coords["time"].values == forecast_time
 
-    def test_output_consistency_between_numpy_and_xarray(self):
+    def test_output_consistency_between_numpy_and_projected_xarray(self):
+        """numpy 默认 1 km 格距应与投影米制 xarray 路径一致。"""
         temperature, humidity, pressure, uwind, vwind, topography = create_test_data()
         result_np = OrographicEnhancement()(temperature, humidity, pressure, uwind, vwind, topography)
 
-        temp_da, hum_da, pres_da, uwind_da, vwind_da, topo_da = create_test_xarray_data()
+        temp_da, hum_da, pres_da, uwind_da, vwind_da, topo_da = create_test_projected_xarray_data()
         result_xr = OrographicEnhancement()(
             to_meb6d(temp_da),
             to_meb6d(hum_da),
@@ -169,6 +208,27 @@ class TestOrographicEnhancement:
         )
 
         np.testing.assert_allclose(result_np, _as_spatial(result_xr.values), rtol=1e-5)
+
+    def test_geographic_without_units_not_treated_as_1km(self):
+        """业务经纬（坐标无 units）应按度换算格距，不能落到默认 1 km。"""
+        from orographic_precipitation_downscaling.src.utils._grid import _grid_spacings_meters
+
+        temp_da, hum_da, pres_da, uwind_da, vwind_da, topo_da = create_test_xarray_data()
+        topo_meb = to_meb6d(topo_da)
+        dy, dx = _grid_spacings_meters(topo_meb)
+        assert dy > 1000.0
+        assert dx > 1000.0
+
+        result_geo = OrographicEnhancement()(
+            to_meb6d(temp_da),
+            to_meb6d(hum_da),
+            to_meb6d(pres_da),
+            to_meb6d(uwind_da),
+            to_meb6d(vwind_da),
+            topo_meb,
+        )
+        assert result_geo.dims == MEB_DIMS
+        assert result_geo.attrs["units"] == "m s-1"
 
     def test_zero_wind_case(self):
         temperature, humidity, pressure, uwind, vwind, topography = create_test_data()
@@ -226,6 +286,8 @@ class TestOrographicEnhancement:
         assert np.allclose(result.values, 0.0, atol=1e-10)
 
     def test_official_sample_regression(self):
+        if not (CLI_INPUT_DIR / "temperature.nc").exists():
+            pytest.skip("官方测试数据未同步到中间目录 test_data/")
         temperature = open_resource_dataarray("temperature.nc", "air_temperature")
         humidity = open_resource_dataarray("humidity.nc", "relative_humidity")
         pressure = open_resource_dataarray("pressure.nc", "air_pressure")

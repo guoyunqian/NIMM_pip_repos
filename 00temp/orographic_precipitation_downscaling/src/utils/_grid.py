@@ -22,6 +22,17 @@ from pyproj import CRS, Transformer
 from scipy.interpolate import RegularGridInterpolator
 
 EARTH_RADIUS_M = 6378137.0  # 地球半径，单位 m
+_DEGREE_UNIT_TOKENS = {
+    "degrees",
+    "degree",
+    "deg",
+    "°",
+    "degrees_north",
+    "degree_north",
+    "degrees_east",
+    "degree_east",
+}
+_GEOGRAPHIC_MAPPING_NAMES = {"latitude_longitude", "latlon", "geographic"}
 
 
 def _parse_grid_mapping_attrs(attrs: dict) -> dict:
@@ -40,6 +51,115 @@ def _parse_grid_mapping_attrs(attrs: dict) -> dict:
 def _norm_unit(unit: Optional[str]) -> str:
     """规范化单位字符串。"""
     return (unit or "").strip().lower()
+
+
+def _is_distance_unit(unit: Optional[str]) -> bool:
+    """判断单位是否可换算到米（排除角度）。"""
+    text = _norm_unit(unit)
+    if not text or "degree" in text or text in {"deg", "°"}:
+        return False
+    try:
+        Unit(text).convert(1.0, Unit("m"))
+        return True
+    except Exception:
+        return False
+
+
+def _is_degree_unit(unit: Optional[str]) -> bool:
+    """判断单位是否为经纬度（度）。"""
+    text = _norm_unit(unit)
+    return bool(text) and (text in _DEGREE_UNIT_TOKENS or "degree" in text)
+
+
+def _mapping_grid_name(data: xr.DataArray) -> str:
+    """读取 ``grid_mapping_name``（小写）；无投影元数据时为空串。"""
+    mapping = _parse_grid_mapping_attrs(dict(data.attrs))
+    return str(mapping.get("grid_mapping_name", "")).strip().lower()
+
+
+def _values_in_geographic_range(y_values: np.ndarray, x_values: np.ndarray) -> bool:
+    """坐标数值是否落在经纬度合理范围内。"""
+    y = np.asarray(y_values, dtype=np.float64)
+    x = np.asarray(x_values, dtype=np.float64)
+    y = y[np.isfinite(y)]
+    x = x[np.isfinite(x)]
+    if y.size == 0 or x.size == 0:
+        return False
+    return bool(
+        np.nanmax(np.abs(y)) <= 90.0 + 1e-6
+        and np.nanmax(np.abs(x)) <= 360.0 + 1e-6
+    )
+
+
+def _is_geographic_spatial(data: xr.DataArray) -> bool:
+    """判断空间坐标是否应按真经纬处理。
+
+    与 nbhood / 风速降尺度约定对齐：
+
+    1. 两维均为可换算到米的距离单位 → 投影；
+    2. 任一侧为度单位，或 mapping 为 ``latitude_longitude`` → 经纬；
+    3. mapping 为投影类 → 非经纬；
+    4. **两侧均无 units**：meb 业务默认经纬；例外是数值远超经纬范围
+       （投影维仅改名为 ``lat``/``lon`` 的兼容数据）→ 仍按投影米制。
+    """
+    y_name, x_name = _get_spatial_coord_names(data)
+    if y_name not in data.coords or x_name not in data.coords:
+        return False
+    y_coord = data.coords[y_name]
+    x_coord = data.coords[x_name]
+    y_units = _norm_unit(y_coord.attrs.get("units"))
+    x_units = _norm_unit(x_coord.attrs.get("units"))
+
+    if _is_distance_unit(y_units) and _is_distance_unit(x_units):
+        return False
+    if _is_degree_unit(y_units) or _is_degree_unit(x_units):
+        return True
+
+    mapping_name = _mapping_grid_name(data)
+    if mapping_name in _GEOGRAPHIC_MAPPING_NAMES:
+        return True
+    if mapping_name:
+        return False
+
+    y_standard = _norm_unit(y_coord.attrs.get("standard_name"))
+    x_standard = _norm_unit(x_coord.attrs.get("standard_name"))
+    if y_standard in {"latitude", "grid_latitude"} and x_standard in {
+        "longitude",
+        "grid_longitude",
+    }:
+        return True
+
+    units_missing = (not y_units) and (not x_units)
+    in_geo_range = _values_in_geographic_range(y_coord.values, x_coord.values)
+    if units_missing:
+        return in_geo_range
+    return in_geo_range
+
+
+def _mean_abs_diff(values: np.ndarray) -> float:
+    """相邻坐标平均间距（绝对值）。"""
+    diffs = np.abs(np.diff(np.asarray(values, dtype=np.float64)))
+    diffs = diffs[np.isfinite(diffs)]
+    if diffs.size == 0:
+        return 0.0
+    return float(np.mean(diffs))
+
+
+def _geographic_axis_spacing_meters(
+    y_values: np.ndarray, x_values: np.ndarray
+) -> Tuple[float, float]:
+    """经纬坐标轴的南北/东西向格距（米）。
+
+    正球体近似：``dy = R·Δlat``，``dx = R·cos(lat)·Δlon``，``Δ`` 为度。
+    """
+    dlat = _mean_abs_diff(y_values)
+    dlon = _mean_abs_diff(x_values)
+    lat_finite = np.asarray(y_values, dtype=np.float64)
+    lat_finite = lat_finite[np.isfinite(lat_finite)]
+    mean_lat_rad = np.deg2rad(float(np.mean(lat_finite))) if lat_finite.size else 0.0
+    dy_m = np.deg2rad(dlat) * EARTH_RADIUS_M
+    dx_m = np.deg2rad(dlon) * EARTH_RADIUS_M * np.cos(mean_lat_rad)
+    return float(abs(dy_m)), float(abs(dx_m))
 
 
 def _convert_units(values: np.ndarray, from_unit: str, to_unit: str) -> np.ndarray:
@@ -138,15 +258,8 @@ def _prepare_input(data: Union[xr.DataArray, np.ndarray], default_unit: str) -> 
 def _get_data_crs(data: Optional[xr.DataArray]) -> Optional[CRS]:
     """推断数据对应的坐标参考系。
 
-    参数
-    ----------
-    data : xr.DataArray 或 None
-        待识别坐标系的数据场。
-
-    返回值
-    -------
-    CRS 或 None
-        识别到的坐标参考系；若无法识别则返回 ``None`` 。
+    优先读 ``grid_mapping_attrs``；否则：经纬网格（含业务 meb 无 units）
+    视为 WGS84；投影米制且无 mapping 时返回 ``None``。
     """
     if data is None or not isinstance(data, xr.DataArray):
         return None
@@ -156,17 +269,7 @@ def _get_data_crs(data: Optional[xr.DataArray]) -> Optional[CRS]:
             return CRS.from_cf(mapping_attrs)
         except Exception:
             pass
-    y_name, x_name = _get_spatial_coord_names(data)
-    x_coord = data.coords[x_name]
-    y_coord = data.coords[y_name]
-    x_units = _norm_unit(x_coord.attrs.get("units"))
-    y_units = _norm_unit(y_coord.attrs.get("units"))
-    x_standard = _norm_unit(x_coord.attrs.get("standard_name"))
-    y_standard = _norm_unit(y_coord.attrs.get("standard_name"))
-    if (
-        x_units in {"degrees", "degree", "degrees_east", "degree_east"}
-        and y_units in {"degrees", "degree", "degrees_north", "degree_north"}
-    ) or (x_standard == "longitude" and y_standard == "latitude"):
+    if _is_geographic_spatial(data):
         return CRS.from_epsg(4326)
     return None
 
@@ -185,55 +288,20 @@ def _coord_values_for_crs(coord: xr.DataArray, crs: Optional[CRS]) -> np.ndarray
 
 
 def _estimate_grid_spacing_meters(data: Union[xr.DataArray, np.ndarray]) -> float:
-    """估算网格的平均空间分辨率。
+    """估算网格的平均空间分辨率（米）。
 
-    参数
-    ----------
-    data : Union[xr.DataArray, np.ndarray]
-        输入网格数据。
-
-    返回值
-    -------
-    float
-        平均网格间距，单位为米。
+    ``numpy`` 无坐标，沿用 1 km 默认格距。DataArray 按投影米制或经纬近似换算。
     """
-    if not isinstance(data, xr.DataArray):
-        return 1000.0
-    y_name, x_name = _get_spatial_coord_names(data)
-    y_coord = data.coords[y_name]
-    x_coord = data.coords[x_name]
-    y_values = np.asarray(y_coord.values, dtype=np.float64)
-    x_values = np.asarray(x_coord.values, dtype=np.float64)
-    if len(y_values) < 2 or len(x_values) < 2:
-        return 1000.0
-    y_units = _norm_unit(y_coord.attrs.get("units"))
-    x_units = _norm_unit(x_coord.attrs.get("units"))
-    if y_units in {"m", "metre", "meter", "km", "kilometer", "kilometre"} and x_units in {"m", "metre", "meter", "km", "kilometer", "kilometre"}:
-        y_m = _convert_units(y_values, y_units, "m")
-        x_m = _convert_units(x_values, x_units, "m")
-        return float((np.mean(np.abs(np.diff(y_m))) + np.mean(np.abs(np.diff(x_m)))) / 2.0)
-    crs = _get_data_crs(data)
-    if crs is not None and crs.is_geographic:
-        mean_lat_rad = np.deg2rad(float(np.mean(y_values)))
-        dy = np.mean(np.abs(np.diff(y_values))) * np.pi / 180.0 * EARTH_RADIUS_M
-        dx = np.mean(np.abs(np.diff(x_values))) * np.pi / 180.0 * EARTH_RADIUS_M * np.cos(mean_lat_rad)
-        return float((dx + dy) / 2.0)
-    return 1000.0
+    y_spacing, x_spacing = _grid_spacings_meters(data)
+    return float((y_spacing + x_spacing) / 2.0)
 
 
 def _grid_spacings_meters(data: Union[xr.DataArray, np.ndarray]) -> Tuple[float, float]:
-    """分别计算 y、x 方向的网格间距。
+    """分别计算 y、x 方向的网格间距（米）。
 
-    参数
-    ----------
-    data : Union[xr.DataArray, np.ndarray]
-        输入网格数据。
-
-    返回值
-    -------
-    tuple
-        - y 方向网格间距，单位为米
-        - x 方向网格间距，单位为米
+    - 投影米制：坐标差分换算到米；
+    - 真经纬（含无 units 的业务 meb）：度间距换算为米，东西向按代表纬度缩放；
+    - ``numpy``：无坐标对象，默认 ``(1000, 1000)``。
     """
     if not isinstance(data, xr.DataArray):
         return 1000.0, 1000.0
@@ -243,19 +311,19 @@ def _grid_spacings_meters(data: Union[xr.DataArray, np.ndarray]) -> Tuple[float,
     y_values = np.asarray(y_coord.values, dtype=np.float64)
     x_values = np.asarray(x_coord.values, dtype=np.float64)
     if len(y_values) < 2 or len(x_values) < 2:
-        spacing = _estimate_grid_spacing_meters(data)
-        return spacing, spacing
-    y_units = _norm_unit(y_coord.attrs.get("units"))
-    x_units = _norm_unit(x_coord.attrs.get("units"))
-    if y_units in {"m", "metre", "meter", "km", "kilometer", "kilometre"}:
-        y_spacing = float(np.mean(np.abs(np.diff(_convert_units(y_values, y_units, "m")))))
-    else:
-        y_spacing = _estimate_grid_spacing_meters(data)
-    if x_units in {"m", "metre", "meter", "km", "kilometer", "kilometre"}:
-        x_spacing = float(np.mean(np.abs(np.diff(_convert_units(x_values, x_units, "m")))))
-    else:
-        x_spacing = _estimate_grid_spacing_meters(data)
-    return y_spacing, x_spacing
+        return 1000.0, 1000.0
+
+    y_units = y_coord.attrs.get("units")
+    x_units = x_coord.attrs.get("units")
+    # 两维均为距离单位：投影兼容路径，差分即米制格距
+    if _is_distance_unit(y_units) and _is_distance_unit(x_units):
+        y_m = _convert_units(y_values, str(y_units).strip(), "m")
+        x_m = _convert_units(x_values, str(x_units).strip(), "m")
+        return _mean_abs_diff(y_m), _mean_abs_diff(x_m)
+    if _is_geographic_spatial(data):
+        return _geographic_axis_spacing_meters(y_values, x_values)
+    # 无 units 且数值不像经纬：投影维重命名兼容，坐标值按米使用
+    return _mean_abs_diff(y_values), _mean_abs_diff(x_values)
 
 
 def _needs_regridding(source: xr.DataArray, target: xr.DataArray) -> bool:

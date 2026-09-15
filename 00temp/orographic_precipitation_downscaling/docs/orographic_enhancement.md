@@ -53,6 +53,8 @@ grad_x = diff(Z_smooth, axis=x) / dx    # dx 为 x 方向格距（m）
 grad_y = diff(Z_smooth, axis=y) / dy    # dy 为 y 方向格距（m）
 ```
 
+经纬输入时 `dx`/`dy` 由度间距按地球半径近似换算（见第 10 节）；投影米制则直接用坐标差分。
+
 迎风抬升率 `vgradz`（m/s）：
 
 ```text
@@ -454,6 +456,22 @@ python orographic_precipitation_downscaling/cli/preprocess_test_data.py
 - `original_algorithm_result.nc` 为地形增强项计算原方法结果（供 ApplyOE 使用）。CLI 对照直接读原方法结果 `original_cli_result.nc`（Iris Cube）。投影路径的 KGO 仍读官方 `kgo_hi_res.nc`；经纬重网格 KGO 只写 `latlon/kgo_hi_res.nc` Cube作对照使用。
 - Notebook 只读上述写出结果做对照。
 
-## 10. 注意事项
+## 10. 网格坐标约定
+
+计算增强项（`OrographicEnhancement` / `MetaOrographicEnhancement` / `ResolveWindComponents`）需要米制格距（地形梯度、上游 15 km 回溯）。xarray 路径按空间坐标自动分支：
+
+| 判定 | 条件 | 格距 |
+| --- | --- | --- |
+| 投影米制 | `lat`/`lon` 的 `units` 均可换算到米（`m`、`km` 等） | 坐标差分换算为米 |
+| 真经纬 | 无距离 `units`（业务 meb 默认），或标注为度；也可带 `grid_mapping_attrs = latitude_longitude` | 正球体近似：`dy = R·Δlat`，`dx = R·cos(lat)·Δlon`（`R = 6378137 m`） |
+| 投影维重命名兼容 | 无 `units` 且坐标数值远超经纬范围（如 `|lat|≫90`） | 将坐标值直接当作米 |
+
+`ApplyOrographicEnhancement` 只做降水与增强项的加减，不读水平格距。
+
+`numpy` 输入无坐标对象，格距固定为 1 km，与原先一致。
+
+---
+
+## 11. 注意事项
 
 若输出文件被占用（如被 Notebook 打开），CLI 写文件可能失败。

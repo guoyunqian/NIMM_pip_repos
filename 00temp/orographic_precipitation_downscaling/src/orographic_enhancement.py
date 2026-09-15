@@ -672,6 +672,8 @@ class OrographicEnhancement(BasePlugin):
             vwind_values = np.asarray(_convert_units(vwind_values, vwind_units, "m s-1"), dtype=np.float32)
 
         # --- 6. 网格距（用于梯度与上游回溯尺度）---
+        # xarray：投影米制直接差分；真经纬（含无 units 的业务 meb）按度换算为米。
+        # numpy：无坐标，沿用 1 km。
         if target_grid is not None:
             y_spacing_m, x_spacing_m = _grid_spacings_meters(target_grid)
         else:

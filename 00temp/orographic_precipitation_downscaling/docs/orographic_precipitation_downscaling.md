@@ -30,6 +30,8 @@
 | CLI  | `cli/dsc_orographic_enhancement.py`   | 地形增强项计算示例调度脚本                    |
 | 文档   | `docs/orographic_enhancement.md`      | 原始算法说明文档                         |
 | 测试   | `test/test_orographic_enhancement.py` | 合成样例与官方样例对照测试                    |
+| 测试   | `test/test_grid_spacing.py`           | 投影米制与真经纬格距推断                       |
+| CLI 入口 | `cli/__main__.py`                    | `python -m` 列出示例脚本                   |
 
 
 
@@ -83,6 +85,11 @@
   - CLI 调度脚本同步改用 `meb.checkout_griddata()` 进行网格数据校验。
   - 补齐测试数据预处理脚本 `cli/preprocess_test_data.py`。
   - 同步最新测试用例、文档说明和验证 notebook。
+- **2026-09-15 增量同步**：
+  - 从 `D:\workspace\improver\orographic_enhancement` 再次同步源码、CLI、文档与 notebook。
+  - 补齐 `cli/__main__.py`、`test/test_grid_spacing.py`（投影米制 / 真经纬格距推断）。
+  - `src/utils/_grid.py` 同步经纬与投影格距判断（含 `_is_geographic_spatial`）。
+  - 导入仍统一为 `orographic_precipitation_downscaling`；`test_data/` 未拷入中间目录。
 
 待处理：
 

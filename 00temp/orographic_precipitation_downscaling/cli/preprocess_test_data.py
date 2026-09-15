@@ -31,7 +31,7 @@
 
 用法（仓库根目录）::
 
-    python orographic_enhancement/cli/preprocess_test_data.py
+    python orographic_precipitation_downscaling/cli/preprocess_test_data.py
 """
 from __future__ import annotations
 
