@@ -128,32 +128,24 @@ def process(
     return result
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """定义输入/输出路径并调用 ``process``（默认 ``resource/`` 样例）。"""
     import sys
 
-    #添加项目根目录到系统路径,可直接运行示例脚本
-    repo_root = Path(__file__).resolve().parents[2]
-    if str(repo_root) not in sys.path:
-        sys.path.insert(0, str(repo_root))
+    _PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+    repo_root = str(_PACKAGE_ROOT.parent)
+    if repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
 
-    #测试数据路径
-    data_root = (
-        Path(__file__).resolve().parent.parent
-        / "test_data"
-        / "temp_lapse_rate_data"
+    input_dir = _PACKAGE_ROOT / "resource" / "cli_input"
+    output_dir = _PACKAGE_ROOT / "resource" / "cli_output"
+    process(
+        str(input_dir / "temperature_at_screen_level.nc"),
+        orography_path=str(input_dir / "ukvx_orography.nc"),
+        land_sea_mask_path=str(input_dir / "ukvx_landmask.nc"),
+        output_path=str(output_dir / "cli_lapse_rate_result.nc"),
     )
-    cli_input_dir = data_root / "cli_input"
-    cli_output_dir = data_root / "cli_output"
 
-    #各输入文件的路径映射
-    temperature_path = str(cli_input_dir / "temperature_at_screen_level.nc")   #温度场nc文件路径
-    orography_path = str(cli_input_dir / "ukvx_orography.nc")   #地形高度场nc文件路径
-    land_sea_mask_path = str(cli_input_dir / "ukvx_landmask.nc")   #海陆掩码场nc文件路径
-    output_path = str(cli_output_dir / "cli_lapse_rate_result.nc")   #输出nc文件路径
 
-    result = process(
-        temperature_path,
-        orography_path=orography_path,
-        land_sea_mask_path=land_sea_mask_path,
-        output_path=output_path,
-    )
+if __name__ == "__main__":
+    main()

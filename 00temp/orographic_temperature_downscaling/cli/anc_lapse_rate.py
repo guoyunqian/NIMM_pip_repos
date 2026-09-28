@@ -74,27 +74,25 @@ def process(
     return result
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """定义输入/输出路径并调用 ``process``（默认 ``resource/`` 样例）。"""
     import sys
 
-    #添加项目根目录到系统路径,可直接运行示例脚本
-    repo_root = Path(__file__).resolve().parents[2]
-    if str(repo_root) not in sys.path:
-        sys.path.insert(0, str(repo_root))
+    _PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+    repo_root = str(_PACKAGE_ROOT.parent)
+    if repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
 
-    #测试数据路径
-    data_root = (
-        Path(__file__).resolve().parent.parent
-        / "test_data"
-        / "apply_lapse_rate_data"
+    input_dir = _PACKAGE_ROOT / "resource" / "cli_input"
+    output_dir = _PACKAGE_ROOT / "resource" / "cli_output"
+    process(
+        str(input_dir / "ukvx_temperature.nc"),
+        str(input_dir / "ukvx_lapse_rate.nc"),
+        str(input_dir / "anc_ukvx_orography.nc"),
+        str(input_dir / "highres_orog.nc"),
+        output_path=str(output_dir / "cli_apply_lapse_rate_result.nc"),
     )
-    cli_input_dir = data_root / "cli_input"
-    cli_output_dir = data_root / "cli_output"
 
-    temperature_path = str(cli_input_dir / "ukvx_temperature.nc")    #温度场nc文件路径
-    lapse_rate_path = str(cli_input_dir / "ukvx_lapse_rate.nc")    #层结递减率场nc文件路径
-    source_orography_path = str(cli_input_dir / "ukvx_orography.nc")    #源地形高度场nc文件路径
-    target_orography_path = str(cli_input_dir / "highres_orog.nc")    #目标地形高度场nc文件路径
-    output_path = str(cli_output_dir / "cli_apply_lapse_rate_result.nc")#地形订正后温度场nc文件路径
 
-    result = process(temperature_path, lapse_rate_path, source_orography_path, target_orography_path, output_path=output_path)
+if __name__ == "__main__":
+    main()

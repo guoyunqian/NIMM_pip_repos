@@ -55,6 +55,12 @@ CLI 包括 `cli/dsc_temp_lapse_rate.py`（递减率）与 `cli/anc_lapse_rate.py
 - 原代码目录 pytest 全部通过（2026-07-06）。
 - 详细过程见：`00temp/orographic_temperature_downscaling/00log/lapse_rate_整理_20260706.log`。
 
+## 2026-09-28 更新
+
+- 容器冒烟约定：`main()` 默认使用 `resource/cli_input`；包根子命令 `lapse-rate` / `apply-lapse`。
+- 写入经纬 meb 最小样例；仿真容器冒烟通过。
+- 包内文档补充子命令说明（示例路径未改）。
+
 ## 2026-06-29 更新
 
 - 初整至中间目录；当时导入仍为原始 `temperature` 包名，后续由 2026-07-06 标准化更新。
@@ -64,4 +70,4 @@ CLI 包括 `cli/dsc_temp_lapse_rate.py`（递减率）与 `cli/anc_lapse_rate.py
 1. 补充至正式 `NIMM/00space_downscale/` 时需调整为仓库正式包路径。
 2. `BasePlugin` 正式入库时评估是否改为仓库统一基类。
 3. 测试样例在 `NIMM_pip_testdata/orographic_temperature_downscaling/`，中间目录未同步；正式入库前确认必要样例范围。
-4. `resource/` 当前为空，正式补充时确认是否保留。
+4. `resource/` 已含容器冒烟最小样例；正式入库时确认是否保留或再筛选。

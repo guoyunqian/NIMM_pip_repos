@@ -268,11 +268,15 @@ print(result_np.shape, result_np.dtype)
 
 ### 7.1 运行方式
 
-**方式 1：直接运行示例脚本**（在脚本底部 `if __name__ == "__main__"` 中修改路径与参数）
+**方式 1：包根目录子命令或直接运行示例脚本**
 
-PowerShell 示例（应用层结递减率）：
+```bash
+# 子命令（无参列出用法）
+python -m cli lapse-rate      # 计算层结递减率（dsc_temp_lapse_rate）
+python -m cli apply-lapse     # 应用层结递减率（anc_lapse_rate）
 
-```powershell
+# 或模块方式
+python -m orographic_temperature_downscaling.cli.dsc_temp_lapse_rate
 python -m orographic_temperature_downscaling.cli.anc_lapse_rate
 ```
 
