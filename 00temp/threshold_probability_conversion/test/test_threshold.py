@@ -15,7 +15,7 @@ import xarray as xr
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from threshold_probability_conversion.src.threshold import Threshold
-from neighbourhood_probability_processing.src.utils._regrid import prepare_geographic_input
+from threshold_probability_conversion.src.utils._regrid import prepare_geographic_input
 from threshold_probability_conversion.src.utils._comparison_operator import comparison_operator_dict
 from threshold_probability_conversion.src.utils._rescale import rescale
 

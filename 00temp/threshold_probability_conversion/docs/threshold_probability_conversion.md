@@ -48,9 +48,10 @@
 已完成：
 
 - 自 `D:\workspace\improver\threshold` 同步 `src/`、`utils/`、`cli/`、`test/`、`docs/`、`nbs/`（2026-08-24）。
-- 导入路径已统一为中间目录模块名 `threshold_probability_conversion`；对邻域格距工具的依赖改为 `neighbourhood_probability_processing`。
+- 导入路径已统一为中间目录模块名 `threshold_probability_conversion`。
 - 未同步 `test_data/`（约 5.88MB、32 文件）；CLI / 预处理缺样例时中文提示后退出。
 - 原目录 pytest：41 passed；中间目录：27 passed / 14 skipped（缺 test_data 时官方对照 skip）。
+- 包根目录可用子命令入口：`python -m cli threshold`（无参列出用法）。
 
 待处理：
 

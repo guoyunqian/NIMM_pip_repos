@@ -49,10 +49,16 @@ CLI 入口包括：
 - 原目录没有 `utils/utils.py`，中间目录不另建。
 - 原目录 pytest：41 passed；中间目录 pytest：27 passed, 14 skipped（2026-08-24；缺 test_data 时官方对照 skip）。
 
+## 2026-09-28 更新
+
+- 容器冒烟约定：`prb_threshold.main()` 默认使用 `resource/cli_input`；包根 `python -m cli threshold`。
+- 经纬→LAEA 格距工具改为包内实现，冒烟不再依赖同级 `neighbourhood_probability_processing`。
+- 写入最小 `input_meb.nc` 样例；仿真容器冒烟通过。
+- 整理说明中删除「依赖邻域包」表述；包内文档补充子命令（示例路径未改）。
+
 ## 仍存在问题（需人工补充）
 
 1. 补充至正式 `NIMM/07probability/` 时需调整为仓库正式包路径。
 2. `BasePlugin` 正式入库时评估是否改为仓库统一基类。
 3. `test_data` 样例约 5.88MB（32 文件），中间目录未同步；是否纳入 `NIMM_pip_testdata` / 正式仓库后续决定。
-4. `resource/` 当前为空，正式补充时确认是否保留。
-5. vicinity 格距依赖同级中间目录 `neighbourhood_probability_processing`；正式入库时需改为仓库正式包路径。
+4. `resource/` 已含容器冒烟最小样例；正式入库时确认是否保留或再筛选。

@@ -216,11 +216,17 @@ process(
 )
 ```
 
-脚本直接运行（使用脚本内默认 ``test_data/basic`` 路径）：
+脚本直接运行（使用脚本内默认路径）：
 
 ```text
 python threshold_probability_conversion/cli/preprocess_test_data.py   # 可选：生成/更新 meb 与 latlon 样例
 python threshold_probability_conversion/cli/prb_threshold.py
+```
+
+包根目录子命令（等价调用 `prb_threshold.main`）：
+
+```text
+python -m cli threshold
 ```
 
 ### 5.3 CLI 参数说明

@@ -25,13 +25,12 @@ from numpy import ndarray
 from numpy.ma.core import MaskedArray
 
 import meteva_base as meb
-from neighbourhood_probability_processing.src.utils._regrid import prepare_grid_spacing_dataarray
-
 from threshold_probability_conversion.src.utils._comparison_operator import comparison_operator_dict
 from threshold_probability_conversion.src.utils._grid import (
     distance_to_number_of_grid_cells,
     infer_equal_area_grid_spacing_m,
 )
+from threshold_probability_conversion.src.utils._regrid import prepare_grid_spacing_dataarray
 from threshold_probability_conversion.src.utils._rescale import rescale
 from threshold_probability_conversion.src.utils._vicinity import apply_vicinity_to_slices
 from threshold_probability_conversion.utils.base_plugin import BasePlugin
