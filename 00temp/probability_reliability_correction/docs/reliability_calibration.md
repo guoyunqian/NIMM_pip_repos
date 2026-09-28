@@ -445,9 +445,14 @@ flowchart TD
 | `cli/prb_manipulate_reliability_table.py` | Manipulate |
 | `cli/prb_apply_reliability_calibration.py` | Apply |
 
-用法：在仓库根目录修改脚本底部路径后执行，例如：
+用法：在包根目录用子命令，或修改脚本底部路径后直接执行，例如：
 
 ```text
+python -m cli construct
+python -m cli aggregate
+python -m cli manipulate
+python -m cli apply
+
 python probability_reliability_correction/cli/prb_construct_reliability_tables.py
 ```
 
@@ -464,7 +469,7 @@ ds = process(forecast_path, truth_path, output_path="out.nc")
 - `process` 只做「读 → 插件 → 写」；格式分支封装在 `cli/io.py`。  
 - Manipulate：网格的 `output_path` 为**目录**（按阈值多文件）；站点为**单个 csv**。  
 - 站点可靠性表经 Manipulate 后仍为一张长表，Apply 直接读该 csv 即可。  
-- 列出脚本：`python -m probability_reliability_correction.cli`  
+- 列出子命令：`python -m cli`（包根目录）  
 - 对照与绘图：`nbs/reliability_calibration_validation.ipynb`  
 - 测试：`pytest probability_reliability_correction/test`
 

@@ -69,34 +69,25 @@ def process(
     return result
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """定义输入/输出路径并调用 ``process``（默认 ``resource/`` 样例）。"""
     import sys
 
-    repo_root = Path(__file__).resolve().parents[2]
-    if str(repo_root) not in sys.path:
-        sys.path.insert(0, str(repo_root))
+    _PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+    repo_root = str(_PACKAGE_ROOT.parent)
+    if repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
 
-    data_root = (
-        Path(__file__).resolve().parent.parent
-        / "test_data"
-        / "apply-reliability-calibration"
-        / "basic"
+    cli_input = _PACKAGE_ROOT / "resource" / "cli_input"
+    cli_output = _PACKAGE_ROOT / "resource" / "cli_output"
+    cli_output.mkdir(parents=True, exist_ok=True)
+    process(
+        cli_input / "apply_forecast.nc",
+        [cli_input / "apply_collapsed_table.nc"],
+        point_by_point=False,
+        output_path=cli_output / "mig_cli_calibrated.nc",
     )
-    cli_input = data_root / "cli_input"
-    cli_output = data_root / "cli_output"
-    forecast_file = cli_input / "forecast.nc"
-    table_file = cli_input / "collapsed_table.nc"
-    if not forecast_file.is_file() or not table_file.is_file():
-        print(
-            f"示例输入不存在：{forecast_file} 或 {table_file}\n"
-            "请补齐 test_data（可先运行 cli/preprocess_test_data.py）后再试，"
-            "或在此处改成你自己的输入路径。"
-        )
-    else:
-        cli_output.mkdir(parents=True, exist_ok=True)
-        process(
-            forecast_file,
-            [table_file],
-            point_by_point=False,
-            output_path=cli_output / "mig_cli_calibrated.nc",
-        )
+
+
+if __name__ == "__main__":
+    main()

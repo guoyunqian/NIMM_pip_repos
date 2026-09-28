@@ -72,44 +72,28 @@ def process(
     return result
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """定义输入/输出路径并调用 ``process``（默认 ``resource/`` 样例）。"""
     import sys
 
-    repo_root = Path(__file__).resolve().parents[2]
-    if str(repo_root) not in sys.path:
-        sys.path.insert(0, str(repo_root))
+    _PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+    repo_root = str(_PACKAGE_ROOT.parent)
+    if repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
 
-    data_root = (
-        Path(__file__).resolve().parent.parent
-        / "test_data"
-        / "construct-reliability-tables"
-        / "basic"
+    cli_input = _PACKAGE_ROOT / "resource" / "cli_input"
+    cli_output = _PACKAGE_ROOT / "resource" / "cli_output"
+    cli_output.mkdir(parents=True, exist_ok=True)
+    process(
+        cli_input / "construct_forecast.nc",
+        cli_input / "construct_truth.nc",
+        n_probability_bins=5,
+        single_value_lower_limit=False,
+        single_value_upper_limit=False,
+        aggregate_coords=None,
+        output_path=cli_output / "mig_cli_reliability_table.nc",
     )
-    cli_input = data_root / "cli_input"
-    cli_output = data_root / "cli_output"
-    forecast_file = cli_input / "forecast.nc"
-    truth_file = cli_input / "truth.nc"
-    if not forecast_file.is_file() or not truth_file.is_file():
-        print(
-            f"示例输入不存在：{forecast_file} 或 {truth_file}\n"
-            "请补齐 test_data（可先运行 cli/preprocess_test_data.py）后再试，"
-            "或在此处改成你自己的输入路径。"
-        )
-    else:
-        cli_output.mkdir(parents=True, exist_ok=True)
-        process(
-            forecast_file,
-            truth_file,
-            n_probability_bins=5,
-            single_value_lower_limit=False,
-            single_value_upper_limit=False,
-            aggregate_coords=None,
-            output_path=cli_output / "mig_cli_reliability_table.nc",
-        )
-    # 站点示例（路径改为自备 csv）：
-    # process(
-    #     "forecast_sta.csv",
-    #     "truth_sta.csv",
-    #     aggregate_coords=["id"],
-    #     output_path=cli_output / "reliability_table_sta.csv",
-    # )
+
+
+if __name__ == "__main__":
+    main()
