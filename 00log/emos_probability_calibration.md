@@ -76,3 +76,10 @@
 4. 当前未运行完整测试。正式补充前应确认环境依赖，包括 `numpy`、`xarray`、`scipy`、`statsmodels`，以及对照测试所需的 `iris`、`improver`。
 5. 新增 CLI 是中间整理阶段的薄包装，后续入库时应根据仓库统一 CLI 规范继续调整参数和导入路径。
 
+## 2026-09-28 更新
+
+- 容器冒烟约定：新增 `cli/__init__.py`、`cli/__main__.py`；子命令 `emos`；`run_emos.main()` 默认使用 `resource/cli_input`（spot CSV）写出至 `resource/cli_output`。
+- 写入最小 spot 样例；仿真容器冒烟通过（依赖 `statsmodels` 等）。
+- 包内文档补充 `python -m cli emos`（示例路径未改）。
+- 仓库根 `requirements.txt` 已合并 core/extra 依赖清单供离线 wheel 安装。
+

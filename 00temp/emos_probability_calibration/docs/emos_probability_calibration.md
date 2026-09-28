@@ -142,7 +142,10 @@ probability = apply_emos(forecast=apply_fc, coefficients=coeffs, prob_template=p
 ## 测试脚本
 
 ```bash
-# 查看输入/输出结构（spot，0/1/2 static）
+# 包根目录子命令
+python -m cli emos
+
+# 查看输入/输出结构（spot，0/1/2 static；若仍保留旧脚本）
 python test_data/run_emos.py
 python test_data/run_emos.py --domain spot --static 1
 
