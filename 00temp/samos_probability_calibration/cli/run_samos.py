@@ -301,48 +301,35 @@ def process(
     }
 
 
+def main() -> None:
+    """定义输入/输出路径并调用 ``process``（默认 ``resource/`` 样例）。"""
+    data_dir = _PKG / "resource" / "cli_input"
+    output_dir = _PKG / "resource" / "cli_output"
+    result = process(
+        str(data_dir / "hf.csv"),
+        str(data_dir / "truth.csv"),
+        forecast_path=None,
+        static_paths=[str(data_dir / "static_altitude.csv")],
+        output_dir=str(output_dir),
+        gam_features=None,
+        window_length=3,
+        max_iter=30,
+        distribution="norm",
+        predictor="mean",
+        point_by_point=True,
+        thresholds=THRESHOLDS,
+        thresholds_operator="below",
+        percentiles=OUTPUT_PERCENTILES,
+    )
+    print("SAMOS process 完成:")
+    for key, ds in result.items():
+        if ds is None:
+            print(f"  {key}: None")
+        else:
+            print(
+                f"  {key}: {{{', '.join(f'{k}: {dict(ds[k].sizes)}' for k in ds.data_vars)}}}"
+            )
+
+
 if __name__ == "__main__":
-    data_dir = _PKG / "test_data" / "spot"
-    historic_forecast_path = data_dir / "hf.csv"
-    truth_path = data_dir / "truth.csv"
-    forecast_path = None
-    static_paths: Optional[List[str]] = [
-        str(data_dir / "static_altitude.csv"),
-        # str(data_dir / "static_slope.csv"),
-    ]
-    output_dir = _PKG / "cli" / "output_samos"
-
-    # 格点示例:
-    # data_dir = _PKG / "test_data" / "grid"
-    # historic_forecast_path = data_dir / "hf.nc"
-    # truth_path = data_dir / "truth.nc"
-    # static_paths = [str(data_dir / "static_orography.nc")]
-
-    if not historic_forecast_path.is_file() or not truth_path.is_file():
-        print(
-            f"示例输入不存在：{historic_forecast_path} 或 {truth_path}\n"
-            "请补齐 test_data 后再试，或在此处改成你自己的路径。"
-        )
-    else:
-        result = process(
-            str(historic_forecast_path),
-            str(truth_path),
-            forecast_path=str(forecast_path) if forecast_path else None,
-            static_paths=static_paths,
-            output_dir=str(output_dir),
-            gam_features=None,
-            window_length=3,
-            max_iter=30,
-            distribution="norm",
-            predictor="mean",
-            point_by_point=True,
-            thresholds=THRESHOLDS,
-            thresholds_operator="below",
-            percentiles=OUTPUT_PERCENTILES,
-        )
-        print("SAMOS process 完成:")
-        for key, ds in result.items():
-            if ds is None:
-                print(f"  {key}: None")
-            else:
-                print(f"  {key}: {{{', '.join(f'{k}: {dict(ds[k].sizes)}' for k in ds.data_vars)}}}")
+    main()

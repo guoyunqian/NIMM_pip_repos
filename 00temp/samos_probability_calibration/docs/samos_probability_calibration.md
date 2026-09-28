@@ -185,7 +185,10 @@ probability = apply_samos(
 在包根目录 `samos_probability_calibration/` 下（需同级存在 `emos_probability_calibration/`）：
 
 ```bash
-# CLI 演示（写到 cli/output_samos/）
+# 包根目录子命令
+python -m cli samos
+
+# 或直接运行 CLI 脚本
 python cli/run_samos.py
 
 # 查看输入/输出结构（spot/grid，0/1/2 static）
