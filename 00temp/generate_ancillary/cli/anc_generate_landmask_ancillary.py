@@ -1,14 +1,28 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""海陆掩码二值化 CLI 示例。"""
+"""海陆掩码二值化 CLI 示例。
+
+约定（无 Improver ``cli`` 装饰器）::
+
+    - ``process`` 接收文件路径，在函数内完成读入、计算与可选写出；
+    - ``main`` 中定义路径等参数，再直接调用 ``process``。
+
+包根目录执行::
+
+    python -m cli landmask
+    python cli/anc_generate_landmask_ancillary.py
+"""
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Optional
 
 import meteva_base as meb
 import xarray as xr
+
+_PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 
 
 def process(landmask_path: str, output_path: Optional[str] = None) -> xr.DataArray:
@@ -37,7 +51,7 @@ def process(landmask_path: str, output_path: Optional[str] = None) -> xr.DataArr
         二值化后的海陆掩码，维度保持输入不变。
     """
     from generate_ancillary.src.generate_ancillary import CorrectLandSeaMask
-    
+
     landmask = meb.read_griddata_from_nc(landmask_path)
     result = CorrectLandSeaMask().process(landmask)
 
@@ -47,31 +61,23 @@ def process(landmask_path: str, output_path: Optional[str] = None) -> xr.DataArr
     return result
 
 
+def main() -> None:
+    """定义输入/输出路径并调用 ``process``。
+
+    默认使用 ``resource/cli_input`` 下经纬 meb 六维样例；业务使用时在此修改路径即可。
+    """
+    repo_root = str(_PACKAGE_ROOT.parent)
+    if repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
+
+    input_dir = _PACKAGE_ROOT / "resource" / "cli_input"
+    output_dir = _PACKAGE_ROOT / "resource" / "cli_output"
+
+    landmask_path = str(input_dir / "input_landmask_meb.nc")
+    output_path = str(output_dir / "cli_landmask_result.nc")
+
+    process(landmask_path=landmask_path, output_path=output_path)
+
+
 if __name__ == "__main__":
-    import sys
-
-    # 添加项目根目录到系统路径，可直接运行示例脚本
-    repo_root = Path(__file__).resolve().parents[2]
-    if str(repo_root) not in sys.path:
-        sys.path.insert(0, str(repo_root))
-
-    # Notebook 预处理后、可被 meb.read_griddata_from_nc 直接读取的数据
-    test_data_root = (
-        Path(__file__).resolve().parents[1]
-        / "test_data"
-        / "generate-landmask"
-        / "basic"
-    )
-    cli_input_root = test_data_root / "cli_inputs"
-    cli_output_root = test_data_root / "cli_outputs"
-
-    landmask_path = cli_input_root / "input_landmask_meb.nc"
-    output_path = cli_output_root / "cli_landmask_result.nc"
-
-    if not landmask_path.is_file():
-        print(
-            f"示例输入不存在：{landmask_path}\n"
-            "请补充 test_data 后重试，或在此处改为自己的输入/输出路径。"
-        )
-    else:
-        process(landmask_path=str(landmask_path), output_path=str(output_path))
+    main()

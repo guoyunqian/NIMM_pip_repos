@@ -347,9 +347,15 @@ print(result.sizes["level"])
 - `generate_ancillary/cli/dsc_generate_topography_bands_mask.py`
 - `generate_ancillary/cli/dsc_generate_topographic_zone_weights.py`
 
-### 6.1 直接运行脚本内置示例路径
+### 6.1 直接运行脚本或子命令
 
 ```bash
+# 包根目录子命令（无参列出用法）
+python -m cli landmask
+python -m cli bands
+python -m cli weights
+
+# 或直接运行脚本
 python generate_ancillary/cli/anc_generate_landmask_ancillary.py
 python generate_ancillary/cli/dsc_generate_topography_bands_mask.py
 python generate_ancillary/cli/dsc_generate_topographic_zone_weights.py

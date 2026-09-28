@@ -64,9 +64,16 @@
 - 同步原目录新增官方对照测试：`CorrectLandSeaMask` 的 `generate-landmask` 回归，以及 `GenerateTopographicZoneWeights` 的默认/JSON/无掩码/`multi_realization` 回归；缺 `test_data/` 时 skip。
 - 同步后原目录 pytest：58 passed；中间目录：50 passed, 8 skipped。
 
+## 2026-09-28 更新
+
+- 容器冒烟约定：CLI 改为 `main()` 内定义 `resource/cli_input` → `resource/cli_output` 路径并调用 `process`；包根 `python -m cli` 按子命令分发（`landmask` / `bands` / `weights`）。
+- 写入经纬 meb 最小样例至 `resource/cli_input/`（海陆掩码、地形带共用 orog/land、两套 bounds JSON）。
+- 仿真容器冒烟通过。
+- 包内 `docs/generate_ancillary.md` 补充子命令说明（示例路径未改）。
+
 ## 仍存在问题（需人工补充）
 
 1. 补充至正式 `NIMM/ancillaries/` 时需调整为仓库正式包路径。
 2. `BasePlugin` 正式入库时评估是否改为仓库统一基类。
 3. `test_data` 样例约 3.88MB，中间目录未同步；是否纳入 `NIMM_pip_testdata` / 正式仓库后续决定。
-4. `resource/` 当前为空，正式补充时确认是否保留。
+4. `resource/` 已含容器冒烟最小样例；正式入库时确认是否保留或再筛选。
