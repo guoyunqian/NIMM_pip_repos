@@ -187,6 +187,11 @@ result = GenerateClearskySolarRadiation().process(
 可直接运行：
 
 ```bash
+# 包根目录子命令（无参列出用法）
+python -m cli solar-time
+python -m cli clearsky
+
+# 或直接运行脚本
 python generate_derived_solar_fields/cli/cal_generate_solar_time.py
 python generate_derived_solar_fields/cli/cal_generate_clearsky_solar_radiation.py
 ```

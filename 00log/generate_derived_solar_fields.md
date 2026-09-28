@@ -41,6 +41,12 @@
 - 未同步 `test_data/`（约 1.25MB、23 文件）；CLI / 预处理缺样例时提示而不崩溃。
 - 原目录 pytest：10 passed；中间目录 pytest：10 passed（2026-08-22）。
 
+## 2026-09-28 更新
+
+- 容器冒烟约定：`main()` 默认读 `resource/cli_input`；包根 `python -m cli` 子命令 `clearsky` / `solar-time`（共用 `input_surface_altitude_meb.nc` 作目标网格）。
+- 写入经纬 meb 最小样例；仿真容器冒烟通过。
+- 包内文档补充子命令说明（示例路径未改）。
+
 ## 2026-07-25 更新
 
 - NIMM 标准化：自 improver/generate_derived_solar_fields 同步 `src/`、`utils/`、`cli/`、`test/`、`docs/`、`nbs/`。
@@ -53,4 +59,4 @@
 1. 补充至正式 `NIMM/ancillaries/` 时需调整为仓库正式包路径。
 2. `BasePlugin` 正式入库时评估是否改为仓库统一基类。
 3. `test_data` 样例约 1.25MB，中间目录未同步；是否纳入 `NIMM_pip_testdata` / 正式仓库后续决定。
-4. `resource/` 当前为空，正式补充时确认是否保留。
+4. `resource/` 已含容器冒烟最小样例；正式入库时确认是否保留或再筛选。
