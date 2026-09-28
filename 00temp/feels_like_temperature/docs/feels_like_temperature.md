@@ -252,7 +252,13 @@ python feels_like_temperature/cli/preprocess_test_data.py
 
 ### 8.1 运行方式
 
-PowerShell：
+包根目录：
+
+```bash
+python -m cli
+```
+
+或：
 
 ```powershell
 python -m feels_like_temperature.cli.der_feel_like_temp

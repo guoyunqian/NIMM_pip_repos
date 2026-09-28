@@ -2,16 +2,32 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2019 NMC Developers.
 # Distributed under the terms of the GPL V3 License.
-"""计算体感温度的 CLI 示例。"""
+"""计算体感温度的 CLI 示例。
+
+约定（无 Improver ``cli`` 装饰器）::
+
+    - ``process`` 接收文件路径，在函数内完成读入、计算与可选写出；
+    - ``main`` 中定义路径等参数，再直接调用 ``process``。
+
+包根目录执行::
+
+    python -m cli
+    python cli/der_feel_like_temp.py
+"""
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Optional
 
 import numpy as np
 import xarray as xr
 import meteva_base as meb
+
+# 本包根目录（含 resource/、src/、cli/）
+_PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+
 
 def process(
     temperature_path: str,
@@ -21,6 +37,9 @@ def process(
     output_path: Optional[str] = None,
 ) -> xr.DataArray:
     """根据气温、风速、相对湿度和气压计算体感温度。
+
+    输入须为 meb 六维网格 nc（member, level, time, dtime, lat, lon），
+    空间维为经纬坐标；四场时空坐标须一致。在函数内完成读盘与可选写盘。
 
     参数
     ----------
@@ -38,10 +57,13 @@ def process(
     返回
     -------
     xr.DataArray
-        体感温度场。
+        体感温度场（与输入同为 meb 六维）。
     """
-    from feels_like_temperature.src.feels_like_temperature import calculate_feels_like_temperature
-        
+    from feels_like_temperature.src.feels_like_temperature import (
+        calculate_feels_like_temperature,
+    )
+
+    # 读盘后做 meb 网格校验（不截断数值范围）
     _valid_val = (-np.inf, np.inf, np.nan)
     temperature = meb.checkout_griddata(
         meb.read_griddata_from_nc(temperature_path), valid_val=_valid_val
@@ -56,12 +78,15 @@ def process(
         meb.read_griddata_from_nc(pressure_path), valid_val=_valid_val
     )
 
+    # 以气温场为基准，校验其余场空间/时效坐标一致
     for label, field in (
         ("风速场", wind_speed),
         ("相对湿度场", relative_humidity),
         ("气压场", pressure),
     ):
-        if not meb.checkout_griddata_same_coords([temperature, field], is_time_match=True):
+        if not meb.checkout_griddata_same_coords(
+            [temperature, field], is_time_match=True
+        ):
             raise ValueError(f"{label}与温度场的空间/时效坐标不一致")
 
     result = calculate_feels_like_temperature(
@@ -77,51 +102,41 @@ def process(
     return result
 
 
-if __name__ == "__main__":
-    import sys
+def main() -> None:
+    """定义输入/输出路径并调用 ``process``。
 
-    #添加项目根目录到系统路径,可直接运行示例脚本
-    repo_root = Path(__file__).resolve().parents[2]
-    if str(repo_root) not in sys.path:
-        sys.path.insert(0, str(repo_root))
+    默认使用 ``resource/cli_input`` 下经纬 meb 六维样例；业务使用时在此修改路径即可。
+    """
+    # 保证可 ``from feels_like_temperature...``（直接运行本脚本时）
+    repo_root = str(_PACKAGE_ROOT.parent)
+    if repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
 
-    #测试数据路径
-    data_root = (
-        Path(__file__).resolve().parent.parent
-        / "test_data"
-        / "feels_like_temp_data"
+    input_dir = _PACKAGE_ROOT / "resource" / "cli_input"
+    output_dir = _PACKAGE_ROOT / "resource" / "cli_output"
+
+    temperature_path = str(
+        input_dir / "20181121T1200Z-PT0012H00M-temperature_at_screen_level.nc"
     )
-    cli_input_dir = data_root / "cli_input"
-    cli_output_dir = data_root / "cli_output"
-
-    #各输入文件的路径映射
-    temperature_path = str(cli_input_dir / "20181121T1200Z-PT0012H00M-temperature_at_screen_level.nc")   #温度场nc文件路径
-    wind_speed_path = str(cli_input_dir / "20181121T1200Z-PT0012H00M-wind_speed_at_10m.nc")   #风速场nc文件路径
+    wind_speed_path = str(
+        input_dir / "20181121T1200Z-PT0012H00M-wind_speed_at_10m.nc"
+    )
     relative_humidity_path = str(
-        cli_input_dir / "20181121T1200Z-PT0012H00M-relative_humidity_at_screen_level.nc"
-    )   #相对湿度场nc文件路径
-    pressure_path = str(cli_input_dir / "20181121T1200Z-PT0012H00M-pressure_at_mean_sea_level.nc")   #气压场nc文件路径
-    output_path = str(cli_output_dir / "cli_feels_like_temp_result.nc")   #输出nc文件路径
+        input_dir / "20181121T1200Z-PT0012H00M-relative_humidity_at_screen_level.nc"
+    )
+    pressure_path = str(
+        input_dir / "20181121T1200Z-PT0012H00M-pressure_at_mean_sea_level.nc"
+    )
+    output_path = str(output_dir / "cli_feels_like_temp_result.nc")
 
-    required_inputs = [
-        Path(temperature_path),
-        Path(wind_speed_path),
-        Path(relative_humidity_path),
-        Path(pressure_path),
-    ]
-    missing = [str(path) for path in required_inputs if not path.is_file()]
-    if missing:
-        print(
-            "示例输入不存在：\n  "
-            + "\n  ".join(missing)
-            + "\n请补齐 test_data 或先运行 cli/preprocess_test_data.py，"
-            "也可在此处改为自己的输入/输出路径。"
-        )
-    else:
-        result = process(
-            temperature_path,
-            wind_speed_path,
-            relative_humidity_path,
-            pressure_path,
-            output_path=output_path,
-        )
+    process(
+        temperature_path=temperature_path,
+        wind_speed_path=wind_speed_path,
+        relative_humidity_path=relative_humidity_path,
+        pressure_path=pressure_path,
+        output_path=output_path,
+    )
+
+
+if __name__ == "__main__":
+    main()

@@ -44,6 +44,12 @@
 - 原目录 pytest：14 passed；中间目录 pytest：12 passed, 2 skipped（缺官方样例时对照测试 skip）。
 - 详细过程见：`00temp/feels_like_temperature/00log/feels_like_temperature_整理_20260817.log`。
 
+## 2026-09-28 更新
+
+- 容器冒烟约定：`cli/der_feel_like_temp.py` 的 `main()` 默认使用 `resource/cli_input` 经纬 meb 样例；包根执行 `python -m cli`。
+- 写入最小 latlon 样例至 `resource/cli_input/`；仿真容器冒烟通过。
+- 包内文档补充 `python -m cli` 入口说明（示例路径未改）。
+
 ## 2026-07-06 更新
 
 - NIMM 标准化：自 improver 独立模块同步 `src/`、`utils/`、`cli/`、`test/`、`docs/`、`nbs/`。
@@ -55,5 +61,5 @@
 
 1. 补充至正式 `NIMM/02diagnostic/` 时需调整为仓库正式包路径。
 2. `BasePlugin` 正式入库时评估是否改为仓库统一基类。
-3. `resource/` 当前为空，正式补充时确认是否保留。
+3. `resource/` 已含容器冒烟最小样例；正式补充时确认是否保留或再筛选。
 4. `test_data/` 未同步；中间目录的官方对照测试缺数据时会 skip。
