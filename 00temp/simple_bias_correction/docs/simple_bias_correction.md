@@ -289,4 +289,8 @@ pytest simple_bias_correction/test/test_apply_bias_correction.py
 python simple_bias_correction/cli/preprocess_test_data.py
 python simple_bias_correction/cli/cal_calculate_forecast_bias.py
 python simple_bias_correction/cli/prb_bias_correction.py
+
+# 包根目录子命令（等价）
+python -m cli calc-bias
+python -m cli apply-bias
 ```

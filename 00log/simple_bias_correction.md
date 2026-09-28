@@ -49,7 +49,7 @@ CLI 调度：
 | `00temp/simple_bias_correction/cli/` | CLI 调度与测试数据预处理 |
 | `00temp/simple_bias_correction/utils/` | 本地 `BasePlugin` |
 | `00temp/simple_bias_correction/test/`、`docs/`、`nbs/` | 测试、文档与 notebook |
-| `00temp/simple_bias_correction/resource/` | 资源文件（当前为空） |
+| `00temp/simple_bias_correction/resource/` | 资源文件（含容器冒烟最小样例） |
 
 ## 2026-08-27 更新
 
@@ -59,9 +59,15 @@ CLI 调度：
 - 新增整理说明文档 `docs/simple_bias_correction_overview.md`。
 - 原目录与中间目录 pytest 均 195 passed。
 
+## 2026-09-28 更新
+
+- 容器冒烟约定：补齐 `cli/__main__.py`；子命令 `calc-bias` / `apply-bias`；`main()` 默认使用 `resource/cli_input`。
+- 写入经纬 meb 最小样例；仿真容器冒烟通过。
+- 包内文档补充子命令说明（示例路径未改）。
+
 ## 仍存在问题（需人工补充）
 
 1. 补充至正式 `NIMM/04single_calibration/` 时需调整为仓库正式包路径。
 2. `BasePlugin` 正式入库时评估是否改为仓库统一基类。
 3. 测试样例在 `test_data/`（约 6.10MB，含官方投影与经纬对照、CLI 输出对照），中间目录未同步；正式入库前筛选必要样例至 `NIMM_pip_testdata`。
-4. `resource/` 当前为空，正式补充时确认是否保留。
+4. `resource/` 已含容器冒烟最小样例；正式入库时确认是否保留或再筛选。

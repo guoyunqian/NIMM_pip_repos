@@ -100,29 +100,26 @@ def process(
     return result
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """定义输入/输出路径并调用 ``process``（默认 ``resource/`` 样例）。"""
     import sys
 
-    repo_root = Path(__file__).resolve().parents[2]
-    if str(repo_root) not in sys.path:
-        sys.path.insert(0, str(repo_root))
+    _PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+    repo_root = str(_PACKAGE_ROOT.parent)
+    if repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
 
-    data_root = (
-        Path(__file__).resolve().parent.parent / "test_data" / "apply-bias-correction"
-    )
-    single_case = data_root / "single_bias_file"
-    cli_output = single_case / "cli_output"
+    cli_input = _PACKAGE_ROOT / "resource" / "cli_input"
+    cli_output = _PACKAGE_ROOT / "resource" / "cli_output"
     cli_output.mkdir(parents=True, exist_ok=True)
 
-    # 单偏差订正风速：lower_bound=0 防止订正后出现负风速
     process(
-        data_root / "cli_input" / "20220814T0300Z-PT0003H00M-wind_speed_at_10m.nc",
-        [
-            single_case
-            / "bias_data"
-            / "cli_input"
-            / "20220813T0300Z-PT0003H00M-wind_speed_at_10m.nc"
-        ],
+        cli_input / "apply_20220814T0300Z-PT0003H00M-wind_speed_at_10m.nc",
+        [cli_input / "bias_20220813T0300Z-PT0003H00M-wind_speed_at_10m.nc"],
         lower_bound=0.0,
         output_path=cli_output / "mig_apply_bias_correction.nc",
     )
+
+
+if __name__ == "__main__":
+    main()

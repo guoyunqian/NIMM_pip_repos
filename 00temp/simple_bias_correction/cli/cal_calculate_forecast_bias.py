@@ -98,28 +98,25 @@ def process(
     return result
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """定义输入/输出路径并调用 ``process``（默认 ``resource/`` 样例）。"""
     import sys
 
-    repo_root = Path(__file__).resolve().parents[2]
-    if str(repo_root) not in sys.path:
-        sys.path.insert(0, str(repo_root))
+    _PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+    repo_root = str(_PACKAGE_ROOT.parent)
+    if repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
 
-    data_root = (
-        Path(__file__).resolve().parent.parent
-        / "test_data"
-        / "calculate-forecast-bias"
-    )
-    cli_input = data_root / "inputs" / "cli_input"
-    cli_output = data_root / "cli_output"
+    cli_input = _PACKAGE_ROOT / "resource" / "cli_input"
+    cli_output = _PACKAGE_ROOT / "resource" / "cli_output"
     cli_output.mkdir(parents=True, exist_ok=True)
 
-    # 多日历史样本：PT0003H00M 为预报（含 3h 时效），PT0000H00M 为实况（analysis）
     multi_days = ("20220811", "20220812", "20220813")
     forecast_paths = sorted(
         p
         for p in cli_input.glob("*PT0003H00M*.nc")
         if any(day in p.name for day in multi_days)
+        and not p.name.startswith(("apply_", "bias_"))
     )
     truth_paths = sorted(
         p
@@ -132,3 +129,7 @@ if __name__ == "__main__":
         truth_paths,
         output_path=cli_output / "mig_calculate_forecast_bias.nc",
     )
+
+
+if __name__ == "__main__":
+    main()
