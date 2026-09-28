@@ -287,6 +287,10 @@ python regrid/cli/preprocess_test_data.py
 仓库根目录示例：
 
 ```bash
+# 包根目录子命令
+python -m cli regrid
+
+# 或直接运行脚本
 python regrid/cli/tran_regrid.py
 ```
 

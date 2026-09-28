@@ -97,53 +97,29 @@ def process(
     return result
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """定义输入/输出路径并调用 ``process``（默认 ``resource/`` 样例）。"""
     import sys
 
-    # 添加项目根目录到系统路径，可直接运行示例脚本
-    repo_root = Path(__file__).resolve().parents[2]
-    if str(repo_root) not in sys.path:
-        sys.path.insert(0, str(repo_root))
+    _PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+    repo_root = str(_PACKAGE_ROOT.parent)
+    if repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
 
-    data_root = Path(__file__).resolve().parent.parent / "test_data"
-    cli_input_dir = data_root / "cli_input"
-    cli_output_dir = data_root / "cli_output"
+    input_dir = _PACKAGE_ROOT / "resource" / "cli_input"
+    output_dir = _PACKAGE_ROOT / "resource" / "cli_output"
 
-    # 默认演示：双线性重网格（输入来自 preprocess_test_data.py 写出的 cli_input）
-    input_path = str(cli_input_dir / "global_cutout.nc")
-    target_grid_path = str(cli_input_dir / "ukvx_grid.nc")
-    land_sea_mask_path = None  # 掩码模式示例见下方注释
-    output_path = str(cli_output_dir / "cli_bilinear_result.nc")
+    process(
+        str(input_dir / "global_cutout.nc"),
+        str(input_dir / "ukvx_grid.nc"),
+        land_sea_mask_path=None,
+        output_path=str(output_dir / "cli_bilinear_result.nc"),
+        regrid_mode="bilinear",
+        extrapolation_mode="nanmask",
+        land_sea_mask_vicinity=25000.0,
+        regridded_title="Global Model Forecast on UK 2 km Standard Grid",
+    )
 
-    regrid_mode = "bilinear"
-    extrapolation_mode = "nanmask"
-    land_sea_mask_vicinity = 25000.0
-    regridded_title = "Global Model Forecast on UK 2 km Standard Grid"
 
-    # 海陆感知最近邻示例（取消注释并改 regrid_mode）：
-    # land_sea_mask_path = str(cli_input_dir / "glm_landmask.nc")
-    # target_grid_path = str(cli_input_dir / "ukvx_landmask.nc")
-    # regrid_mode = "nearest-with-mask"
-    # land_sea_mask_vicinity = 100000.0
-    # output_path = str(cli_output_dir / "cli_nearest_with_mask_result.nc")
-
-    required_inputs = [Path(input_path), Path(target_grid_path)]
-    missing = [str(path) for path in required_inputs if not path.is_file()]
-    if missing:
-        print(
-            "示例输入不存在：\n  "
-            + "\n  ".join(missing)
-            + "\n请补齐 test_data 或先运行 cli/preprocess_test_data.py，"
-            "也可在此处改为自己的输入/输出路径。"
-        )
-    else:
-        result = process(
-            input_path,
-            target_grid_path,
-            land_sea_mask_path=land_sea_mask_path,
-            output_path=output_path,
-            regrid_mode=regrid_mode,
-            extrapolation_mode=extrapolation_mode,
-            land_sea_mask_vicinity=land_sea_mask_vicinity,
-            regridded_title=regridded_title,
-        )
+if __name__ == "__main__":
+    main()
