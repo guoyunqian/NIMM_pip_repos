@@ -96,6 +96,10 @@ coeff_x, coeff_y = OrographicSmoothingCoefficients().process(orography)
 示例脚本：
 
 ```bash
+# 包根目录子命令
+python -m cli smoothing
+
+# 或直接运行脚本
 python generate_orographic_smoothing_coefficients/cli/dsc_generate_orographic_smoothing_coefficients.py
 ```
 

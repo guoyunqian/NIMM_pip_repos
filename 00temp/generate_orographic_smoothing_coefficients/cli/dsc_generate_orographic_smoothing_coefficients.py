@@ -88,33 +88,27 @@ def process(
     return coeff_x, coeff_y
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """定义输入/输出路径并调用 ``process``（默认 ``resource/`` 样例）。"""
     import sys
 
-    repo_root = Path(__file__).resolve().parents[2]
-    if str(repo_root) not in sys.path:
-        sys.path.insert(0, str(repo_root))
+    _PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+    repo_root = str(_PACKAGE_ROOT.parent)
+    if repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
 
-    # 默认使用 notebook/预处理导出的 meb 六维输入；可按需改路径与参数。
-    test_data_root = Path(__file__).resolve().parents[1] / "test_data"
-    orography_path = test_data_root / "cli_inputs" / "input_orography_meb.nc"
-    # mask 场景可改用：
-    # mask_path = test_data_root / "cli_inputs" / "input_landmask_meb.nc"
-    output_path = test_data_root / "cli_outputs" / "cli_basic_result.nc"
+    input_dir = _PACKAGE_ROOT / "resource" / "cli_input"
+    output_dir = _PACKAGE_ROOT / "resource" / "cli_output"
+    process(
+        orography_path=str(input_dir / "input_orography_meb.nc"),
+        min_gradient_smoothing_coefficient=0.5,
+        max_gradient_smoothing_coefficient=0.0,
+        power=1.0,
+        use_mask_boundary=False,
+        invert_mask=False,
+        output_path=str(output_dir / "cli_basic_result.nc"),
+    )
 
-    if not orography_path.is_file():
-        print(
-            f"示例输入不存在：{orography_path}\n"
-            "请补充 test_data 后再试，或在此处改为自己的输入/输出路径。"
-        )
-    else:
-        coeff_x, coeff_y = process(
-            orography_path=str(orography_path),
-            # mask_path=str(mask_path),
-            min_gradient_smoothing_coefficient=0.5,
-            max_gradient_smoothing_coefficient=0.0,
-            power=1.0,
-            use_mask_boundary=False,
-            invert_mask=False,
-            output_path=str(output_path),
-        )
+
+if __name__ == "__main__":
+    main()
