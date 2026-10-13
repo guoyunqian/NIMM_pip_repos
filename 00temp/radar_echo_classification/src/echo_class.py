@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from warnings import warn
 
+import meteva_base as meb
 import numpy as np
 import xarray as xr
 
@@ -41,7 +42,6 @@ from radar_echo_classification.src.utils._hydro_utils import (
     _standardize,
 )
 from radar_echo_classification.utils.base_plugin import BasePlugin
-from radar_echo_classification.utils.utils import check_for_xy_coordinates
 
 
 class SteinerConvStratPlugin(BasePlugin):
@@ -959,7 +959,7 @@ def hydroclass_semisupervised(
     template_grid = grids[0]
 
     #检查多个输入网格的水平和时间坐标是否一致。
-    if not check_for_xy_coordinates(grids, is_time_match=True):
+    if not meb.checkout_griddata_same_coords(grids, is_time_match=True):
         raise ValueError("input grid coordinates must be same")
 
     if mass_centers is None:

@@ -118,6 +118,54 @@ def test_steiner_conv_strat_matches_pyart_core():
     np.testing.assert_array_equal(result.values[0, 0, 0, 0, :, :], expected.astype(np.float32))
 
 
+def test_steiner_conv_strat_inherits_provenance_not_frequency():
+    """分类输出应继承站点溯源属性，补齐 meb 默认属性，但不继承 frequency。"""
+    refl = _make_refl_grid()
+    _, _, dx, dy = _get_xy_and_resolutions(refl)
+    refl.attrs["site_code"] = "Z9010"
+    refl.attrs["scan_time"] = "2025-07-24 19:24:00"
+    refl.attrs["frequency"] = 2.87e9
+    refl.attrs["units"] = "dBZ"
+
+    result = steiner_conv_strat(refl, dx=dx, dy=dy, work_level=3000.0)
+
+    assert result.attrs["site_code"] == "Z9010"
+    assert result.attrs["scan_time"] == "2025-07-24 19:24:00"
+    assert "frequency" not in result.attrs
+    assert result.attrs["units"] == ""
+    assert result.attrs["dtime_units"] == "hour"
+    assert "time_type" in result.attrs
+    assert result.attrs["long_name"] == "Steiner echo classification"
+    assert result.attrs["standard_name"] == "echo_classification"
+
+
+def test_hydroclass_semisupervised_inherits_provenance_not_frequency():
+    """水凝物分类输出可从输入读 frequency 选质心，但结果 attrs 不继承 frequency。"""
+    refl, zdr, rhv, kdp, temp = _make_hydro_inputs()
+    for grid in (refl, zdr, rhv, kdp, temp):
+        grid.attrs["site_code"] = "Z9010"
+        grid.attrs["frequency"] = 5.6e9
+        grid.attrs["units"] = "dBZ"
+
+    result = hydroclass_semisupervised(
+        refl,
+        zdr,
+        rhv,
+        kdp,
+        temp=temp,
+        radar_freq=None,
+        compute_entropy=False,
+        vectorize=False,
+    )
+    hydro = result["hydro"]
+
+    assert hydro.attrs["site_code"] == "Z9010"
+    assert "frequency" not in hydro.attrs
+    assert hydro.attrs["units"] == ""
+    assert hydro.attrs["dtime_units"] == "hour"
+    assert hydro.attrs["long_name"] == "Hydrometeor classification"
+
+
 def test_feature_detection_returns_expected_keys_and_values():
     """feature_detection 应返回主结果及高估低估结果。"""
     refl = _make_refl_grid()

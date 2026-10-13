@@ -347,7 +347,7 @@ from radar_echo_classification.src.echo_class import (
 )
 
 refl = meb.read_griddata_from_nc(
-    "radar_echo_classification/test_data/echo_class/cli_input/ACHN_CREF000_20240612_070000_small.nc"
+    "radar_echo_classification/test_data/radar_echo_classification/cli_input/ACHN_CREF000_20240612_070000_small.nc"
 )
 
 # Steiner
@@ -361,19 +361,19 @@ feat_main = feat_dict["feature_detection"]
 
 # Hydroclass（官方示例预处理后的 cli_input 网格）
 refl_h = meb.read_griddata_from_nc(
-    "radar_echo_classification/test_data/echo_class/cli_input/hydro_corrected_reflectivity.nc"
+    "radar_echo_classification/test_data/radar_echo_classification/cli_input/hydro_corrected_reflectivity.nc"
 )
 zdr_h = meb.read_griddata_from_nc(
-    "radar_echo_classification/test_data/echo_class/cli_input/hydro_corrected_differential_reflectivity.nc"
+    "radar_echo_classification/test_data/radar_echo_classification/cli_input/hydro_corrected_differential_reflectivity.nc"
 )
 kdp_h = meb.read_griddata_from_nc(
-    "radar_echo_classification/test_data/echo_class/cli_input/hydro_specific_differential_phase.nc"
+    "radar_echo_classification/test_data/radar_echo_classification/cli_input/hydro_specific_differential_phase.nc"
 )
 rhv_h = meb.read_griddata_from_nc(
-    "radar_echo_classification/test_data/echo_class/cli_input/hydro_uncorrected_cross_correlation_ratio.nc"
+    "radar_echo_classification/test_data/radar_echo_classification/cli_input/hydro_uncorrected_cross_correlation_ratio.nc"
 )
 temp_h = meb.read_griddata_from_nc(
-    "radar_echo_classification/test_data/echo_class/cli_input/hydro_temperature.nc"
+    "radar_echo_classification/test_data/radar_echo_classification/cli_input/hydro_temperature.nc"
 )
 
 hydro_plugin = HydroclassSemisupervisedPlugin(radar_freq=5.45e9)
@@ -433,9 +433,9 @@ python -m radar_echo_classification.cli
 from radar_echo_classification.cli.steiner_conv_strat_main import process
 
 process(
-    "radar_echo_classification/test_data/echo_class/cli_input/ACHN_CREF000_20240612_070000_small.nc",
+    "radar_echo_classification/test_data/radar_echo_classification/cli_input/ACHN_CREF000_20240612_070000_small.nc",
     work_level=0.0,
-    output_path="radar_echo_classification/test_data/echo_class/cli_output/achn_steiner_cli.nc",
+    output_path="radar_echo_classification/test_data/radar_echo_classification/cli_output/achn_steiner_cli.nc",
 )
 ```
 
@@ -445,10 +445,10 @@ process(
 from radar_echo_classification.cli.feature_detection_main import process
 
 process(
-    "radar_echo_classification/test_data/echo_class/cli_input/ACHN_CREF000_20240612_070000_small.nc",
+    "radar_echo_classification/test_data/radar_echo_classification/cli_input/ACHN_CREF000_20240612_070000_small.nc",
     level_m=0.0,
     result_key="feature_detection",
-    output_path="radar_echo_classification/test_data/echo_class/cli_output/achn_feature_cli.nc",
+    output_path="radar_echo_classification/test_data/radar_echo_classification/cli_output/achn_feature_cli.nc",
 )
 ```
 
@@ -458,9 +458,9 @@ process(
 from radar_echo_classification.cli.conv_strat_raut_main import process
 
 process(
-    "radar_echo_classification/test_data/echo_class/cli_input/ACHN_CREF000_20240612_070000_small.nc",
+    "radar_echo_classification/test_data/radar_echo_classification/cli_input/ACHN_CREF000_20240612_070000_small.nc",
     cappi_level=0,
-    output_path="radar_echo_classification/test_data/echo_class/cli_output/achn_raut_cli.nc",
+    output_path="radar_echo_classification/test_data/radar_echo_classification/cli_output/achn_raut_cli.nc",
 )
 ```
 
@@ -470,14 +470,14 @@ process(
 from radar_echo_classification.cli.hydroclass_semisupervised_main import process
 
 process(
-    refl_path="radar_echo_classification/test_data/echo_class/cli_input/hydro_corrected_reflectivity.nc",
-    zdr_path="radar_echo_classification/test_data/echo_class/cli_input/hydro_corrected_differential_reflectivity.nc",
-    kdp_path="radar_echo_classification/test_data/echo_class/cli_input/hydro_specific_differential_phase.nc",
-    rhv_path="radar_echo_classification/test_data/echo_class/cli_input/hydro_uncorrected_cross_correlation_ratio.nc",
-    temp_path="radar_echo_classification/test_data/echo_class/cli_input/hydro_temperature.nc",
+    refl_path="radar_echo_classification/test_data/radar_echo_classification/cli_input/hydro_corrected_reflectivity.nc",
+    zdr_path="radar_echo_classification/test_data/radar_echo_classification/cli_input/hydro_corrected_differential_reflectivity.nc",
+    kdp_path="radar_echo_classification/test_data/radar_echo_classification/cli_input/hydro_specific_differential_phase.nc",
+    rhv_path="radar_echo_classification/test_data/radar_echo_classification/cli_input/hydro_uncorrected_cross_correlation_ratio.nc",
+    temp_path="radar_echo_classification/test_data/radar_echo_classification/cli_input/hydro_temperature.nc",
     var_names=("Zh", "ZDR", "KDP", "RhoHV", "relH"),
     weights=(1.0, 1.0, 1.0, 0.75, 0.5),
-    output_path="radar_echo_classification/test_data/echo_class/cli_output/hydro_cli.nc",
+    output_path="radar_echo_classification/test_data/radar_echo_classification/cli_output/hydro_cli.nc",
 )
 ```
 

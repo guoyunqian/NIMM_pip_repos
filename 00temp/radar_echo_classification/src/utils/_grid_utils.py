@@ -6,14 +6,82 @@
 
 from __future__ import annotations
 
+from typing import Any, Mapping
+
 import cf_units
+import meteva_base as meb
 import numpy as np
 import xarray as xr
 
-from radar_echo_classification.utils.utils import (
-    build_griddata_like,
-    check_for_meb_griddata,
+# meb 标准默认属性键；由 set_griddata_attrs 补齐，不从雷达输入整表拷贝。
+_MEB_DEFAULT_ATTR_KEYS = frozenset(
+    {
+        "units",
+        "model_var",
+        "dtime_units",
+        "level_type",
+        "time_type",
+        "time_bounds",
+    }
 )
+
+# 分类产品可继承的观测溯源属性（不含 frequency 等雷达矩量固有属性）。
+_PROVENANCE_ATTR_KEYS = (
+    "site_code",
+    "site_name",
+    "site_longitude",
+    "site_latitude",
+    "site_alt_m",
+    "scan_time",
+    "data_name",
+)
+
+
+def _build_griddata_like(template: xr.DataArray, data: np.ndarray) -> xr.DataArray:
+    """按模板网格元信息组装同形 meteva_base 网格。"""
+    return meb.grid_data(
+        grid=meb.get_grid_of_data(template),
+        data=np.asarray(data, dtype=np.float32),
+    )
+
+
+def _finalize_classification_attrs(
+    result: xr.DataArray,
+    template: xr.DataArray,
+    *,
+    name: str,
+    long_name: str,
+    units: str = "",
+    extra_attrs: Mapping[str, Any] | None = None,
+) -> xr.DataArray:
+    """写入 meb 默认属性、provenance 与分类产品属性；不继承 frequency。"""
+    inherited: dict[str, Any] = {}
+    for key in _PROVENANCE_ATTR_KEYS:
+        if key in template.attrs and key not in _MEB_DEFAULT_ATTR_KEYS:
+            inherited[key] = template.attrs[key]
+    result.attrs = inherited
+
+    meb.set_griddata_attrs(
+        result,
+        units=units,
+        model_var=None,
+        dtime_units=None,
+        level_type=None,
+        time_type=None,
+        time_bounds=None,
+        is_default=True,
+    )
+    result.name = name
+    result.attrs["long_name"] = long_name
+    if extra_attrs:
+        for key, value in extra_attrs.items():
+            if value is None:
+                continue
+            # netCDF 不接受 Python bool；先转成 0/1。
+            if isinstance(value, (bool, np.bool_)):
+                value = int(value)
+            result.attrs[key] = value
+    return result
 
 EARTH_METRES_PER_DEGREE = 111195.0
 
@@ -112,7 +180,7 @@ def _warn_if_nonuniform_spacing(coord_1d: np.ndarray, axis_name: str, rel_tol: f
 
 def _check_single_context(grid_data: xr.DataArray, valid_val=(-1000.0, 1000.0, np.nan)) -> xr.DataArray:
     """检查输入网格是否只有一个 member/time/dtime。"""
-    normalized = check_for_meb_griddata(
+    normalized = meb.checkout_griddata(
         grid_data,
         is_single=False,
         valid_val=valid_val,
@@ -139,19 +207,24 @@ def _build_level_result(
     extra_attrs=None,
 ) -> xr.DataArray:
     """将二维分类结果封装为 meteva_base 网格数据。"""
-    if extra_attrs is None:
-        extra_attrs = {}
+    merged_attrs: dict[str, Any] = {
+        "standard_name": standard_name,
+        "valid_min": valid_min,
+        "valid_max": valid_max,
+    }
+    if extra_attrs:
+        merged_attrs.update(dict(extra_attrs))
 
     data_6d = np.asarray(data_2d, dtype=np.float32)[None, None, None, None, :, :]
-    result = build_griddata_like(template, data_6d)
-    result.name = name
-    result.attrs["standard_name"] = standard_name
-    result.attrs["long_name"] = long_name
-    result.attrs["valid_min"] = valid_min
-    result.attrs["valid_max"] = valid_max
-    result.attrs.update(extra_attrs)
-
-    return result
+    result = _build_griddata_like(template, data_6d)
+    return _finalize_classification_attrs(
+        result,
+        template,
+        name=name,
+        long_name=long_name,
+        units="",
+        extra_attrs=merged_attrs,
+    )
 
 
 def _flatten_to_scan(grid_data: xr.DataArray):
@@ -173,9 +246,6 @@ def _build_full_result(
     extra_attrs=None,
 ):
     """将展平计算结果恢复为完整网格。"""
-    if extra_attrs is None:
-        extra_attrs = {}
-
     # 原算法可能返回 masked array，
     # 这里统一转回普通 ndarray + nan，
     # 再恢复为 meteva_base 使用的六维网格形状。
@@ -184,9 +254,12 @@ def _build_full_result(
     else:
         restored = np.asarray(data_scan).reshape(original_shape)
 
-    result = build_griddata_like(template, restored.astype(np.float32, copy=False))
-    result.name = name
-    result.attrs["long_name"] = long_name
-    result.attrs.update(extra_attrs)
-
-    return result
+    result = _build_griddata_like(template, restored.astype(np.float32, copy=False))
+    return _finalize_classification_attrs(
+        result,
+        template,
+        name=name,
+        long_name=long_name,
+        units="",
+        extra_attrs=extra_attrs,
+    )
