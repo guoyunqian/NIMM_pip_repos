@@ -12,6 +12,8 @@ from typing import Optional
 import meteva_base as meb
 import xarray as xr
 
+from radar_qpe_retrieval.cli.cinrad_meb import save_meteva_grid_to_netcdf
+
 
 def process(
     method: str,
@@ -72,7 +74,6 @@ def process(
         ``radar_estimated_rain_rate``；``ztor`` 默认变量名为
         ``NWS_primary_prate``（可通过 ``rr_field`` 覆盖）。
     """
-    from radar_qpe_retrieval.cli.cinrad_meb import save_meteva_grid_to_netcdf
     from radar_qpe_retrieval.src.qpe import QPEPlugin
 
     refl = meb.read_griddata_from_nc(refl_path) if refl_path is not None else None
@@ -116,8 +117,8 @@ if __name__ == "__main__":
 
     # 设置输入输出路径
     data_dir = Path(__file__).resolve().parents[1] / "test_data" / "qpe" / "cli_input"
-    refl_path = data_dir / "ACHN_CREF000_20240612_070000.nc"
-    output_path = (
+    refl_path = str(data_dir / "ACHN_CREF000_20240612_070000.nc")
+    output_path = str(
         Path(__file__).resolve().parents[1]
         / "test_data"
         / "qpe"
@@ -125,10 +126,4 @@ if __name__ == "__main__":
         / "est_rain_rate_z_cli_run.nc"
     )
 
-    if not refl_path.is_file():
-        print(
-            f"示例输入不存在：{refl_path}\n"
-            "请补充 test_data 后重试，或在此处配置自己的输入与输出路径。"
-        )
-    else:
-        process("z", refl_path=str(refl_path), output_path=str(output_path))
+    process("z", refl_path=refl_path, output_path=output_path)

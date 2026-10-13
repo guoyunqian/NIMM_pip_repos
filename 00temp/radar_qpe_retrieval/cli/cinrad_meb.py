@@ -26,7 +26,6 @@ import meteva_base as meb
 import xarray as xr
 from cinrad.calc import grid_2d
 
-from radar_qpe_retrieval.utils.utils import check_for_meb_griddata
 
 # ==================== 通用校验/落盘函数 ====================
 
@@ -69,7 +68,7 @@ def _attach_sweep_level_metadata(
     level_coords: dict,
 ) -> xr.DataArray:
     """在多层 meteva 网格上写入仰角/高度元数据（``level`` 坐标为仰角，度）。"""
-    normalized = check_for_meb_griddata(grid_data, is_single=False)
+    normalized = meb.checkout_griddata(grid_data, is_single=False)
     elevation_deg = np.asarray(level_coords["elevation_deg"], dtype=np.float64).ravel()
     height_m = np.asarray(level_coords["height_m"], dtype=np.float64).ravel()
     if elevation_deg.size != int(normalized.sizes["level"]):
@@ -121,7 +120,7 @@ def save_meteva_grid_to_netcdf(
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    normalized = check_for_meb_griddata(grid_data, is_single=False)
+    normalized = meb.checkout_griddata(grid_data, is_single=False)
     var_name = normalized.name or "data0"
     out = normalized.copy()
     out.values = _sanitize_grid_values_for_nc(out.values)
@@ -155,7 +154,7 @@ def save_meteva_grid_to_netcdf(
 
 def select_grid_level(grid_data: xr.DataArray, level_index: int = 0) -> xr.DataArray:
     """从 meteva 网格中取出指定 ``level`` 层（例如某一仰角 PPI）。"""
-    normalized = check_for_meb_griddata(grid_data, is_single=False)
+    normalized = meb.checkout_griddata(grid_data, is_single=False)
     nlevel = int(normalized.sizes["level"])
     idx = int(level_index)
     if idx < 0 or idx >= nlevel:
@@ -205,13 +204,13 @@ def _stack_gridded_sweeps(
 
     parts = []
     for grid in sweep_grids:
-        part = check_for_meb_griddata(grid, is_single=False)
+        part = meb.checkout_griddata(grid, is_single=False)
         if int(part.sizes["level"]) != 1:
             raise ValueError("each sweep grid must have level dimension size 1")
         parts.append(part.values.astype(np.float32, copy=False))
 
     stacked_values = np.concatenate(parts, axis=1)
-    template = check_for_meb_griddata(sweep_grids[0], is_single=False)
+    template = meb.checkout_griddata(sweep_grids[0], is_single=False)
     base_grid = meb.get_grid_of_data(template)
     dtime_list = getattr(base_grid, "dtime_list", None)
     if dtime_list is None:
@@ -540,7 +539,7 @@ def apply_cref_quality_gatefilter(
     cref_qc, gate_included
         过滤后的 CREF、2D 保留掩膜。
     """
-    from correct import GridGateFilter
+    from radar_qpe_retrieval.utils.grid_gate_filter import GridGateFilter
 
     cref_grid = xr.DataArray(cref_grid) if not isinstance(cref_grid, xr.DataArray) else cref_grid
     if refl_low is not None and not _same_lat_lon_grid(cref_grid, refl_low):

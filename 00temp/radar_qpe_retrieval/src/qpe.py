@@ -25,16 +25,13 @@ from __future__ import annotations
 from warnings import warn
 from typing import Optional
 
+import meteva_base as meb
 import numpy as np
 import xarray as xr
 
 from radar_qpe_retrieval.utils.base_plugin import PostProcessingPlugin
-from radar_qpe_retrieval.utils.utils import (
-    build_griddata_like,
-    check_for_meb_griddata,
-    check_for_xy_coordinates,
-)
 from radar_qpe_retrieval.src.utils._freq import get_coeff_ra, get_coeff_rkdp
+from radar_qpe_retrieval.src.utils._grid import rebuild_to_meb_griddata
 
 
 class QPEPlugin(PostProcessingPlugin):
@@ -645,7 +642,7 @@ def est_rain_rate_z(
     xr.DataArray
         降水率网格数据，单位 mm/h。
     """
-    reflectivity_grid = check_for_meb_griddata(refl, valid_val=(-200.0, 200.0, np.nan))
+    reflectivity_grid = meb.checkout_griddata(refl, valid_val=(-200.0, 200.0, np.nan))
 
     # 先将 dBZ 转为线性 Z，再套用幂律 Z-R 关系式。
     refl_data = reflectivity_grid.values
@@ -654,13 +651,18 @@ def est_rain_rate_z(
         beta,
     )
 
-    rain_rate = build_griddata_like(reflectivity_grid, rain_rate_data)
     output_name = "radar_estimated_rain_rate" if rr_field is None else rr_field
-    rain_rate.name = output_name
-    rain_rate.attrs["long_name"] = "rain rate estimated from reflectivity"
-    rain_rate.attrs["units"] = "mm/h"
-
-    return rain_rate
+    return rebuild_to_meb_griddata(
+        rain_rate_data,
+        reflectivity_grid,
+        name=output_name,
+        long_name="rain rate estimated from reflectivity",
+        extra_attrs={
+            "qpe_method": "z",
+            "alpha": float(alpha),
+            "beta": float(beta),
+        },
+    )
 
 
 def est_rain_rate_zpoly(
@@ -682,7 +684,7 @@ def est_rain_rate_zpoly(
     xr.DataArray
         降水率网格数据，单位 mm/h。
     """
-    reflectivity_grid = check_for_meb_griddata(refl, valid_val=(-200.0, 200.0, np.nan))
+    reflectivity_grid = meb.checkout_griddata(refl, valid_val=(-200.0, 200.0, np.nan))
 
     refl_data = reflectivity_grid.values
     refl2 = refl_data * refl_data
@@ -699,13 +701,14 @@ def est_rain_rate_zpoly(
         - 6e-7 * refl4,
     )
 
-    rain_rate = build_griddata_like(reflectivity_grid, rain_rate_data)
     output_name = "radar_estimated_rain_rate" if rr_field is None else rr_field
-    rain_rate.name = output_name
-    rain_rate.attrs["long_name"] = "rain rate estimated from polynomial reflectivity relation"
-    rain_rate.attrs["units"] = "mm/h"
-
-    return rain_rate
+    return rebuild_to_meb_griddata(
+        rain_rate_data,
+        reflectivity_grid,
+        name=output_name,
+        long_name="rain rate estimated from polynomial reflectivity relation",
+        extra_attrs={"qpe_method": "zpoly"},
+    )
 
 
 def est_rain_rate_kdp(
@@ -731,7 +734,7 @@ def est_rain_rate_kdp(
     xr.DataArray
         降水率网格数据，单位 mm/h。
     """
-    kdp_grid = check_for_meb_griddata(kdp)
+    kdp_grid = meb.checkout_griddata(kdp)
 
     if alpha is None or beta is None:
         if ("frequency" in kdp_grid.attrs) and (kdp_grid.attrs.get("frequency") is not None):
@@ -749,13 +752,18 @@ def est_rain_rate_kdp(
     kdp_data[kdp_data < 0] = 0.0
     rain_rate_data = alpha * np.power(kdp_data, beta)
 
-    rain_rate = build_griddata_like(kdp_grid, rain_rate_data)
     output_name = "radar_estimated_rain_rate" if rr_field is None else rr_field
-    rain_rate.name = output_name
-    rain_rate.attrs["long_name"] = "rain rate estimated from specific differential phase"
-    rain_rate.attrs["units"] = "mm/h"
-
-    return rain_rate
+    return rebuild_to_meb_griddata(
+        rain_rate_data,
+        kdp_grid,
+        name=output_name,
+        long_name="rain rate estimated from specific differential phase",
+        extra_attrs={
+            "qpe_method": "kdp",
+            "alpha": float(alpha),
+            "beta": float(beta),
+        },
+    )
 
 
 def est_rain_rate_a(
@@ -781,7 +789,7 @@ def est_rain_rate_a(
     xr.DataArray
         降水率网格数据，单位 mm/h。
     """
-    att_grid = check_for_meb_griddata(att)
+    att_grid = meb.checkout_griddata(att)
 
     if alpha is None or beta is None:
         if ("frequency" in att_grid.attrs) and (att_grid.attrs.get("frequency") is not None):
@@ -796,13 +804,18 @@ def est_rain_rate_a(
     att_data = att_grid.values
     rain_rate_data = alpha * np.power(att_data, beta)
 
-    rain_rate = build_griddata_like(att_grid, rain_rate_data)
     output_name = "radar_estimated_rain_rate" if rr_field is None else rr_field
-    rain_rate.name = output_name
-    rain_rate.attrs["long_name"] = "rain rate estimated from specific attenuation"
-    rain_rate.attrs["units"] = "mm/h"
-
-    return rain_rate
+    return rebuild_to_meb_griddata(
+        rain_rate_data,
+        att_grid,
+        name=output_name,
+        long_name="rain rate estimated from specific attenuation",
+        extra_attrs={
+            "qpe_method": "a",
+            "alpha": float(alpha),
+            "beta": float(beta),
+        },
+    )
 
 
 def est_rain_rate_zkdp(
@@ -844,9 +857,9 @@ def est_rain_rate_zkdp(
     xr.DataArray
         降水率网格数据，单位 mm/h。
     """
-    refl_grid = check_for_meb_griddata(refl, valid_val=(-200.0, 200.0, np.nan))
-    kdp_grid = check_for_meb_griddata(kdp)
-    if not check_for_xy_coordinates([refl_grid, kdp_grid]):
+    refl_grid = meb.checkout_griddata(refl, valid_val=(-200.0, 200.0, np.nan))
+    kdp_grid = meb.checkout_griddata(kdp)
+    if not meb.checkout_griddata_same_coords([refl_grid, kdp_grid]):
         raise ValueError("refl and kdp grid coordinates must be same")
 
     rain_z = est_rain_rate_z(refl_grid, alpha=alphaz, beta=betaz)
@@ -901,11 +914,26 @@ def est_rain_rate_zkdp(
     main_values[is_secondary] = secondary_values[is_secondary]
 
     output_name = "radar_estimated_rain_rate" if rr_field is None else rr_field
-    rain_main.name = output_name
-    rain_main.attrs["long_name"] = "rain rate estimated from blended reflectivity and kdp"
-    rain_main.attrs["units"] = "mm/h"
-
-    return rain_main
+    return rebuild_to_meb_griddata(
+        main_values,
+        refl_grid,
+        name=output_name,
+        long_name="rain rate estimated from blended reflectivity and kdp",
+        extra_attrs={
+            "qpe_method": "zkdp",
+            "alphaz": float(alphaz),
+            "betaz": float(betaz),
+            "alphakdp": rain_kdp.attrs.get("alpha"),
+            "betakdp": rain_kdp.attrs.get("beta"),
+            "main_field": (
+                "refl"
+                if main_field in (None, "refl", "reflectivity", refl_name)
+                else str(main_field)
+            ),
+            "thresh": None if thresh is None else float(thresh),
+            "thresh_max": bool(thresh_max),
+        },
+    )
 
 
 def est_rain_rate_za(
@@ -947,9 +975,9 @@ def est_rain_rate_za(
     xr.DataArray
         降水率网格数据，单位 mm/h。
     """
-    refl_grid = check_for_meb_griddata(refl, valid_val=(-200.0, 200.0, np.nan))
-    att_grid = check_for_meb_griddata(att)
-    if not check_for_xy_coordinates([refl_grid, att_grid]):
+    refl_grid = meb.checkout_griddata(refl, valid_val=(-200.0, 200.0, np.nan))
+    att_grid = meb.checkout_griddata(att)
+    if not meb.checkout_griddata_same_coords([refl_grid, att_grid]):
         raise ValueError("refl and att grid coordinates must be same")
 
     rain_z = est_rain_rate_z(refl_grid, alpha=alphaz, beta=betaz)
@@ -999,11 +1027,26 @@ def est_rain_rate_za(
     main_values[is_secondary] = secondary_values[is_secondary]
 
     output_name = "radar_estimated_rain_rate" if rr_field is None else rr_field
-    rain_main.name = output_name
-    rain_main.attrs["long_name"] = "rain rate estimated from blended reflectivity and attenuation"
-    rain_main.attrs["units"] = "mm/h"
-
-    return rain_main
+    return rebuild_to_meb_griddata(
+        main_values,
+        refl_grid,
+        name=output_name,
+        long_name="rain rate estimated from blended reflectivity and attenuation",
+        extra_attrs={
+            "qpe_method": "za",
+            "alphaz": float(alphaz),
+            "betaz": float(betaz),
+            "alphaa": rain_a.attrs.get("alpha"),
+            "betaa": rain_a.attrs.get("beta"),
+            "main_field": (
+                "att"
+                if main_field in (None, "att", "a", "specific_attenuation", att_name)
+                else str(main_field)
+            ),
+            "thresh": None if thresh is None else float(thresh),
+            "thresh_max": bool(thresh_max),
+        },
+    )
 
 
 def est_rain_rate_hydro(
@@ -1055,10 +1098,10 @@ def est_rain_rate_hydro(
     xr.DataArray
         降水率网格数据，单位 mm/h。
     """
-    refl_grid = check_for_meb_griddata(refl, valid_val=(-200.0, 200.0, np.nan))
-    att_grid = check_for_meb_griddata(att)
-    hydro_grid = check_for_meb_griddata(hydro, valid_val=(0.0, 20.0, np.nan))
-    if not check_for_xy_coordinates([refl_grid, att_grid, hydro_grid]):
+    refl_grid = meb.checkout_griddata(refl, valid_val=(-200.0, 200.0, np.nan))
+    att_grid = meb.checkout_griddata(att)
+    hydro_grid = meb.checkout_griddata(hydro, valid_val=(0.0, 20.0, np.nan))
+    if not meb.checkout_griddata_same_coords([refl_grid, att_grid, hydro_grid]):
         raise ValueError("refl, att and hydro grid coordinates must be same")
 
     hydroclass = hydro_grid.values
@@ -1140,13 +1183,21 @@ def est_rain_rate_hydro(
     rr_data[is_ws] = mp_factor * rain_z.values[is_ws]
     rr_data[is_mh] = mp_factor * rain_z.values[is_mh]
 
-    rain_rate = build_griddata_like(refl_grid, rr_data)
     output_name = "radar_estimated_rain_rate" if rr_field is None else rr_field
-    rain_rate.name = output_name
-    rain_rate.attrs["long_name"] = "rain rate estimated from hydrometeor classification"
-    rain_rate.attrs["units"] = "mm/h"
-
-    return rain_rate
+    return rebuild_to_meb_griddata(
+        rr_data,
+        refl_grid,
+        name=output_name,
+        long_name="rain rate estimated from hydrometeor classification",
+        extra_attrs={
+            "qpe_method": "hydro",
+            "alphazr": float(alphazr),
+            "betazr": float(betazr),
+            "alphazs": float(alphazs),
+            "betazs": float(betazs),
+            "mp_factor": float(mp_factor),
+        },
+    )
 
 
 def ZtoR(
@@ -1172,18 +1223,23 @@ def ZtoR(
     xr.DataArray
         降水率网格数据，单位 mm/h。
     """
-    reflectivity_grid = check_for_meb_griddata(refl, valid_val=(-200.0, 200.0, np.nan))
+    reflectivity_grid = meb.checkout_griddata(refl, valid_val=(-200.0, 200.0, np.nan))
 
     refl_data = reflectivity_grid.values
     ref_linear = np.power(10.0, refl_data / 10.0)
     rain_rate_data = np.power(ref_linear / a, 1.0 / b)
 
-    rain_rate = build_griddata_like(reflectivity_grid, rain_rate_data)
-    rain_rate.name = save_name
-    rain_rate.attrs["long_name"] = "NWS primary precipitation rate"
-    rain_rate.attrs["units"] = "mm/h"
-
-    return rain_rate
+    return rebuild_to_meb_griddata(
+        rain_rate_data,
+        reflectivity_grid,
+        name=save_name,
+        long_name="NWS primary precipitation rate",
+        extra_attrs={
+            "qpe_method": "ztor",
+            "a": float(a),
+            "b": float(b),
+        },
+    )
 
 
 __all__ = [

@@ -360,7 +360,7 @@ import meteva_base as meb
 from radar_qpe_retrieval.src.qpe import QPEPlugin
 
 refl = meb.read_griddata_from_nc(
-    "radar_qpe_retrieval/test_data/qpe/cli_input/ACHN_CREF000_20240612_070000.nc"
+    "radar_qpe_retrieval/test_data/radar_qpe_retrieval/cli_input/ACHN_CREF000_20240612_070000.nc"
 )
 
 plugin = QPEPlugin(
@@ -527,36 +527,36 @@ from radar_qpe_retrieval.cli.qpe import process
 # z
 process(
     "z",
-    refl_path="radar_qpe_retrieval/test_data/qpe/cli_input/ACHN_CREF000_20240612_070000.nc",
-    output_path="radar_qpe_retrieval/test_data/qpe/cli_output/est_rain_rate_z.nc",
+    refl_path="radar_qpe_retrieval/test_data/radar_qpe_retrieval/cli_input/ACHN_CREF000_20240612_070000.nc",
+    output_path="radar_qpe_retrieval/test_data/radar_qpe_retrieval/cli_output/est_rain_rate_z.nc",
 )
 
 # zkdp
 process(
     "zkdp",
-    refl_path="radar_qpe_retrieval/test_data/qpe/cli_input/Z9010_20250724192400_refl_volume.nc",
-    kdp_path="radar_qpe_retrieval/test_data/qpe/cli_input/Z9010_20250724192400_kdp_volume.nc",
+    refl_path="radar_qpe_retrieval/test_data/radar_qpe_retrieval/cli_input/Z9010_20250724192400_refl_volume.nc",
+    kdp_path="radar_qpe_retrieval/test_data/radar_qpe_retrieval/cli_input/Z9010_20250724192400_kdp_volume.nc",
     thresh=40.0,
-    output_path="radar_qpe_retrieval/test_data/qpe/cli_output/est_rain_rate_zkdp.nc",
+    output_path="radar_qpe_retrieval/test_data/radar_qpe_retrieval/cli_output/est_rain_rate_zkdp.nc",
 )
 
 # hydro
 process(
     "hydro",
-    refl_path="radar_qpe_retrieval/test_data/qpe/cli_input/hydro_corrected_reflectivity.nc",
-    att_path="radar_qpe_retrieval/test_data/qpe/cli_input/hydro_specific_attenuation.nc",
-    hydro_path="radar_qpe_retrieval/test_data/qpe/cli_input/hydro_radar_echo_classification.nc",
+    refl_path="radar_qpe_retrieval/test_data/radar_qpe_retrieval/cli_input/hydro_corrected_reflectivity.nc",
+    att_path="radar_qpe_retrieval/test_data/radar_qpe_retrieval/cli_input/hydro_specific_attenuation.nc",
+    hydro_path="radar_qpe_retrieval/test_data/radar_qpe_retrieval/cli_input/hydro_radar_echo_classification.nc",
     thresh=0.04,
-    output_path="radar_qpe_retrieval/test_data/qpe/cli_output/est_rain_rate_hydro.nc",
+    output_path="radar_qpe_retrieval/test_data/radar_qpe_retrieval/cli_output/est_rain_rate_hydro.nc",
 )
 
 # ztor
 process(
     "ztor",
-    refl_path="radar_qpe_retrieval/test_data/qpe/cli_input/ACHN_CREF000_20240612_070000.nc",
+    refl_path="radar_qpe_retrieval/test_data/radar_qpe_retrieval/cli_input/ACHN_CREF000_20240612_070000.nc",
     ztor_a=300.0,
     ztor_b=1.4,
-    output_path="radar_qpe_retrieval/test_data/qpe/cli_output/ztor.nc",
+    output_path="radar_qpe_retrieval/test_data/radar_qpe_retrieval/cli_output/ztor.nc",
 )
 ```
 
@@ -582,7 +582,7 @@ CLI 和插件类都假定输入已经是可用的 `meteva_base.grid_data`。如�
 |---|---|
 |`radar_qpe_retrieval/test/test_qpe.py`|算法函数级验证：`est_rain_rate_z`、`est_rain_rate_zpoly`、`est_rain_rate_kdp`、`est_rain_rate_a`、`est_rain_rate_zkdp`、`est_rain_rate_za`、`est_rain_rate_hydro`、`ZtoR`，包含公式一致性、默认参数与异常输入检查。|
 |`radar_qpe_retrieval/test/test_qpe_plugin.py`|插件级验证：`QPEPlugin` 对各 `method` 的分发是否正确、系数参数透传是否正确、缺少必需输入时是否抛出预期异常。|
-|`radar_qpe_retrieval/test/test_qpe_cli.py`|CLI 级验证：统一入口 `process` 在 `z/zpoly/kdp/zkdp/hydro/ztor` 多方法下与 `QPEPlugin` 结果一致；输入数据目录使用 `radar_qpe_retrieval/test_data/qpe/cli_input`。|
+|`radar_qpe_retrieval/test/test_qpe_cli.py`|CLI 级验证：统一入口 `process` 在 `z/zpoly/kdp/zkdp/hydro/ztor` 多方法下与 `QPEPlugin` 结果一致；输入数据目录使用 `radar_qpe_retrieval/test_data/radar_qpe_retrieval/cli_input`。|
 
 最近一次本地回归：
 

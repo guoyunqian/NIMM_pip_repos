@@ -27,14 +27,15 @@
 | 类型 | 路径 | 说明 |
 | --- | --- | --- |
 | 核心源码 | `src/qpe.py` | QPE 插件与算法函数 |
-| 内部工具 | `src/utils/_freq.py` | 频率关系系数 |
-| 模块工具 | `utils/utils.py` | meteva_base 网格数据校验与输出封装 |
+| 内部工具 | `src/utils/_freq.py`、`src/utils/_grid.py` | 频率系数与网格重组装 |
+| 模块工具 | `utils/grid_gate_filter.py` | 门控过滤 |
 | 插件基类 | `utils/base_plugin.py` | PostProcessingPlugin |
 | CLI | `cli/qpe.py` | QPE 统一入口 |
 | CLI 辅助 | `cli/cinrad_meb.py`、`cli/cinrad_pyart_prep.py` | CINRAD 读数与预处理 |
-| 测试 | `test/` | 单元测试与 CLI 测试 |
+| 测试 | `test/` | 单元测试、插件、CLI、门控过滤 |
 | 文档 | `docs/qpe.md` | 原始算法说明 |
 | notebook | `nbs/qpe.ipynb` | 示例 |
+| 资源 | `resource/` | 仅说明；样例在独立 testdata / 原目录 |
 
 ## 插件入口
 

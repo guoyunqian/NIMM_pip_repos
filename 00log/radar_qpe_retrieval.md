@@ -8,7 +8,7 @@
 | 中文名称 | 雷达降水定量反演QPE |
 | 原始路径 | `D:\workspace\pyart_nimm\qpe`（原包名 `qpe`） |
 | 路径说明 | 原目录曾含回波分类，已拆分为独立模块 `radar_echo_classification` |
-| 整理日期 | 2026-06-29（初整）；2026-07-13（NIMM 标准化）；2026-07-17（文档路径再同步） |
+| 整理日期 | 2026-06-29（初整）；2026-07-13（NIMM 标准化）；2026-07-17（文档路径再同步）；2026-10-13（增量同步） |
 | 算法贡献人 | 郭云谦、王亭波 |
 | 算法分类 | `01obs_adustment` |
 | 当前状态 | 已整理至中间目录；导入已统一为模块名；待正式入库 |
@@ -21,18 +21,30 @@
 
 - `QPEPlugin` 与多类 `EstimateRainRate*` / `est_rain_rate_*` 入口。
 - CLI `cli/qpe.py` 统一调度；`cinrad_*` 辅助读数与预处理。
+- `utils/grid_gate_filter.py`：面向 meb 网格的门控过滤。
 
 ## 目录对应关系
 
 | 中间目录 | 内容说明 |
 | --- | --- |
 | `00temp/radar_qpe_retrieval/src/qpe.py` | QPE 核心算法与插件 |
-| `00temp/radar_qpe_retrieval/src/utils/` | 频率关系等辅助 |
+| `00temp/radar_qpe_retrieval/src/utils/` | 频率关系与网格重组装 |
 | `00temp/radar_qpe_retrieval/cli/` | QPE CLI 与 CINRAD 辅助 |
-| `00temp/radar_qpe_retrieval/utils/` | 网格校验与本地插件基类 |
+| `00temp/radar_qpe_retrieval/utils/` | 门控过滤与本地插件基类 |
 | `00temp/radar_qpe_retrieval/test/`、`docs/`、`nbs/` | 测试、文档与 notebook |
-| `00temp/radar_qpe_retrieval/00temp/`、`00log/` | 中间数据与包内整理日志 |
-| `00temp/radar_qpe_retrieval/NIMM_list.md` | 算法包内整理清单 |
+| `00temp/radar_qpe_retrieval/resource/` | 仅说明；样例未同步 |
+
+## 2026-10-13 更新
+
+- 任务一再次整理 `D:\workspace\pyart_nimm\qpe`。路径此前已归入 `00temp/radar_qpe_retrieval/`，本次为增量同步，未新建第二套中间目录，未修改原目录。
+- 同步内容：
+  - `src/qpe.py`：改用 `meb` / `src/utils/_grid.rebuild_to_meb_griddata`，去掉本地 `utils/utils.py` 封装。
+  - 新增 `src/utils/_grid.py`、`utils/grid_gate_filter.py`、`test/test_grid_gate_filter.py`。
+  - CLI、测试、`docs/qpe.md`、`nbs/qpe.ipynb` 与原目录对齐；导入统一为 `radar_qpe_retrieval`。
+- 按用户要求删除包内脚手架：`00log/`、`00temp/`、`NIMM_list.md`、`.gitignore`。
+- 删除中间目录多余的 `utils/utils.py`（原目录已无）。
+- 未拷贝 `test_data/`；`resource/` 仅放说明；保留中文概述 `docs/雷达降水定量反演QPE.md` 并更新目录表。
+- 中间目录 pytest：**36 passed / 6 skipped**（CLI 缺样例 skip）。
 
 ## 2026-07-17 更新
 
@@ -42,7 +54,6 @@
 
 - NIMM 标准化：自 `pyart_nimm/qpe` 同步；导入统一为 `radar_qpe_retrieval`；移除已拆出的 echo_class。
 - 未同步 `test_data/`；原目录测试通过；中间目录 pytest 32 passed, 6 skipped（缺样例 CLI）。
-- 详细过程见：`00temp/radar_qpe_retrieval/00log/qpe_整理_20260713.log`。
 
 ## 2026-06-29 更新
 
@@ -52,5 +63,5 @@
 
 1. 补充至正式 `NIMM/01obs_adustment/` 时需调整为仓库正式包路径。
 2. `PostProcessingPlugin` / 基类正式入库时评估是否改为仓库统一基类。
-3. 测试样例在 `NIMM_pip_testdata/radar_qpe_retrieval/`（体量较大，含 CLI 输出），中间目录未同步；正式入库前筛选必要样例。
-4. `resource/` 当前为空，正式补充时确认是否保留。
+3. 测试样例在原目录 / `NIMM_pip_testdata`（体量较大），中间目录未同步；正式入库前筛选必要样例。
+4. `resource/` 仅有说明文件，无雷达样例。

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2019 NMC Developers.
 # Distributed under the terms of the GPL V3 License.
-"""radar_qpe_retrieval 核心算法子包（QPE）。"""
+"""qpe 核心算法子包（QPE）。"""
 
 from .qpe import (
     QPEPlugin,

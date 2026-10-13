@@ -45,7 +45,34 @@ def test_est_rain_rate_z_returns_meteva_griddata():
     assert result.shape == reflectivity.shape
     assert result.name == "radar_estimated_rain_rate"
     assert result.attrs["units"] == "mm/h"
+    assert result.attrs["long_name"] == "rain rate estimated from reflectivity"
+    assert result.attrs["qpe_method"] == "z"
+    assert result.attrs["dtime_units"] == "hour"
+    assert "time_type" in result.attrs
     np.testing.assert_allclose(result.values, expected.astype(np.float32))
+
+
+def test_est_rain_rate_z_inherits_provenance_not_frequency():
+    """降水输出应继承站点溯源属性，但不继承雷达 frequency。"""
+    grid = meb.grid([100, 101, 1], [30, 31, 1])
+    reflectivity = meb.grid_data(
+        grid,
+        data=np.array([[10.0, 20.0], [30.0, 40.0]], dtype=np.float32),
+    )
+    reflectivity.attrs["site_code"] = "Z9010"
+    reflectivity.attrs["scan_time"] = "2025-07-24 19:24:00"
+    reflectivity.attrs["frequency"] = 2.87e9
+    reflectivity.attrs["units"] = "dBZ"
+
+    result = est_rain_rate_z(reflectivity)
+
+    assert result.attrs["site_code"] == "Z9010"
+    assert result.attrs["scan_time"] == "2025-07-24 19:24:00"
+    assert "frequency" not in result.attrs
+    assert result.attrs["units"] == "mm/h"
+    assert result.attrs["qpe_method"] == "z"
+    assert result.attrs["alpha"] == pytest.approx(0.0376)
+    assert result.attrs["beta"] == pytest.approx(0.6112)
 
 
 def test_est_rain_rate_z_accepts_output_name():
