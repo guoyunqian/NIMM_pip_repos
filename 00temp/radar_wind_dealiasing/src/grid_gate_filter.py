@@ -6,10 +6,9 @@
 
 from __future__ import annotations
 
+import meteva_base as meb
 import numpy as np
 import xarray as xr
-
-from radar_wind_dealiasing.utils.utils import check_for_meb_griddata
 
 
 class GridGateFilter:
@@ -40,7 +39,7 @@ class GridGateFilter:
             显式排除掩码；形状须为二维平面或与 ``grid_data`` 相同。
         """
         # 模板网格不做 VALID_VAL ±1000 截断（可含缺测填充或非气象量级值）。
-        self.grid_data = check_for_meb_griddata(
+        self.grid_data = meb.checkout_griddata(
             grid_data,
             is_single=False,
             valid_val=(-np.inf, np.inf, np.nan),
@@ -109,7 +108,7 @@ class GridGateFilter:
 
     def _get_fdata(self, grid_data) -> np.ndarray:
         """返回与过滤器形状匹配的场数据。"""
-        normalized = check_for_meb_griddata(
+        normalized = meb.checkout_griddata(
             grid_data,
             is_single=False,
             valid_val=(-np.inf, np.inf, np.nan),
@@ -393,7 +392,7 @@ class GridGateFilter:
 
 def _as_2d_array(grid_data: xr.DataArray) -> np.ndarray:
     """从单个 meteva_base 网格切片提取二维数据平面。"""
-    normalized = check_for_meb_griddata(
+    normalized = meb.checkout_griddata(
         grid_data,
         is_single=True,
         valid_val=(-np.inf, np.inf, np.nan),

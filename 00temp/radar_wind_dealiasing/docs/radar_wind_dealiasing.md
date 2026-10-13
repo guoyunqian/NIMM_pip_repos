@@ -25,17 +25,17 @@
 
 | 类型 | 路径 | 说明 |
 | --- | --- | --- |
-| 核心源码 | `src/region_dealias.py` | 插件类与核心算法函数 |
+| 核心源码 | `src/region_dealias.py`、`src/grid_gate_filter.py` | 插件类、核心算法与门控过滤 |
 | 内部工具 | `src/utils/` | 区域求解、地理重映射、体扫辅助 |
+| 插件基类 | `utils/base_plugin.py` | 本地 BasePlugin |
 | CLI | `cli/region_dealias.py`、`cli/polar_volume_main.py` | 示例入口 |
 | 测试 | `test/` | 单元测试与 CLI 测试 |
 | 文档 | `docs/region_dealias.md` | 详细算法说明 |
 | notebook | `nbs/region_dealias.ipynb` | 示例 |
+| 资源 | `resource/` | 仅说明；样例未同步 |
 
 ## 当前整理状态
 
-- 已从 `D:\workspace\pyart_nimm\region_dealias` 同步源码、CLI、测试、文档与 notebook。
-- 导入路径已统一为中间目录模块名 `radar_wind_dealiasing`。
-- 未同步 `test_data/`（含大体量 MDV/CfRadial；单层小样例是否纳入本目录后续决定）。
-- notebook / CLI `__main__` 已改为仅使用单层仰角样例（`velocity_sweep0.nc`）。
-- 补充至 `NIMM/01obs_adustment/` 时需调整为仓库正式包路径。
+- 2026-10-13 自 `D:\workspace\pyart_nimm\region_dealias` 增量同步；导入统一为 `radar_wind_dealiasing`。
+- 已去掉中间目录多余的 `utils/utils.py`（原目录已无，改用 `meb`）；已删包内脚手架。
+- 未同步 `test_data/`；中间目录 pytest 33 passed；正式入库前需筛选必要小样例并调整 `NIMM` 包路径。

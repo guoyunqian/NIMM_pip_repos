@@ -616,33 +616,27 @@ if __name__ == "__main__":
         / "region_dealias"
     )
     cli_input_dir = data_dir / "cli_input"
+    cli_input_dir.mkdir(parents=True, exist_ok=True)
+
     mdv_file = data_dir / "095636.mdv"
     cfradial_file = cli_input_dir / "radar_fixed.cfradial.nc"
     sweep_index = 0
     velocity_file = cli_input_dir / f"velocity_sweep{sweep_index}.nc"
 
-    if not mdv_file.is_file() and not cfradial_file.is_file():
-        print(
-            f"示例输入不存在：{mdv_file} 或 {cfradial_file}\n"
-            "请补充 test_data 后重试，或在此处配置自己的输入与输出路径。"
-        )
-    else:
-        cli_input_dir.mkdir(parents=True, exist_ok=True)
+    if not cfradial_file.exists():
+        radar_mdv = pyart.io.read_mdv(str(mdv_file))
+        pyart.io.write_cfradial(str(cfradial_file), radar_mdv)
 
-        if not cfradial_file.exists():
-            radar_mdv = pyart.io.read_mdv(str(mdv_file))
-            pyart.io.write_cfradial(str(cfradial_file), radar_mdv)
+    radar = pyart.io.read_cfradial(str(cfradial_file))
+    radar_sweep = radar.extract_sweeps([sweep_index])
+    volume = pyart_radar_to_polar_volume(radar_sweep, "velocity")
+    validate_polar_volume(volume, require_geolocation=True)
 
-        radar = pyart.io.read_cfradial(str(cfradial_file))
-        radar_sweep = radar.extract_sweeps([sweep_index])
-        volume = pyart_radar_to_polar_volume(radar_sweep, "velocity")
-        validate_polar_volume(volume, require_geolocation=True)
-
-        # 落盘方式与 notebook 的 save_griddata 保持一致
-        var_name = volume.name or "velocity"
-        volume.to_dataset(name=var_name).to_netcdf(
-            velocity_file,
-            encoding={
-                var_name: {"dtype": "float32", "zlib": True, "complevel": 1},
-            },
-        )
+    # 落盘方式与 notebook 的 save_griddata 保持一致
+    var_name = volume.name or "velocity"
+    volume.to_dataset(name=var_name).to_netcdf(
+        velocity_file,
+        encoding={
+            var_name: {"dtype": "float32", "zlib": True, "complevel": 1},
+        },
+    )

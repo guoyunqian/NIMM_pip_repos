@@ -11,7 +11,7 @@ import numpy as np
 import xarray as xr
 from scipy.interpolate import griddata
 
-from radar_wind_dealiasing.utils.utils import check_for_meb_griddata
+import meteva_base as meb
 
 
 EARTH_RADIUS_METERS = 6370997.0
@@ -118,7 +118,7 @@ def attach_gate_lonlat(
 ) -> xr.DataArray:
     """为极坐标体扫附加二维门点经纬度坐标。"""
     # 不做 ±1000 截断：退模糊结果常含 _FillValue=-9999，截断会误警并改值。
-    normalized = check_for_meb_griddata(
+    normalized = meb.checkout_griddata(
         grid_data,
         is_single=False,
         valid_val=(-np.inf, np.inf, np.nan),
@@ -365,7 +365,7 @@ def build_latlon_griddata_from_template(
 ) -> xr.DataArray:
     """基于模板非空间维信息重建规则经纬网格。"""
     # 不做 ±1000 截断：模板可能含速度缺测填充值（如 -9999）。
-    normalized = check_for_meb_griddata(
+    normalized = meb.checkout_griddata(
         template,
         is_single=False,
         valid_val=(-np.inf, np.inf, np.nan),

@@ -6,13 +6,10 @@
 
 from __future__ import annotations
 
+import meteva_base as meb
 import numpy as np
 import xarray as xr
 
-from radar_wind_dealiasing.utils.utils import (
-    check_for_meb_griddata,
-    check_for_xy_coordinates,
-)
 from radar_wind_dealiasing.src.grid_gate_filter import GridGateFilter
 
 
@@ -25,13 +22,15 @@ def _normalize_optional_grid(
     if grid_data is None:
         return None
 
-    normalized = check_for_meb_griddata(
+    normalized = meb.checkout_griddata(
         grid_data,
         is_single=False,
         valid_val=(-np.inf, np.inf, np.nan),
     )
     # 辅助场虽然不直接参与展开求解，但必须与速度场严格共网格。
-    if not check_for_xy_coordinates([velocity_grid, normalized], is_time_match=True):
+    if not meb.checkout_griddata_same_coords(
+        [velocity_grid, normalized], is_time_match=True
+    ):
         raise ValueError(f"velocity and {field_name} grid coordinates must be same")
     return normalized
 
@@ -97,21 +96,21 @@ def _moment_based_gatefilter(
     gatefilter.exclude_transition()
 
     if (min_ncp is not None) and (ncp is not None):
-        if not check_for_xy_coordinates([velocity, ncp]):
+        if not meb.checkout_griddata_same_coords([velocity, ncp]):
             raise ValueError("velocity and ncp grid coordinates must be same")
         gatefilter.exclude_below(ncp, min_ncp)
         gatefilter.exclude_masked(ncp)
         gatefilter.exclude_invalid(ncp)
 
     if (min_rhv is not None) and (rhv is not None):
-        if not check_for_xy_coordinates([velocity, rhv]):
+        if not meb.checkout_griddata_same_coords([velocity, rhv]):
             raise ValueError("velocity and rhv grid coordinates must be same")
         gatefilter.exclude_below(rhv, min_rhv)
         gatefilter.exclude_masked(rhv)
         gatefilter.exclude_invalid(rhv)
 
     if refl is not None and (min_refl is not None or max_refl is not None):
-        if not check_for_xy_coordinates([velocity, refl]):
+        if not meb.checkout_griddata_same_coords([velocity, refl]):
             raise ValueError("velocity and refl grid coordinates must be same")
         gatefilter.exclude_outside(refl, min_refl, max_refl)
         gatefilter.exclude_masked(refl)

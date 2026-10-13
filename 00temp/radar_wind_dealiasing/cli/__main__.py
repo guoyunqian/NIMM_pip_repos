@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2019 NMC Developers.
 # Distributed under the terms of the GPL V3 License.
-"""Command line entrypoint for radar_wind_dealiasing CLI commands."""
+"""Command line entrypoint for region_dealias CLI commands."""
 
 from radar_wind_dealiasing.cli import main
 

@@ -6,11 +6,11 @@
 
 from __future__ import annotations
 
+import meteva_base as meb
 import numpy as np
 import xarray as xr
 
 from radar_wind_dealiasing.utils.base_plugin import BasePlugin
-from radar_wind_dealiasing.utils.utils import check_for_meb_griddata
 from radar_wind_dealiasing.src.utils._geo_remap import (
     attach_gate_lonlat,
     build_latlon_griddata_from_template,
@@ -419,7 +419,7 @@ def dealias_region_based(
     # 先规范输入网格，再统一处理缺测和填充值，避免这些元信息在
     # 后续分段展开时被误当成有效速度参与计算。
     # =====================================
-    velocity_grid = check_for_meb_griddata(
+    velocity_grid = meb.checkout_griddata(
         velocity,
         is_single=False,
         valid_val=(-np.inf, np.inf, np.nan),

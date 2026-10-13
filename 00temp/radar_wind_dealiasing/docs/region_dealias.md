@@ -1,8 +1,8 @@
-# `radar_wind_dealiasing` 使用说明
+# `region_dealias` 使用说明
 
 ## 1. 模块作用
 
-`radar_wind_dealiasing` 用于将 Py-ART 中基于区域连通关系的多普勒速度退模糊算法迁移到 `meteva_base.grid_data` 输入输出体系中。
+`region_dealias` 用于将 Py-ART 中基于区域连通关系的多普勒速度退模糊算法迁移到 `meteva_base.grid_data` 输入输出体系中。
 
 迁移后的实现保留原算法核心流程：
 
@@ -171,13 +171,13 @@ from radar_wind_dealiasing.cli.polar_volume_main import (
 )
 
 radar = pyart.io.read_cfradial(
-    "radar_wind_dealiasing/test_data/region_dealias/cli_input/radar_fixed.cfradial.nc"
+    "radar_wind_dealiasing/test_data/radar_wind_dealiasing/cli_input/radar_fixed.cfradial.nc"
 )
 radar_sweep = radar.extract_sweeps([0])
 velocity = pyart_radar_to_polar_volume(radar_sweep, "velocity")
 validate_polar_volume(velocity, require_geolocation=True)
 velocity.to_dataset(name="velocity").to_netcdf(
-    "radar_wind_dealiasing/test_data/region_dealias/cli_input/velocity_sweep0.nc"
+    "radar_wind_dealiasing/test_data/radar_wind_dealiasing/cli_input/velocity_sweep0.nc"
 )
 ```
 
@@ -399,7 +399,7 @@ import numpy as np
 from radar_wind_dealiasing import GridGateFilter, dealias_region_based
 
 mask = np.load(
-    "radar_wind_dealiasing/test_data/region_dealias/cli_input/"
+    "radar_wind_dealiasing/test_data/radar_wind_dealiasing/cli_input/"
     "grid_gatefilter_mask_sweep0.npy"
 ).astype(bool)
 gatefilter = GridGateFilter.from_mask(velocity, mask)
@@ -468,14 +468,14 @@ CLI 入口位于 `radar_wind_dealiasing/cli/region_dealias.py` 的 `process()` �
 from radar_wind_dealiasing.cli.region_dealias import process
 
 process(
-    "radar_wind_dealiasing/test_data/region_dealias/cli_input/velocity_sweep0.nc",
+    "radar_wind_dealiasing/test_data/radar_wind_dealiasing/cli_input/velocity_sweep0.nc",
     gatefilter_path=(
-        "radar_wind_dealiasing/test_data/region_dealias/cli_input/"
+        "radar_wind_dealiasing/test_data/radar_wind_dealiasing/cli_input/"
         "grid_gatefilter_mask_sweep0.npy"
     ),
     data_name="corrected_velocity_cli",
     output_path=(
-        "radar_wind_dealiasing/test_data/region_dealias/cli_output/"
+        "radar_wind_dealiasing/test_data/radar_wind_dealiasing/cli_output/"
         "region_dealias_cli.nc"
     ),
 )
@@ -530,14 +530,14 @@ python radar_wind_dealiasing/cli/region_dealias.py
 from radar_wind_dealiasing.cli.region_dealias import process
 
 process(
-    "radar_wind_dealiasing/test_data/region_dealias/cli_input/velocity_sweep0.nc",
+    "radar_wind_dealiasing/test_data/radar_wind_dealiasing/cli_input/velocity_sweep0.nc",
     gatefilter_path=(
-        "radar_wind_dealiasing/test_data/region_dealias/cli_input/"
+        "radar_wind_dealiasing/test_data/radar_wind_dealiasing/cli_input/"
         "grid_gatefilter_mask_sweep0.npy"
     ),
     data_name="corrected_velocity_cli",
     output_path=(
-        "radar_wind_dealiasing/test_data/region_dealias/cli_output/"
+        "radar_wind_dealiasing/test_data/radar_wind_dealiasing/cli_output/"
         "region_dealias_cli.nc"
     ),
 )
@@ -547,16 +547,16 @@ process(
 
 ```python
 process(
-    "radar_wind_dealiasing/test_data/region_dealias/cli_input/velocity_sweep0.nc",
+    "radar_wind_dealiasing/test_data/radar_wind_dealiasing/cli_input/velocity_sweep0.nc",
     gatefilter_path=(
-        "radar_wind_dealiasing/test_data/region_dealias/cli_input/"
+        "radar_wind_dealiasing/test_data/radar_wind_dealiasing/cli_input/"
         "grid_gatefilter_mask_sweep0.npy"
     ),
     data_name="corrected_velocity_cli_geo",
     auto_remap_to_latlon=True,
     geo_resolution_deg=0.001,
     output_path=(
-        "radar_wind_dealiasing/test_data/region_dealias/cli_output/"
+        "radar_wind_dealiasing/test_data/radar_wind_dealiasing/cli_output/"
         "region_dealias_cli_geo.nc"
     ),
 )
