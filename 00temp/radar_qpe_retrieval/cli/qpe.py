@@ -12,8 +12,6 @@ from typing import Optional
 import meteva_base as meb
 import xarray as xr
 
-from radar_qpe_retrieval.cli.cinrad_meb import save_meteva_grid_to_netcdf
-
 
 def process(
     method: str,
@@ -75,6 +73,7 @@ def process(
         ``NWS_primary_prate``（可通过 ``rr_field`` 覆盖）。
     """
     from radar_qpe_retrieval.src.qpe import QPEPlugin
+    from radar_qpe_retrieval.cli.cinrad_meb import save_meteva_grid_to_netcdf
 
     refl = meb.read_griddata_from_nc(refl_path) if refl_path is not None else None
     kdp = meb.read_griddata_from_nc(kdp_path) if kdp_path is not None else None
