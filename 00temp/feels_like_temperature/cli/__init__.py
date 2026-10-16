@@ -7,7 +7,7 @@
 包内 CLI 按子命令分发::
 
     python -m cli                 # 列出可用子命令
-    python -m cli feel-like
+    python -m cli feel-like-temp
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ import sys
 from typing import Mapping, Optional, Sequence, Tuple
 
 _COMMANDS: Mapping[str, Tuple[str, str]] = {
-    "feel-like": (
+    "feel-like-temp": (
         "der_feel_like_temp",
         "由气温、风速、湿度、气压计算体感温度",
     ),

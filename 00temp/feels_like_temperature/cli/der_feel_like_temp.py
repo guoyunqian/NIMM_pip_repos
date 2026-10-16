@@ -11,7 +11,7 @@
 
 包根目录执行::
 
-    python -m cli feel-like
+    python -m cli feel-like-temp
     python cli/der_feel_like_temp.py
 """
 

@@ -5,7 +5,7 @@
 包根目录::
 
     python -m cli
-    python -m cli feel-like
+    python -m cli feel-like-temp
 """
 
 from __future__ import annotations
