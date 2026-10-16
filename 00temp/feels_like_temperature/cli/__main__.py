@@ -5,6 +5,7 @@
 包根目录::
 
     python -m cli
+    python -m cli feel-like
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ for _p in (str(_PARENT), str(_ROOT)):
 for _p in reversed((str(_PARENT), str(_ROOT))):
     sys.path.insert(0, _p)
 
-from feels_like_temperature.cli.der_feel_like_temp import main  # noqa: E402
+from feels_like_temperature.cli import main  # noqa: E402
 
 
 if __name__ == "__main__":
