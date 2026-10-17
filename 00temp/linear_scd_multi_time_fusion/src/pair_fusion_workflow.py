@@ -26,7 +26,7 @@ import numpy as np
 import xarray as xr
 
 
-from nimm_scd.src.linear_blending import linear_blending_forecast
+from linear_scd_multi_time_fusion.src.linear_blending import linear_blending_forecast
 
 
 UTC = dt.timezone.utc

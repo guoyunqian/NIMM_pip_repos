@@ -19,7 +19,7 @@ class ScdFusionPlugin:
 
     def process(self, history_range: Sequence[str] | None = None) -> None:
         """Run realtime mode or a two-value UTC history range."""
-        import nimm_scd.src.pair_fusion_workflow as pair_fusion_workflow
+        import linear_scd_multi_time_fusion.src.pair_fusion_workflow as pair_fusion_workflow
 
         history = list(history_range or [])
         config = pair_fusion_workflow.read_config(self.config_path)

@@ -1,4 +1,4 @@
-"""Command line entry points for nimm_scd."""
+"""Command line entry points for linear_scd_multi_time_fusion."""
 
 from __future__ import annotations
 
@@ -8,10 +8,10 @@ def main() -> None:
     raise SystemExit(
         "\n".join(
             [
-                "nimm_scd 命令行入口：",
-                "  python -m nimm_scd.cli.split_qpf [START_UTC END_UTC]",
-                "  python -m nimm_scd.cli.run_scd_fusion [START_UTC END_UTC]",
-                "  python -m nimm_scd.cli.pad_fusion_output [START_UTC END_UTC]",
+                "linear_scd_multi_time_fusion 命令行入口：",
+                "  python -m linear_scd_multi_time_fusion.cli.split_qpf [START_UTC END_UTC]",
+                "  python -m linear_scd_multi_time_fusion.cli.run_scd_fusion [START_UTC END_UTC]",
+                "  python -m linear_scd_multi_time_fusion.cli.pad_fusion_output [START_UTC END_UTC]",
             ]
         )
     )

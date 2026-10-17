@@ -1,6 +1,6 @@
-"""Executable entry for python -m nimm_scd.cli."""
+"""Executable entry for python -m linear_scd_multi_time_fusion.cli."""
 
-from nimm_scd.cli import main
+from linear_scd_multi_time_fusion.cli import main
 
 
 if __name__ == "__main__":

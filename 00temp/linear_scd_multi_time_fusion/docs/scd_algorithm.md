@@ -20,7 +20,7 @@
 包级公开方式：
 
 ```python
-from nimm_scd.src import QpfSplitPlugin, ScdFusionPlugin
+from linear_scd_multi_time_fusion.src import QpfSplitPlugin, ScdFusionPlugin
 ```
 
 ## 3. 目录结构
@@ -43,22 +43,22 @@ from nimm_scd.src import QpfSplitPlugin, ScdFusionPlugin
 时间拆分：
 
 ```bash
-python -m nimm_scd.cli.split_qpf
-python -m nimm_scd.cli.split_qpf 202608080810 202608080840
+python -m linear_scd_multi_time_fusion.cli.split_qpf
+python -m linear_scd_multi_time_fusion.cli.split_qpf 202608080810 202608080840
 ```
 
 SCD 融合：
 
 ```bash
-python -m nimm_scd.cli.run_scd_fusion
-python -m nimm_scd.cli.run_scd_fusion 202608080810 202608080840
+python -m linear_scd_multi_time_fusion.cli.run_scd_fusion
+python -m linear_scd_multi_time_fusion.cli.run_scd_fusion 202608080810 202608080840
 ```
 
 融合结果补齐：
 
 ```bash
-python -m nimm_scd.cli.pad_fusion_output
-python -m nimm_scd.cli.pad_fusion_output 202608080810 202608080840
+python -m linear_scd_multi_time_fusion.cli.pad_fusion_output
+python -m linear_scd_multi_time_fusion.cli.pad_fusion_output 202608080810 202608080840
 ```
 
 三个入口均支持 `--config` 指定配置文件。

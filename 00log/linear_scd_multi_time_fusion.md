@@ -64,11 +64,10 @@
 
 ## 已发现问题与后续建议
 
-1. 中间目录名称为 `linear_scd_multi_time_fusion`，但原始代码导入路径仍使用 `nimm_scd.src` 和 `nimm_scd.cli`，正式补充至算法仓库时需要统一包名或调整导入路径。
-2. 默认配置文件保留生产路径，例如 `/data/data_215/unet_qpf`、`/data/data_84/rain01/mait_st/sfc` 和 `/data/mnt/GUO_data/scd_data/...`，离线测试前需要替换为本地样例路径。
-3. `resource/scd_pair_fusion_config.ini` 当前 `dry_run = false`，直接运行会写出融合结果，建议测试时先启用 dry run 或使用临时输出目录。
-4. 原始目录未提供独立小体量 NetCDF、MICAPS4 和实况样例数据，当前无法验证完整拆分、融合和补齐业务流程。
-5. 依赖包括 `numpy`、`scipy`、`h5py`、`xarray` 和 `pytest`；正式入库前需要确认运行环境依赖。
+1. 默认配置文件保留生产路径，例如 `/data/data_215/unet_qpf`、`/data/data_84/rain01/mait_st/sfc` 和 `/data/mnt/GUO_data/scd_data/...`，离线测试前需要替换为本地样例路径。
+2. `resource/scd_pair_fusion_config.ini` 当前 `dry_run = false`，直接运行会写出融合结果，建议测试时先启用 dry run 或使用临时输出目录。
+3. 原始目录未提供独立小体量 NetCDF、MICAPS4 和实况样例数据，当前无法验证完整拆分、融合和补齐业务流程。
+4. 依赖包括 `numpy`、`scipy`、`h5py`、`xarray` 和 `pytest`；正式入库前需要确认运行环境依赖。
 
 ## 校验记录
 

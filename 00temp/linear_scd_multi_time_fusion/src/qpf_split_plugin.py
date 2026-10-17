@@ -20,7 +20,7 @@ class QpfSplitPlugin:
 
     def process(self, history_range: Sequence[str] | None = None) -> None:
         """Run realtime mode or a two-value UTC history range."""
-        import nimm_scd.src.split_workflow as split_workflow
+        import linear_scd_multi_time_fusion.src.split_workflow as split_workflow
 
         args = argparse.Namespace(
             history_range=list(history_range or []),

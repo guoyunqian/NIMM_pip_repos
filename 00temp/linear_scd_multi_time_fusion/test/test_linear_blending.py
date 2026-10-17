@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from nimm_scd.src.linear_blending import linear_blending_forecast
+from linear_scd_multi_time_fusion.src.linear_blending import linear_blending_forecast
 
 
 def test_linear_blending_with_per_frame_weights() -> None:

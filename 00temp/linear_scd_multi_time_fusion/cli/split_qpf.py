@@ -1,6 +1,6 @@
 """CLI for QPF 10-minute split."""
 
-from nimm_scd.src.split_workflow import main
+from linear_scd_multi_time_fusion.src.split_workflow import main
 
 
 if __name__ == "__main__":

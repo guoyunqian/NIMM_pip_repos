@@ -1,6 +1,6 @@
 """CLI for padding SCD fusion output."""
 
-from nimm_scd.src.padding_workflow import main
+from linear_scd_multi_time_fusion.src.padding_workflow import main
 
 
 if __name__ == "__main__":

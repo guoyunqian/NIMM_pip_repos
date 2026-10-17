@@ -29,29 +29,29 @@
 时间拆分：
 
 ```bash
-python -m nimm_scd.cli.split_qpf
-python -m nimm_scd.cli.split_qpf 202608080810 202608080840
+python -m linear_scd_multi_time_fusion.cli.split_qpf
+python -m linear_scd_multi_time_fusion.cli.split_qpf 202608080810 202608080840
 ```
 
 SCD 融合：
 
 ```bash
-python -m nimm_scd.cli.run_scd_fusion
-python -m nimm_scd.cli.run_scd_fusion 202608080810 202608080840
+python -m linear_scd_multi_time_fusion.cli.run_scd_fusion
+python -m linear_scd_multi_time_fusion.cli.run_scd_fusion 202608080810 202608080840
 ```
 
 融合结果补齐：
 
 ```bash
-python -m nimm_scd.cli.pad_fusion_output
-python -m nimm_scd.cli.pad_fusion_output 202608080810 202608080840
+python -m linear_scd_multi_time_fusion.cli.pad_fusion_output
+python -m linear_scd_multi_time_fusion.cli.pad_fusion_output 202608080810 202608080840
 ```
 
 上述入口均支持 `--config` 指定外部配置文件。
 
 ## 注意事项
 
-1. 当前中间目录保留原始包名导入方式：`nimm_scd.src` 和 `nimm_scd.cli`。
+1. 导入包名已与目录名一致：`linear_scd_multi_time_fusion.src` 和 `linear_scd_multi_time_fusion.cli`。
 2. `resource/` 中的默认配置保留生产环境路径，正式运行前需要按部署环境修改。
 3. `scd_pair_fusion_config.ini` 中 `dry_run = false` 时会写出融合产品，测试时建议先改为 `true` 或使用隔离输出目录。
 4. 原始目录未提供独立小样例输入数据，完整拆分、融合和补齐流程仍需业务数据环境验证。
