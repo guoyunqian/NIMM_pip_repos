@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timedelta
 
-from nimm_kalman.src.kalman_cli import run_variable
+from kalman_element_forecast_correction.src.kalman_cli import run_variable
 
 
 def parse_args() -> argparse.Namespace:

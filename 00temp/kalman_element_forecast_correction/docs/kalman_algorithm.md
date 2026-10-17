@@ -54,32 +54,32 @@ member, level, time, dtime, lat, lon
 运行前一天的 Kalman 订正：
 
 ```bash
-python -m nimm_kalman.cli.kalman_data
+python -m kalman_element_forecast_correction.cli.kalman_data
 ```
 
 运行指定日期范围：
 
 ```bash
-python -m nimm_kalman.cli.kalman_data 20260401 20260405
+python -m kalman_element_forecast_correction.cli.kalman_data 20260401 20260405
 ```
 
 只运行某一个变量：
 
 ```bash
-python -m nimm_kalman.cli.kalman_data 20260401 20260401 --variables SWVL
-python -m nimm_kalman.cli.kalman_data 20260401 20260401 --variables STL
+python -m kalman_element_forecast_correction.cli.kalman_data 20260401 20260401 --variables SWVL
+python -m kalman_element_forecast_correction.cli.kalman_data 20260401 20260401 --variables STL
 ```
 
 复制前一天源数据：
 
 ```bash
-python -m nimm_kalman.cli.trans_data
+python -m kalman_element_forecast_correction.cli.trans_data
 ```
 
 复制指定日期源数据：
 
 ```bash
-python -m nimm_kalman.cli.trans_data 20260401
+python -m kalman_element_forecast_correction.cli.trans_data 20260401
 ```
 
 也可以继续使用包装脚本：
@@ -103,8 +103,8 @@ bash trans_data.sh
 示例：
 
 ```bash
-python -m nimm_kalman.cli.kalman_data --base-dir /data234/GUO_data/Kalman_data
-python -m nimm_kalman.cli.trans_data --target-base /data234/GUO_data/Kalman_data/process_data
+python -m kalman_element_forecast_correction.cli.kalman_data --base-dir /data234/GUO_data/Kalman_data
+python -m kalman_element_forecast_correction.cli.trans_data --target-base /data234/GUO_data/Kalman_data/process_data
 ```
 
 ## 7. 主要处理逻辑

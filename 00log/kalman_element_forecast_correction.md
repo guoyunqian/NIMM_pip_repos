@@ -76,7 +76,7 @@
 
 ## 已发现问题与后续建议
 
-1. `00temp/` 中间目录仍保持原始 `nimm_kalman...` 包名；此前创建的正式归档目录已于 2026-08-26 撤销，当前以中间目录为准。
+1. 此前创建的正式归档目录已于 2026-08-26 撤销，当前以中间目录为准。
 2. 默认生产路径包含 `/data234/GUO_data/Kalman_data`、`/data234/DataPool/01CLDAS/00HRCLDAS/Hourly`、`/data/mnt/model_RT/globalECMWF_D1D/...`，正式测试需替换为仓库内可复现样例。
 3. 原始目录没有独立 `test_data/`，需要补充最小 NetCDF 测试样例。
 4. 完整业务流程依赖 `meteva_base`、`xarray`、`numpy` 和真实网格数据环境。

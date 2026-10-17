@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime
 
-from nimm_kalman.src.data_transfer import DEFAULT_TRANSFER_CONFIG, TransferConfig, copy_process_data
+from kalman_element_forecast_correction.src.data_transfer import DEFAULT_TRANSFER_CONFIG, TransferConfig, copy_process_data
 
 
 def parse_args() -> argparse.Namespace:

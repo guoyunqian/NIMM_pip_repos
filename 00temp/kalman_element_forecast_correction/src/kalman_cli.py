@@ -10,9 +10,9 @@ from typing import Iterable
 
 import numpy as np
 
-from nimm_kalman.src.kalman_fix_plugin import KalmanFix
-from nimm_kalman.src.kalman_me_plugin import KalmanME
-from nimm_kalman.utils.grid_utils import check_for_meb_griddata, require_meteva_base
+from kalman_element_forecast_correction.src.kalman_fix_plugin import KalmanFix
+from kalman_element_forecast_correction.src.kalman_me_plugin import KalmanME
+from kalman_element_forecast_correction.utils.grid_utils import check_for_meb_griddata, require_meteva_base
 
 
 @dataclass(frozen=True)

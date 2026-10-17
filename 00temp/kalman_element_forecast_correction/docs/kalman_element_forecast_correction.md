@@ -63,7 +63,7 @@ member, level, time, dtime, lat, lon
 
 待处理：
 
-- 当前代码导入路径仍保留原始包名 `nimm_kalman`，补充到正式仓库时需要统一改为仓库包路径。
+- 导入包名已与目录名一致，为 `kalman_element_forecast_correction`。
 - 默认路径指向生产数据目录，正式测试需准备可复现的小样例数据。
 - 完整业务流程依赖 `meteva_base`、`xarray`、`numpy` 和真实网格数据文件。
 

@@ -1,2 +1,2 @@
 #!/bin/bash
-python -m nimm_kalman.cli.kalman_data "$@"
+python -m kalman_element_forecast_correction.cli.kalman_data "$@"

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from nimm_kalman.utils.grid_utils import decaying_fcst, decaying_me, forecast_observation_difference
+from kalman_element_forecast_correction.utils.grid_utils import decaying_fcst, decaying_me, forecast_observation_difference
 
 
 def test_forecast_observation_difference() -> None:

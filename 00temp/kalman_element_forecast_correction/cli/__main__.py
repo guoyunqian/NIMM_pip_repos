@@ -1,6 +1,6 @@
-"""Executable entry for python -m nimm_kalman.cli."""
+"""Executable entry for python -m kalman_element_forecast_correction.cli."""
 
-from nimm_kalman.cli import main
+from kalman_element_forecast_correction.cli import main
 
 
 if __name__ == "__main__":

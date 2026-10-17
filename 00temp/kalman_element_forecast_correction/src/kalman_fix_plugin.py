@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from nimm_kalman.utils.base_plugin import PostProcessingPlugin
+from kalman_element_forecast_correction.utils.base_plugin import PostProcessingPlugin
 
 
 class KalmanFix(PostProcessingPlugin):
@@ -19,7 +19,7 @@ class KalmanFix(PostProcessingPlugin):
         me_before = None,
     ):
         """Return the corrected forecast."""
-        from nimm_kalman.utils.grid_utils import (
+        from kalman_element_forecast_correction.utils.grid_utils import (
             check_for_meb_griddata,
             check_for_xy_coordinates,
             kalman_fix,

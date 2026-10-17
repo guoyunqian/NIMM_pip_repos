@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from nimm_kalman.utils.base_plugin import PostProcessingPlugin
+from kalman_element_forecast_correction.utils.base_plugin import PostProcessingPlugin
 
 
 class KalmanME(PostProcessingPlugin):
@@ -32,7 +32,7 @@ class KalmanME(PostProcessingPlugin):
         me_before = None,
     ):
         """Update Kalman error using the latest forecast and observation grids."""
-        from nimm_kalman.utils.grid_utils import (
+        from kalman_element_forecast_correction.utils.grid_utils import (
             check_for_meb_griddata,
             check_for_xy_coordinates,
             kalman_me,
