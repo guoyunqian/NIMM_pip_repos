@@ -17,6 +17,10 @@ if MODULE_DIR not in sys.path:
     sys.path.insert(0, MODULE_DIR)
 if core_path not in sys.path:
     sys.path.insert(0, core_path)
+try:
+    from .para_ini import _load_fast_refine_sections
+except ImportError:
+    from para_ini import _load_fast_refine_sections
 # =====================================================================================================
 
 import core.Module_MyFunction      as MMyfun
@@ -64,9 +68,12 @@ def _append_optional_pylib(root_path):
 def run_fast_refine(debug=0, update=0, operation="i", begin_date=None,
                     resolution="1km", para_file="Fast_refine_interp_1km.ini",
                     work_dir=None, model_region=None, root_path=None,
-                    s3_method=None, site_name="Station1"):
+                    s3_method=None, site_name="Station1", overrides=None):
     """
     纯Python调用入口（供 runner 使用）
+
+    ``overrides`` 的键是 ``节.键``（如 ``InstantInfo.validate``、``MaxMinInfo.update``、
+    ``threshold.2t``）。值为 ``None`` 的项忽略。不传且 ini 齐全时行为与原来一致。
     """
     class SimpleArgs:
         pass
@@ -139,62 +146,11 @@ def run_fast_refine(debug=0, update=0, operation="i", begin_date=None,
         sfile_name = args.para_file
     spara_abs_path = os.path.join(scurrent_path,sfile_name)
     if os.path.exists(spara_abs_path):
-        dyInstantInfo={};dyMaxMinInfo={};dySiteInfo={};dyPool={};dythreshold={}
         config = configparser.ConfigParser()
         config.read(spara_abs_path)
-        #瞬时
-        dyInstantInfo["dem_head"]    = config.get('InstantInfo', "dem_head")                                     
-        dyInstantInfo["dem_format"]  = config.get('InstantInfo', "dem_format")                                   
-        dyInstantInfo["recall"]      = config.getboolean('InstantInfo', "recall")                                
-        dyInstantInfo["Interp_Time"] = config.getboolean('InstantInfo', "Interp_Time")                           
-        dyInstantInfo["validate"]    = config.getboolean('InstantInfo', "validate")                              
-        swork                        = config.get('InstantInfo', "validate_area")
-        if swork.upper()!="NONE":
-            dyInstantInfo["Prov_code"] = [int(x) for x in swork.split(",")]
-        else:
-            dyInstantInfo["Prov_code"] = None
-        dyInstantInfo["del_no_eta"]  = config.getboolean('InstantInfo', "del_no_eta")                            
-        dyInstantInfo["out_China"]   = config.getboolean('InstantInfo', "out_China")                             
-        dyInstantInfo["eta_cmn_out"] = config.getboolean('InstantInfo', "eta_cmn_out")                           
-        dyInstantInfo["VR_plot"]     = config.getboolean('InstantInfo', "VR_plot")                               
-        dyInstantInfo["rlt_plot"]    = config.getboolean('InstantInfo', "rlt_plot")                              
-        dyInstantInfo["plot_format"] = config.get('InstantInfo', "plot_format").split(",")                       
-        dyInstantInfo["MICAPS_out"]  = config.getboolean('InstantInfo', "MICAPS_out")                            
-        dyInstantInfo["plot_format"] = config.get('InstantInfo', "plot_format").split(",")
-        dyInstantInfo["PQ_shortname"]= [x.strip() for x in config.get('InstantInfo', "PQ_shortname").split(",")] 
-        #=====================================
-        #最高最低值
-        dyMaxMinInfo["Interp_Maxmin"] = config.getboolean('MaxMinInfo', "Interp_Maxmin")                         
-        if config.has_option('MaxMinInfo', "update"):
-            dyMaxMinInfo["update"]      = config.getboolean('MaxMinInfo', "update")                                
-        else:
-            if args.update>=1:
-                dyMaxMinInfo["update"]    = True
-            else:
-                dyMaxMinInfo["update"]    = False
-        dyMaxMinInfo["validate"]      = config.getboolean('MaxMinInfo', "validate")                             
-        dyMaxMinInfo["forecast_time"] = [x.strip() for x in config.get('MaxMinInfo', "forecast_time").replace('\n','').split(",")]   
-        #=====================================
-        #站点文件信息
-        dySiteInfo["custom_path"]     = config.get('SiteInfo', "custom_path")
-        #=====================================
-        #并行信息
-        dyPool["FH_parallel"]         = config.getboolean('PoolInfo', "FH_parallel")                            
-        dyPool["FH_max_pcount"]       = config.getint('PoolInfo', "FH_max_pcount")                              
-        dyPool["FH_DI_timeout"]       = config.getint('PoolInfo', "FH_DI_timeout")                              
-        dyPool["FH_TI_timeout"]       = config.getint('PoolInfo', "FH_TI_timeout")                              
-        #--------------------------
-        dyPool["BT_parallel"]         = config.getboolean('PoolInfo', "BT_parallel")                            
-        dyPool["BT_max_pcount"]       = config.getint('PoolInfo', "BT_max_pcount")                              
-        dyPool["BT_timeout"]          = config.getint('PoolInfo', "BT_timeout")                                 
-        #--------------------------
-        dyPool["Para_parallel"]       = config.getboolean('PoolInfo', "Para_parallel")                          
-        dyPool["Para_max_pcount"]     = config.getint('PoolInfo', "Para_max_pcount")                            
-        dyPool["Para_timeout"]        = config.getint('PoolInfo', "Para_timeout")                               
-        #检验命中率标准误差阈值
-        ltwork=["2t","2rh","10ws","10u","10v","2t_max","2t_min","2rh_max","2rh_min","10ws_max"]
-        for sPQ in ltwork:
-            dythreshold[sPQ]            = config.getfloat('threshold', sPQ)
+        dyInstantInfo, dyMaxMinInfo, dySiteInfo, dyPool, dythreshold = _load_fast_refine_sections(
+            config, args, overrides
+        )
 
         #打印并行参数信息
         print([skey+":"+str(dyPool[skey]) for skey in dyPool])

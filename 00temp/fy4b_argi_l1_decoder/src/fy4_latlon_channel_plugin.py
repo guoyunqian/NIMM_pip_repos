@@ -152,6 +152,18 @@ class FY4LatLonChannelPlugin:
 FY4ChannelPlugin = FY4LatLonChannelPlugin
 
 
-def process(input_hdf: Union[str, Path], output_dir: Union[str, Path], **kwargs) -> List[str]:
-    """Module-level helper matching simple NIMM plugin import usage."""
-    return FY4LatLonChannelPlugin(**kwargs).process(input_hdf, output_dir)
+def process(input_hdf: Union[str, Path], output_dir: Union[str, Path], config=None, **kwargs) -> List[str]:
+    """单文件解码入口。``config`` 为空时不改插件参数；给出时按该 ini 补齐未传入项。"""
+    if not config:
+        return FY4LatLonChannelPlugin(**kwargs).process(input_hdf, output_dir)
+    from utils.util_env import resolve_single
+
+    cfg = resolve_single(
+        input_hdf=str(input_hdf),
+        output_dir=str(output_dir),
+        config=config,
+        **kwargs,
+    )
+    plugin_keys = ("resolution", "lat_min", "lat_max", "lon_half_width", "channels", "resampling")
+    plugin_kwargs = {key: cfg[key] for key in plugin_keys if key in cfg}
+    return FY4LatLonChannelPlugin(**plugin_kwargs).process(cfg["input_hdf"], cfg["output_dir"])

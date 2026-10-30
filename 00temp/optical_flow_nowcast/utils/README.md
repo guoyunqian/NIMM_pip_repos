@@ -1,4 +1,4 @@
 # 工具目录
 
-原始算法的公共工具函数集中在 `src/utils.py`。当前 `utils/` 目录仅作为仓库规范目录保留。
+`util_env.py` 读取 `resource/optical_flow.ini`，供 `cli/*_cli.py` 补齐参数。算法用的公共函数仍在 `src/utils.py`。
 

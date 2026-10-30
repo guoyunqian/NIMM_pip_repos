@@ -30,6 +30,15 @@ lat
 lon
 ```
 
+## 命令行调用示例
+
+在本包目录下执行 `python -m cli`。没写的参数先读 `resource/fy4.ini`，再没有则用预设。
+
+```bash
+python -m cli --module batch --input-root /mnt/data_229/SatelliteData/fy4b_l1 --output-root /mnt/data_229/SatelliteData/fy4b_channel_latlon --start-time 2023010406 --end-time 2023010423
+python -m cli --module single --input-hdf D:/testdata/FY4/input.HDF --output-dir D:/testdata/FY4/channel_data/case_name
+```
+
 ## Batch Plugin Usage
 
 ```python

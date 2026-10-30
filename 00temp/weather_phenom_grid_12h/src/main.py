@@ -259,6 +259,7 @@ def process(
     numexpr_threads: Optional[int] = None,
     is_multi: bool = False,
     pro_count: int = 4,
+    config: Optional[str] = None,
 ) -> Dict[str, Dict[int, np.ndarray]]:
     """
     网格天气现象综合电码生成主入口。
@@ -274,10 +275,19 @@ def process(
         numexpr_threads  : 限制 NumExpr 线程数，降低高并发 CPU 争用
         is_multi         : 多起报时是否多进程；单起报时忽略
         pro_count        : 多进程并行数（``is_multi=True`` 时生效）
+        config           : 运行配置 ini。为空时读 resource/conf.ini，只填补仍为 None 的项。
 
     Returns:
         {init_time: {seg_idx: result_array}}
     """
+    _over = _nimm_overlay(config, {
+        "seg_range": (seg_range, "int_tuple"),
+        "data_root": (data_root, "str"),
+        "numexpr_threads": (numexpr_threads, "int"),
+    })
+    seg_range = _over['seg_range']
+    data_root = _over['data_root']
+    numexpr_threads = _over['numexpr_threads']
     if numexpr_threads is not None:
         os.environ["NUMEXPR_MAX_THREADS"] = str(numexpr_threads)
         os.environ["NUMEXPR_NUM_THREADS"] = str(numexpr_threads)

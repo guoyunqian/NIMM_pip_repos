@@ -30,7 +30,9 @@
 | 核心源码 | `src/fy4agri/reader.py` | 通道定标和重采样 |
 | 插件源码 | `src/fy4_latlon_channel_plugin.py` | 单文件 HDF 解码插件 |
 | 插件源码 | `src/fy4_batch_latlon_channel_plugin.py` | 批处理 HDF 解码插件 |
-| CLI 示例 | `cli/run_fy4_batch.py` | 批处理运行示例 |
+| CLI | `cli/` | 在本包目录执行 `python -m cli`，用 `--module batch` 或 `--module single` |
+| 运行配置 | `resource/fy4.ini` | 命令行未显式传入的参数先读此文件，再没有则用预设 |
+| 旧示例 | `cli/run_fy4_batch.py` | 写死路径的批处理脚本，仍可直接运行 |
 | 文档 | `docs/README.md` | 原始 README |
 | 测试 | `test/test_fy4b_argi_l1_decoder.py` | 最小参数和元数据解析测试 |
 
@@ -47,6 +49,18 @@
 - 单文件模式：`CHxx_wavelength.nc`。
 - 批处理模式：`output_root/CHxx/YYYYMMDD/YYYYMMDDHH.nc`。
 - 每个 NetCDF 包含 `channel_value(lat, lon)`、`lat`、`lon`。
+
+## CLI 示例
+
+在本包目录下执行。没写的参数先读 `resource/fy4.ini`，配置里也没有再用代码预设。输入目录、输出目录和时间在两边都为空时会报错，不会猜测路径。网格预设为分辨率 `0.04`、纬度 `-60` 到 `60`、经度半宽 `75`、通道 `1-15`、重采样 `bilinear`。
+
+```bash
+python -m cli --module batch --input-root /mnt/data_229/SatelliteData/fy4b_l1 --output-root /mnt/data_229/SatelliteData/fy4b_channel_latlon --start-time 2023010406 --end-time 2023010423
+```
+
+```bash
+python -m cli --module single --input-hdf D:/testdata/FY4/input.HDF --output-dir D:/testdata/FY4/channel_data/case_name
+```
 
 ## 当前整理状态
 

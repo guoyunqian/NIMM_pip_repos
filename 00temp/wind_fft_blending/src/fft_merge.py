@@ -33,10 +33,31 @@ class FFTMergePlugin(object):
     - 集合预报多组数据的融合
     """
 
-    def __init__(self):
-        self.weight_value = 0.1  # 约束权重
-        self.power_model = 2  # 幂律模式2或4。
-        self.l_scale = 1  # 比率
+    def __init__(self, weight_value=None, power_model=None, l_scale=None, reflect_pad=None):
+        # 显式参数优先，否则读 resource/conf.ini，再没有用预设。
+        consts = {
+            "weight_value": 0.1,
+            "power_model": 2,
+            "l_scale": 1,
+            "reflect_pad": 25,
+        }
+        try:
+            from utils.util_env import get_algo_constants
+            consts.update(get_algo_constants())
+        except ImportError:
+            pass
+        if weight_value is not None:
+            consts["weight_value"] = weight_value
+        if power_model is not None:
+            consts["power_model"] = power_model
+        if l_scale is not None:
+            consts["l_scale"] = l_scale
+        if reflect_pad is not None:
+            consts["reflect_pad"] = reflect_pad
+        self.weight_value = float(consts["weight_value"])
+        self.power_model = int(consts["power_model"])
+        self.l_scale = int(consts["l_scale"])
+        self.reflect_pad = int(consts["reflect_pad"])
 
     def __call__(self, main_da: xr.DataArray, ass_da_list: List[xr.DataArray],
                  feature_border: int = 192, max_iterations: int = 1024, move_percent: float = 1.0) -> xr.DataArray:
@@ -450,7 +471,7 @@ class FFTMergePlugin(object):
             # 这里传入的都是二维数组，因此对应的szx[2],手动修改为1
             # for i in range(szx[2]):
             # XXb1 = Xb1[pblmr, :][:, pblmr]  # make sure interp does not tank at edge.
-            bd = min(25, arr1.shape[0])
+            bd = min(self.reflect_pad, arr1.shape[0])
             arr1 = self._expand_border(arr1, bd)
             # bdx, bdy = np.meshgrid(np.arange(1, arr1.shape[1] + 1), np.arange(1, arr1.shape[0] + 1))
             arr1 = self._bicutest(arr1, bd + qx, bd + qy)
@@ -531,12 +552,13 @@ class FFTMergePlugin(object):
         x_move_arr = np.nan_to_num(x_move_arr)
         y_move_arr = np.nan_to_num(y_move_arr)
         # 对输入图像进行边界填充
-        ex_arr = self._expand_border(input_arr, 25)
+        pad = self.reflect_pad
+        ex_arr = self._expand_border(input_arr, pad)
         # 创建网格
         xx, yy = np.meshgrid(np.arange(input_arr.shape[1]), np.arange(input_arr.shape[0]))
         # 计算插值坐标
-        new_xx = 25 + xx - x_move_arr
-        new_yy = 25 + yy - y_move_arr
+        new_xx = pad + xx - x_move_arr
+        new_yy = pad + yy - y_move_arr
         # 使用双线性插值计算平流后的图像
         x = np.arange(ex_arr.shape[1])
         y = np.arange(ex_arr.shape[0])

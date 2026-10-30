@@ -3852,9 +3852,19 @@ def check_meb_griddata_time_interval(grid_list):
         else:
             dt=grid_list[i].time.squeeze()-grid_list[i-1].time.squeeze()
             delta_t_array.append(dt.values)
+    if len(delta_t_array) == 0:
+        return True
     delta_t_array=np.array(delta_t_array).squeeze()
-
-    result=np.allclose(delta_t_array,delta_t_array[0],atol=delta_t_array[0]*0.05)
+    # 仅两帧时 squeeze 成 0 维标量，视为间隔一致
+    if np.ndim(delta_t_array) == 0:
+        return True
+    ref = delta_t_array[0]
+    try:
+        atol = ref * 0.05
+    except TypeError:
+        # numpy timedelta64 等
+        atol = np.abs(ref) * 0.05
+    result=np.allclose(delta_t_array, ref, atol=atol)
 
     return result
 

@@ -25,16 +25,12 @@
         pro_count=2,
     )
 
-3) 命令行（参数解析在 cli）::
+3) 命令行（参数解析在 cli；未给出的项先读 resource/conf.ini）::
 
     python -m cli --help
-    python -m cli --main-uv ... --ass-uv ... --output-dir ... --output-prefix ...
-    python -m cli \\
-        --main-uv a1.m11 b1.m11 --ass-uv a2.m11 b2.m11 \\
-        --output-prefix sample_a sample_b --output-dir ... \\
-        --is-multi --pro-count 2
+    python -m cli --main-uv <主风场.m11> --ass-uv <辅助风场.m11> --output-dir resource/output --output-prefix sample_a
 
-4) 直接运行本文件（在 ``__main__`` 中给 ``process`` 传参）::
+4) 直接运行本文件（在 ``__main__`` 中给 ``process`` 传输入路径；其余走 ini / 预设）::
 
     python src/main.py
 
@@ -50,19 +46,24 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from meteva import base as meb
 
 _SRC_DIR = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_ROOT = Path(_SRC_DIR).resolve().parent
 _00TEMP = _PROJECT_ROOT.parent
-for _p in (str(_SRC_DIR), str(_00TEMP)):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+# 项目根优先，保证 utils 走本包 utils/__init__.py（合并 00temp/utils 与 src/utils）
+for _p in (str(_PROJECT_ROOT), str(_SRC_DIR), str(_00TEMP)):
+    if _p in sys.path:
+        sys.path.remove(_p)
+sys.path.insert(0, str(_00TEMP))
+sys.path.insert(0, str(_SRC_DIR))
+sys.path.insert(0, str(_PROJECT_ROOT))
 
 import fft_merge  # noqa: E402
 from utils.multipro_plugin import SimpleParallelTool  # noqa: E402
+from utils.util_env import resolve_process_args, set_main_ini  # noqa: E402
 
 _TEST_DATA = (
     _PROJECT_ROOT.parents[1].parent
@@ -150,6 +151,10 @@ def _run_one(
     max_iterations: int = 1024,
     move_percent: float = 1.0,
     write_linear_compare: bool = True,
+    weight_value: float = 0.1,
+    power_model: int = 2,
+    l_scale: int = 1,
+    reflect_pad: int = 25,
 ) -> bool:
     """执行单次 FFT 融合（内部实现，不含多进程逻辑）。"""
     if isinstance(ass_uv_path, (str, os.PathLike)):
@@ -193,7 +198,12 @@ def _run_one(
 
     print("******开始进行FFT融合")
     s_time = time.time()
-    fft_c = fft_merge.FFTMergePlugin()
+    fft_c = fft_merge.FFTMergePlugin(
+        weight_value=weight_value,
+        power_model=power_model,
+        l_scale=l_scale,
+        reflect_pad=reflect_pad,
+    )
     muv_da = fft_c(
         uv1_da,
         uv2_da_list,
@@ -233,6 +243,10 @@ def _process_worker(
     max_iterations: int = 1024,
     move_percent: float = 1.0,
     write_linear_compare: bool = True,
+    weight_value: float = 0.1,
+    power_model: int = 2,
+    l_scale: int = 1,
+    reflect_pad: int = 25,
     **params,
 ) -> bool:
     """多进程 worker：处理 ``params['param']`` 中的单个任务。"""
@@ -246,56 +260,138 @@ def _process_worker(
         max_iterations=max_iterations,
         move_percent=move_percent,
         write_linear_compare=write_linear_compare,
+        weight_value=weight_value,
+        power_model=power_model,
+        l_scale=l_scale,
+        reflect_pad=reflect_pad,
     )
 
 
 def process(
-    main_uv_path: Union[str, Sequence[str]],
-    ass_uv_path: Union[str, Sequence],
-    output_dir: str,
-    output_prefix: Union[str, Sequence[str]],
-    feature_border: int = 128,
-    max_iterations: int = 1024,
-    move_percent: float = 1.0,
-    write_linear_compare: bool = True,
-    is_multi: bool = False,
-    pro_count: int = 4,
+    main_uv_path: Union[str, Sequence[str], None] = None,
+    ass_uv_path: Union[str, Sequence, None] = None,
+    output_dir: Optional[str] = None,
+    output_prefix: Union[str, Sequence[str], None] = None,
+    feature_border: Optional[int] = None,
+    max_iterations: Optional[int] = None,
+    move_percent: Optional[float] = None,
+    write_linear_compare: Optional[bool] = None,
+    is_multi: Optional[bool] = None,
+    pro_count: Optional[int] = None,
+    weight_value: Optional[float] = None,
+    power_model: Optional[int] = None,
+    l_scale: Optional[int] = None,
+    reflect_pad: Optional[int] = None,
+    config: Optional[str] = None,
+) -> Union[bool, List[bool]]:
+    """FFT 融合统一入口。``config`` 非空时本次调用改读该 ini，结束后恢复默认。"""
+    kwargs = dict(
+        main_uv_path=main_uv_path,
+        ass_uv_path=ass_uv_path,
+        output_dir=output_dir,
+        output_prefix=output_prefix,
+        feature_border=feature_border,
+        max_iterations=max_iterations,
+        move_percent=move_percent,
+        write_linear_compare=write_linear_compare,
+        is_multi=is_multi,
+        pro_count=pro_count,
+        weight_value=weight_value,
+        power_model=power_model,
+        l_scale=l_scale,
+        reflect_pad=reflect_pad,
+    )
+    if not config:
+        return _process_impl(**kwargs)
+    set_main_ini(config)
+    try:
+        return _process_impl(**kwargs)
+    finally:
+        set_main_ini(None)
+
+
+def _process_impl(
+    main_uv_path: Union[str, Sequence[str], None] = None,
+    ass_uv_path: Union[str, Sequence, None] = None,
+    output_dir: Optional[str] = None,
+    output_prefix: Union[str, Sequence[str], None] = None,
+    feature_border: Optional[int] = None,
+    max_iterations: Optional[int] = None,
+    move_percent: Optional[float] = None,
+    write_linear_compare: Optional[bool] = None,
+    is_multi: Optional[bool] = None,
+    pro_count: Optional[int] = None,
+    weight_value: Optional[float] = None,
+    power_model: Optional[int] = None,
+    l_scale: Optional[int] = None,
+    reflect_pad: Optional[int] = None,
 ) -> Union[bool, List[bool]]:
     """
-    FFT 融合统一入口。不读配置，参数均由调用方传入。
+    FFT 融合统一入口。
+
+    未显式传入的参数先读 ``resource/conf.ini``，配置里也没有则用代码预设。
 
     Parameters
     ----------
-    main_uv_path : str | sequence[str]
-        主风场路径。传列表表示多个独立融合任务。
-    ass_uv_path : str | sequence
+    main_uv_path : str | sequence[str] | None
+        主风场路径。传列表表示多个独立融合任务。省略则读 ini ``main_uv_path``。
+    ass_uv_path : str | sequence | None
         辅助风场路径。
         - 单主场：一个路径，或路径列表（同一任务的多辅助场）
         - 多主场：与主场等长的列表（每项为一个任务的辅助场路径或路径列表）
-    output_dir : str
-        输出目录。
-    output_prefix : str | sequence[str]
-        输出前缀；多主场时数量须与 ``main_uv_path`` 一致。
+        省略则读 ini ``ass_uv_path``。
+    output_dir : str | None
+        输出目录。省略则读 ini，再否则预设 ``resource/output``。
+    output_prefix : str | sequence[str] | None
+        输出前缀；多主场时数量须与 ``main_uv_path`` 一致。省略则读 ini，预设 ``fft_merge``。
     feature_border, max_iterations, move_percent, write_linear_compare
-        算法参数。
-    is_multi : bool, default False
-        是否多进程执行。仅当任务数 > 1 时生效：
-        ``False`` 串行，``True`` 用进程池并行。
-    pro_count : int, default 4
-        多进程并行数（``is_multi=True`` 时使用）。
+        可调运行参数。省略则读 ini，预设分别为 128、1024、1.0、True。
+    is_multi : bool | None
+        是否多进程执行。仅当任务数 > 1 时生效。省略则读 ini，预设 False。
+    pro_count : int | None
+        多进程并行数（``is_multi=True`` 时使用）。省略则读 ini，预设 4。
+    weight_value, power_model, l_scale, reflect_pad
+        算法常量。省略则读 ini，预设分别为 0.1、2、1、25。
 
     Returns
     -------
     bool | list[bool]
         单任务返回 ``bool``；多任务返回各任务结果列表。
     """
-    cases = _normalize_cases(main_uv_path, ass_uv_path, output_dir, output_prefix)
-    common = dict(
+    resolved = resolve_process_args(
+        main_uv_path=main_uv_path,
+        ass_uv_path=ass_uv_path,
+        output_dir=output_dir,
+        output_prefix=output_prefix,
         feature_border=feature_border,
         max_iterations=max_iterations,
         move_percent=move_percent,
         write_linear_compare=write_linear_compare,
+        is_multi=is_multi,
+        pro_count=pro_count,
+        weight_value=weight_value,
+        power_model=power_model,
+        l_scale=l_scale,
+        reflect_pad=reflect_pad,
     )
+    cases = _normalize_cases(
+        resolved["main_uv_path"],
+        resolved["ass_uv_path"],
+        resolved["output_dir"],
+        resolved["output_prefix"],
+    )
+    common = dict(
+        feature_border=resolved["feature_border"],
+        max_iterations=resolved["max_iterations"],
+        move_percent=resolved["move_percent"],
+        write_linear_compare=resolved["write_linear_compare"],
+        weight_value=resolved["weight_value"],
+        power_model=resolved["power_model"],
+        l_scale=resolved["l_scale"],
+        reflect_pad=resolved["reflect_pad"],
+    )
+    is_multi = resolved["is_multi"]
+    pro_count = resolved["pro_count"]
 
     if len(cases) == 1:
         return _run_one(**cases[0], **common)
@@ -319,15 +415,10 @@ def process(
 if __name__ == "__main__":
     # 直接运行：在此修改 process 传参即可；命令行请用 python -m cli ...
     _td = str(_TEST_DATA)
+    # 只显式传入本次输入输出；feature_border 等先读 ini，再落到预设
     process(
         main_uv_path=os.path.join(_td, "sample_a1_uv.m11"),
         ass_uv_path=os.path.join(_td, "sample_a2_uv.m11"),
         output_dir=_td,
         output_prefix="sample_a",
-        feature_border=128,
-        max_iterations=1024,
-        move_percent=1.0,
-        write_linear_compare=True,
-        is_multi=False,
-        pro_count=4,
     )

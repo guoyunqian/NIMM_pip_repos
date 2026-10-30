@@ -1,7 +1,10 @@
 """Module entry point for nimm_g_interp CLI."""
+from .orographic_nwp_3d_downscaling_cli import orographic_nwp_3d_downscaling_cli
 
-from .fast_refine_interp import main
+
+def main(argv=None):
+    return orographic_nwp_3d_downscaling_cli(argv)
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

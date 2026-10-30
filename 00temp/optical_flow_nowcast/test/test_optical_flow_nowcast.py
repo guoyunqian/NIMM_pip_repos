@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from optical_flow_nowcast.src.extrapolation import _check_inputs
+from optical_flow_nowcast.src.extrapolation_plugin import _check_inputs
 
 
 def test_extrapolation_input_validation() -> None:

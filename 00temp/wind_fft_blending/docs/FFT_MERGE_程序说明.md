@@ -109,15 +109,16 @@ flowchart TD
 | `dtime` | 长度 1 |
 | `lat` / `lon` | 空间格点维度，主辅场分辨率一致 |
 
-### 3.5 类内部默认参数
+### 3.5 类内部常量
 
-`FFTMergePlugin.__init__` 中定义的内部常量（一般无需修改）：
+下列量不作为 `process` / CLI 参数。`FFTMergePlugin` 启动时先读 `resource/fft_merge.ini`，缺项再用下表预设：
 
-| 属性 | 默认值 | 说明 |
-|------|--------|------|
+| 属性 | 预设 | 说明 |
+|------|------|------|
 | `weight_value` | 0.1 | 频域求解 Tikhonov 型约束权重 |
 | `power_model` | 2 | 平滑滤波幂律指数（2 或 4） |
 | `l_scale` | 1 | FFT 谱域尺度比率 |
+| `reflect_pad` | 25 | 迭代与平流时的反射边界像素 |
 
 ---
 
@@ -126,8 +127,10 @@ flowchart TD
 | 路径 | 作用 |
 |------|------|
 | `src/fft_merge.py` | 核心算法，`FFTMergePlugin` 类 |
-| `src/main.py` | 可调度 `process` + 命令行入口 |
-| `cli/__main__.py` | `python -m cli` 入口，转发至 `src/main.py` |
+| `src/main.py` | 可调度 `process`；未传参数先读 ini |
+| `cli/__main__.py` | `python -m cli` 入口，转发至 `src/main.process` |
+| `resource/fft_merge.ini` | 路径、可调参数与算法常量 |
+| `src/utils/util_env.py` | 读 ini，并按「显式参数 > ini > 预设」补齐 |
 | `NIMM_pip_testdata/multi_wind_fft_blending/test_data/sample_*_uv.m11` | 与仓库同级的 Micaps11 示例 UV 风场 |
 | `docs/FFT_MERGE_程序说明.md` | 程序说明文档 |
 | `nbs/fft_merge_说明.ipynb` | 算法说明 Notebook |
@@ -150,9 +153,26 @@ flowchart TD
 
 ### 5.2 CLI 参数
 
-| 选项 | 默认值 | 说明 |
-|------|--------|------|
-| `--sample` | `b` | 示例数据集标识，可选 `a` 或 `b` |
+未在命令行给出的项先读 `resource/fft_merge.ini`，ini 无该项再用预设。`weight_value`、`power_model`、`l_scale`、`reflect_pad` 只在 ini 中配置。
+
+| 选项 | 预设 | 说明 |
+|------|------|------|
+| `--main-uv` | ini `main_uv`（空则必须传入） | 主风场 Micaps11，可多个 |
+| `--ass-uv` | ini `ass_uv`（空则必须传入） | 辅助风场 Micaps11 |
+| `--output-dir` | `resource/output` | 输出目录 |
+| `--output-prefix` | `fft_merge` | 输出文件名前缀 |
+| `--feature-border` | 128 | 特征匹配网格边长 |
+| `--max-iterations` | 1024 | 最大迭代次数 |
+| `--move-percent` | 1.0 | 移动比例 `(0, 1]` |
+| `--write-linear-compare` / `--no-write-linear-compare` | 开启 | 是否写出线性平均对比 |
+| `--is-multi` / `--no-is-multi` | 关闭 | 多任务是否多进程 |
+| `--pro-count` | 4 | 多进程并行数 |
+
+命令行调用示例（在本包根目录执行）：
+
+```bash
+python -m cli --main-uv <主风场.m11> --ass-uv <辅助风场.m11> --output-dir resource/output --output-prefix sample_a
+```
 
 ### 5.3 代码调用示例
 
@@ -184,6 +204,12 @@ pip install -r requirements.txt
 依赖：`numpy`、`scipy`、`meteva`、`xarray`。
 
 ### 6.2 命令行示例
+
+在本包根目录执行。下面这条即可跑通单任务；没写上的 `--feature-border` 等先读 `resource/fft_merge.ini`，再没有则用预设。
+
+```bash
+python -m cli --main-uv <主风场.m11> --ass-uv <辅助风场.m11> --output-dir resource/output --output-prefix sample_a
+```
 
 样例数据位于与 `NIMM_pip_repos` **同级**目录：
 

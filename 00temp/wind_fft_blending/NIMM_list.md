@@ -10,7 +10,7 @@
 
 | 算法种类 | 算法代号 | 算法功能 | 更新时间 | 贡献人 | 源码与配置位置 | CLI 入口 | 仍存在问题 |
 |----------|----------|----------|----------|--------|----------------|----------|------------|
-| 短临预报 · 风场融合 | **fft_merge** / multi_wind_fft_blending | 基于 FFT 谱方法与迭代优化，估计主风场与辅助风场位移场并平流融合；支持 UV 矢量、多辅助场；`is_multi` 控制多进程 | 2026-07-23 | 胡海川、李振、郭云谦 | 见下表「fft_merge 目录明细」 | `python -m cli --main-uv ... --ass-uv ... --output-dir ... --output-prefix ... [--is-multi --pro-count N]` | 见下表「fft_merge 待办」 |
+| 短临预报 · 风场融合 | **fft_merge** / multi_wind_fft_blending | 基于 FFT 谱方法与迭代优化，估计主风场与辅助风场位移场并平流融合；支持 UV 矢量、多辅助场；`is_multi` 控制多进程 | 2026-10-27 | 胡海川、李振、郭云谦 | 见下表「fft_merge 目录明细」 | `python -m cli --main-uv <主风场.m11> --ass-uv <辅助风场.m11> --output-dir resource/output --output-prefix sample_a` | 见下表「fft_merge 待办」 |
 
 ---
 
@@ -20,7 +20,8 @@
 |------|------|------|
 | 算法核心 | `src/fft_merge.py` | `FFTMergePlugin` 频域特征匹配与平流融合 |
 | 执行入口 | `src/main.py` | `process(...)` 供模块引用；`__main__` 中直接传参运行 |
-| CLI 路由 | `cli/__main__.py` | `python -m cli` 解析参数 → `main.process` |
+| CLI 路由 | `cli/__main__.py` | `python -m cli --main-uv <主风场.m11> --ass-uv <辅助风场.m11> --output-dir resource/output --output-prefix sample_a` |
+| 运行配置 | `resource/fft_merge.ini` | 未显式传入的参数先读此文件，再没有则用代码预设；算法常量只在此配置 |
 | 共享多进程 | `00temp/utils/multipro_plugin.py` | `SimpleParallelTool`（`main.py` 将 `00temp` 加入 `sys.path`） |
 | 测试 | `test/test_fft_merge.py`、`test/test_main.py` | 算法单元测试与 `process` 集成测试 |
 | 文档 | `docs/FFT_MERGE_程序说明.md`、`docs/multi_wind_fft_blending.md` | 程序说明与整理说明 |
@@ -39,7 +40,7 @@
 | 序号 | 问题 | 建议处理 |
 |------|------|----------|
 | 1 | `NIMM_pip_testdata/.../test_data` 样例缺失 | 补齐 `sample_a1/a2_uv.m11`、`sample_b1/b2_uv.m11` 后跑通 `python src/main.py` / pytest |
-| 2 | notebook 旧 `resource/`、`fft_merge_cli` 文案 | docs 已大部分同步；`nbs/` 遗漏处人工核对 |
+| 2 | notebook 与 docs 的 CLI 示例 | 已改为 `python -m cli --main-uv ...`；参数优先级见 `resource/fft_merge.ini` |
 | 3 | 未继承统一 `BasePlugin` | 正式入库前评估是否接入 `NIMM.utilities.base_plugin` |
 | 4 | 尚未迁入正式 `NIMM/05blending/` | 路径与包名按仓库规范再调整 |
 | 5 | 完整业务试跑未做 | 用真实 Micaps11 风场验证融合效果 |

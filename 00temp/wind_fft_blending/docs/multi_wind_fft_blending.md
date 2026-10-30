@@ -23,6 +23,7 @@
 | 核心源码 | `src/fft_merge.py` | `FFTMergePlugin` 核心算法 |
 | 执行入口 | `src/main.py` | `process(..., is_multi=..., pro_count=...)`；命令行可直接运行 |
 | CLI入口 | `cli/__main__.py` | `python -m cli` → `src/main.py` |
+| 运行配置 | `resource/fft_merge.ini` | 未显式传入的参数先读此文件，再没有则用代码预设 |
 | 共享多进程 | `../../utils/multipro_plugin.py` | `SimpleParallelTool` |
 | 文档 | `docs/FFT_MERGE_程序说明.md` | 原始程序说明 |
 | 测试 | `test/test_fft_merge.py` | 核心算法测试 |
@@ -33,7 +34,17 @@
 | 中间数据 | `00temp/fft_merge/` | 整理过程临时数据 |
 
 > **已废弃**：`cli/fft_merge_cli.py`。命令行用 `python -m cli`；直跑用 `python src/main.py`（在 `__main__` 中改 `process` 传参）。  
-> **数据位置**：不再从算法包内 `resource/` 读取样例，统一从同级 `NIMM_pip_testdata/.../test_data` 读取。
+> **数据位置**：样例仍从同级 `NIMM_pip_testdata/.../test_data` 读取。`resource/` 只放 `fft_merge.ini`。
+
+## 命令行调用示例
+
+在本包根目录执行。命令行没写的参数先读 `resource/fft_merge.ini`，ini 里也没有再用代码预设。
+
+```bash
+python -m cli --help
+
+python -m cli --main-uv <主风场.m11> --ass-uv <辅助风场.m11> --output-dir resource/output --output-prefix sample_a
+```
 
 ## 输入输出
 
@@ -65,7 +76,7 @@
 待处理：
 
 - 向 `NIMM_pip_testdata/multi_wind_fft_blending/test_data/` 补齐样例后跑通完整测试。
-- 同步 nbs 中旧 `resource/` / CLI 文件名遗漏。
+- 样例数据补齐后，用文档中的 `python -m cli` 示例做一次完整试跑。
 - 正式补充到 `NIMM/05blending/` 时统一包路径。
 - 评估是否继承仓库 `BasePlugin`。
 

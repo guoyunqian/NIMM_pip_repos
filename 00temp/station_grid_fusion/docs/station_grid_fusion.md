@@ -17,13 +17,13 @@
 | 路径 | 内容 |
 | --- | --- |
 | `src/` | 核心插件类和函数式业务流程源码 |
-| `cli/` | CLI 说明，原始目录未提供独立入口 |
-| `resource/` | 资源说明，原始目录未提供资源文件 |
-| `test/` | 测试说明，原始目录未提供单元测试 |
+| `cli/` | 在本包目录执行 `python -m cli`，用 `--module` 选择 total、idw、idw_delta、gaussian |
+| `resource/fusion.ini` | 命令行未显式传入的参数先读此文件，再没有则用预设 |
+| `test/` | 配置解析测试，以及从 `nbs/` 移入的示例脚本 |
 | `test_data/` | 测试数据说明，原始目录未提供样例数据 |
-| `nbs/` | 原始示例脚本和 notebook |
+| `nbs/` | Jupyter notebook |
 | `docs/` | 算法说明文档 |
-| `utils/` | 工具说明，原始目录未提供独立工具文件 |
+| `utils/util_env.py` | 读取 `resource/fusion.ini` |
 
 ## 主要入口
 
@@ -49,9 +49,27 @@ from station_grid_fusion.src import InterpSgIdwDelta
 result = InterpSgIdwDelta(effectR=1000, nearNum=8, decrease=2).process(sta, grid_background)
 ```
 
+## CLI 示例
+
+在本包目录下执行。没写的参数先读 `resource/fusion.ini`，配置里也没有再用代码预设。`sta` 和 `grid` 两边都为空时会报错。
+
+`--module total` 不传 `--background` 时做站点到格点插值，预设影响半径 `1000`、邻近站 `8`、衰减 `2`。传入背景场后做偏差订正，预设为 `400`、`10`、`2`。`idw` 与 `idw_delta` 预设为 `1000`、`8`、`2`。`gaussian` 的高斯半径预设为 `20`。
+
+```bash
+python -m cli --module total --sta /data/code/nimm/demo_data/input/sta_grid_interp/sta.csv --grid /data/code/nimm/demo_data/input/sta_grid_interp/grid.nc
+```
+
+```bash
+python -m cli --module idw_delta --sta /data/code/nimm/demo_data/input/sta_grid_interp/sta.csv --grid /data/code/nimm/demo_data/input/sta_grid_interp/grid.nc
+```
+
+```bash
+python -m cli --module gaussian --sta /data/code/nimm/demo_data/input/sta_grid_interp/sta.csv --grid /data/code/nimm/demo_data/input/sta_grid_interp/grid.nc --half-r 20
+```
+
 ## 注意事项
 
 1. 原始代码依赖 `nimm.PostProcessingPlugin`、`meteva_base`、`meteva`、`numpy`、`scipy`、`pandas` 等环境。
 2. 示例脚本保留 `/data/code/nimm/...`、`D:\Desktop\...`、`/home/...` 和共享盘路径，正式测试前需要替换为仓库相对样例路径。
 3. `InterpSgTotal` 当前硬编码 `sys.path.append('/data/code/nimm/nimm/sta_grid_interp')`，并在有背景场分支调用未显式导入的 `interp_sg_idw_delta`，正式入库前需要修正导入路径。
-4. 原始目录未提供独立测试数据和单元测试，只保留示例脚本与 notebook。
+4. 原始目录未提供独立测试数据。示例脚本在 `test/`，notebook 在 `nbs/`。

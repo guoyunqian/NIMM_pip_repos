@@ -25,12 +25,21 @@ class InterpSgTotal(PostProcessingPlugin):
         ## grid_background: 背景场，默认为0
         ## 其他参数： effectR=1000, nearNum=8,decrease = 2
         ## 无背景场时， 直接反距离插值；   有背景场时，使用站点格点误差扩散及反距离插值
+        delta_effect_r = args.pop("delta_effectR", 400)
+        delta_near_num = args.pop("delta_nearNum", 10)
+        delta_decrease = args.pop("delta_decrease", 2)
         if grid_background is None:
             grid = interp_sg_idw(sta, to_grid, **args)
         else:
             print(to_grid)
             grid_background = meb.interp_gg_linear(grid_background, grid=to_grid)
-            grid = interp_sg_idw_delta(sta, grid0=grid_background, effectR=400, nearNum=10, decrease=2)
+            grid = interp_sg_idw_delta(
+                sta,
+                grid0=grid_background,
+                effectR=delta_effect_r,
+                nearNum=delta_near_num,
+                decrease=delta_decrease,
+            )
         return(grid)
     
 if __name__=="__main__":

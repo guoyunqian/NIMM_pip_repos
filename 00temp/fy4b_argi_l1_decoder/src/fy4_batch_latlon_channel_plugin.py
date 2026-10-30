@@ -250,12 +250,40 @@ def process(
     output_root: str,
     start_time: Union[str, datetime],
     end_time: Union[str, datetime],
+    config=None,
     **kwargs,
 ) -> List[str]:
-    return FY4BatchLatLonChannelPlugin(
+    """批量解码入口。``config`` 为空时不改插件参数；给出时按该 ini 补齐未传入项。"""
+    if not config:
+        return FY4BatchLatLonChannelPlugin(
+            input_root=input_root,
+            output_root=output_root,
+            start_time=start_time,
+            end_time=end_time,
+            **kwargs,
+        ).process()
+    from utils.util_env import resolve_batch
+
+    cfg = resolve_batch(
         input_root=input_root,
         output_root=output_root,
-        start_time=start_time,
-        end_time=end_time,
+        start_time=start_time if isinstance(start_time, str) else start_time.strftime("%Y%m%d%H%M%S"),
+        end_time=end_time if isinstance(end_time, str) else end_time.strftime("%Y%m%d%H%M%S"),
+        config=config,
         **kwargs,
+    )
+    plugin_keys = ("resolution", "lat_min", "lat_max", "lon_half_width", "channels", "resampling")
+    plugin_kwargs = {key: cfg[key] for key in plugin_keys if key in cfg}
+    centers = cfg.get("centers")
+    if isinstance(centers, str):
+        centers = [item.strip() for item in centers.split(",") if item.strip()]
+    return FY4BatchLatLonChannelPlugin(
+        input_root=cfg["input_root"],
+        output_root=cfg["output_root"],
+        start_time=cfg["start_time"],
+        end_time=cfg["end_time"],
+        centers=centers,
+        overwrite=cfg.get("overwrite"),
+        recursive=cfg.get("recursive"),
+        **plugin_kwargs,
     ).process()

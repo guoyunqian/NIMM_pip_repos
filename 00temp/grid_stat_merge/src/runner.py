@@ -34,7 +34,7 @@ _bootstrap_paths()
 import meteva.base as meb
 
 from grid_stat_merge import do_gs_merge, GridStatMergePlugin
-from utils.util_env import get_resolved_paths, get_merge_params
+from utils.util_env import get_resolved_paths, get_merge_params, set_main_ini
 
 
 def _read_grid(path: str, grid_type: str):
@@ -74,14 +74,76 @@ def process(
     domain=None,
     b_use_heatflux_equation: bool = None,
     hf_eq_iter_nums: int = None,
+    log_file: str = None,
+    grid_type: str = None,
+    sta_type: str = None,
+    sta_val_col: str = None,
+    sta_lon_col: str = None,
+    sta_lat_col: str = None,
+    config=None,
+):
+    """格站融合入口。``config`` 非空时本次调用改读该 ini，结束后恢复默认。"""
+    kwargs = dict(
+        grid_path=grid_path,
+        sta_path=sta_path,
+        output_path=output_path,
+        terr_path=terr_path,
+        R=R,
+        domain=domain,
+        b_use_heatflux_equation=b_use_heatflux_equation,
+        hf_eq_iter_nums=hf_eq_iter_nums,
+        log_file=log_file,
+        grid_type=grid_type,
+        sta_type=sta_type,
+        sta_val_col=sta_val_col,
+        sta_lon_col=sta_lon_col,
+        sta_lat_col=sta_lat_col,
+    )
+    if not config:
+        return _process_impl(**kwargs)
+    set_main_ini(config)
+    try:
+        return _process_impl(**kwargs)
+    finally:
+        set_main_ini(None)
+
+
+def _process_impl(
+    grid_path: str = None,
+    sta_path: str = None,
+    output_path: str = None,
+    terr_path: str = None,
+    R: float = None,
+    domain=None,
+    b_use_heatflux_equation: bool = None,
+    hf_eq_iter_nums: int = None,
+    log_file: str = None,
+    grid_type: str = None,
+    sta_type: str = None,
+    sta_val_col: str = None,
+    sta_lon_col: str = None,
+    sta_lat_col: str = None,
 ):
     """
     格站融合可调度入口。
 
-    未传参数从 ``resource/grid_stat_merge.ini`` 读取。
+    未传参数从 ``resource/conf.ini`` 读取。
     """
     paths = get_resolved_paths()
     params = get_merge_params()
+
+    if log_file is not None:
+        paths["log_file_template"] = log_file
+    if grid_type is not None:
+        params["grid_type"] = grid_type
+    if sta_type is not None:
+        params["sta_type"] = sta_type
+    if sta_val_col is not None:
+        params["sta_val_col"] = sta_val_col
+    if sta_lon_col is not None:
+        params["sta_lon_col"] = sta_lon_col
+    if sta_lat_col is not None:
+        params["sta_lat_col"] = sta_lat_col
 
     grid_path = grid_path or paths["grid_path"]
     sta_path = sta_path or paths["sta_path"]
