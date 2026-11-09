@@ -1,0 +1,11 @@
+{
+  "air_temperature": [
+    "mean",
+    "std",
+    "hour_of_day_sin",
+    "day_of_year_cos"
+  ],
+  "altitude": [
+    "static"
+  ]
+}
