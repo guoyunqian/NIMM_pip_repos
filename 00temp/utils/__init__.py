@@ -15,4 +15,5 @@
 - ``from utils.cli_base import CliBase``
 - ``from utils.base_plugin import BasePlugin``
 - ``from utils.multipro_plugin import SimpleParallelTool``
+- ``from utils.pressure_to_height_plugin import PressureToHeightPlugin, read_pressure_levels``
 """
