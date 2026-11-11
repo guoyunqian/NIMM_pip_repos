@@ -8,33 +8,49 @@
 | 中文名称 | 风降尺度(地形) |
 | 原始路径 | `D:\workspace\improver\wind_calculations`（原包名 `wind_calculations`） |
 | 路径说明 | 2026-06-29 初整曾基于汇总副本；2026-07-06 以本地 improver 目录为准完成 NIMM 标准化；2026-08-14 再从该原目录增量同步 |
-| 整理日期 | 2026-06-29（初整）；2026-07-06（NIMM 标准化）；2026-08-14（原目录增量同步）；2026-08-21（中间目录说明清理） |
+| 整理日期 | 2026-06-29（初整）；2026-07-06（NIMM 标准化）；2026-08-14（原目录增量同步）；2026-08-21（中间目录说明清理）；2026-11-11（本地增量同步） |
 | 算法贡献人 | 郭云谦、王亭波 |
 | 算法分类 | `00space_downscale` |
 | 当前状态 | 已整理至中间目录；导入已统一为模块名；待正式入库 |
 
 ## 算法理解
 
-该算法用于风速空间降尺度。利用地形轮廓粗糙度、网格内地形高度标准差、目标地形与模式地形高度差，以及植被粗糙度长度，对风速进行粗糙度订正和高度订正。面向 `meteva_base.grid_data` 风格输入输出。
+该算法用于风速空间降尺度。先可由高分辨率 DEM 与模式网格地形计算辅料 `sigma`（格点内高度标准差）与 `a_over_s`（轮廓粗糙度），再结合目标/模式地形高度差与可选植被粗糙度长度，对风速做粗糙度订正（RC）与高度订正（HC）。面向 `meteva_base.grid_data` 风格输入输出。
 
-核心源码 `src/wind_downscaling.py` 提供：
+核心源码：
 
-- `FrictionVelocity`：基于对数风速廓线计算摩擦速度。
-- `RoughnessCorrectionUtilities`：计算半峰谷高度、地形波数、参考高度，并执行粗糙度订正和高度订正。
-- `RoughnessCorrection`：风速降尺度主插件，继承 `PostProcessingPlugin`；负责输入结构统一、空间维度校验、批量切片处理和输出重组。网格校验使用 `meb.checkout_griddata`。支持投影米制与真经纬分辨率推断（`EARTH_RADIUS_M`）。
+- `src/roughness.py`：`RoughnessCalculation`，由 DEM + 模式网格地形统计 `sigma` / `a_over_s`（输出在细网格上）。
+- `src/wind_downscaling.py`：`FrictionVelocity`、`RoughnessCorrectionUtilities`、`RoughnessCorrection`；`process` 固定返回 `(订正风速, hc_add)`。支持投影米制与真经纬分辨率推断。
 
-CLI 入口 `cli/dsc_wind_downscaling.py` 读取风速、地形高度标准差、目标地形、标准地形、地形轮廓粗糙度和植被粗糙度等 NetCDF，调用 `RoughnessCorrection` 输出订正后的风速场。`cli/preprocess_test_data.py` 将官方投影样例预处理为方案一（投影维重命名）和方案二（经纬重网格）。
+CLI：
+
+- `cli/roughness_cli.py`：`AncRoughnessCli`，计算并写出 `sigma` / 轮廓粗糙度。
+- `cli/dsc_wind_downscaling.py`：风速降尺度调度，调用 `RoughnessCorrection`。
+- `cli/preprocess_test_data.py`：官方投影样例预处理。
 
 ## 目录对应关系
 
 | 中间目录 | 内容说明 |
 | --- | --- |
-| `00temp/orographic_wind_downscaling/src/wind_downscaling.py` | 核心算法与插件类 |
-| `00temp/orographic_wind_downscaling/cli/dsc_wind_downscaling.py` | 文件式 CLI 调度 |
-| `00temp/orographic_wind_downscaling/cli/preprocess_test_data.py` | 官方样例预处理（仅中间目录） |
-| `00temp/orographic_wind_downscaling/utils/` | 网格校验工具与本地 `BasePlugin` / `PostProcessingPlugin` |
+| `00temp/orographic_wind_downscaling/src/roughness.py` | 粗糙度辅料计算插件 |
+| `00temp/orographic_wind_downscaling/src/wind_downscaling.py` | 风速粗糙度/高度订正 |
+| `00temp/orographic_wind_downscaling/cli/roughness_cli.py` | 粗糙度辅料 CLI |
+| `00temp/orographic_wind_downscaling/cli/dsc_wind_downscaling.py` | 风速降尺度 CLI |
+| `00temp/orographic_wind_downscaling/cli/preprocess_test_data.py` | 官方样例预处理 |
+| `00temp/orographic_wind_downscaling/utils/` | 网格校验与本地插件基类 |
 | `00temp/orographic_wind_downscaling/test/` | 单元测试与官方样例对照 |
 | `00temp/orographic_wind_downscaling/docs/`、`nbs/` | 文档与 notebook |
+
+## 2026-11-11 更新
+
+- 自 `D:\workspace\test\00temp\orographic_wind_downscaling` 增量同步至 `00temp/orographic_wind_downscaling/`；未修改、未删除该原始路径。
+- 同步内容：
+  - 新增 `src/roughness.py`、`cli/roughness_cli.py`。
+  - 更新 `src/wind_downscaling.py`、`cli/dsc_wind_downscaling.py`、`cli/__init__.py`。
+  - 更新 `docs/orographic_wind_downscaling.md`、`docs/wind_downscaling.md`。
+  - 同步 `resource/conf.ini`（与 CLI 参数对齐）。
+- 未同步本地 `resource/data`、`resource/showdoc_cli` 等大体量样例与缓存；未同步 `cli/preprocess_case_data.py`、`nbs/batch_cli.ipynb`（本次按用户要求以 src / 对应 CLI / docs 为主）。
+- 贡献人未修改：郭云谦、王亭波。
 
 ## 2026-08-21 更新
 
