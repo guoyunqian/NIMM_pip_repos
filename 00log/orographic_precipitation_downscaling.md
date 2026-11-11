@@ -7,7 +7,7 @@
 | 算法名称 | `orographic_precipitation_downscaling` |
 | 中文名称 | 降水降尺度(地形) |
 | 原始路径 | `D:\workspace\improver\orographic_enhancement`（原包名 `orographic_enhancement`） |
-| 整理日期 | 2026-06-29（初整）；2026-07-06（NIMM 标准化）；2026-08-18（增量同步）；2026-09-15（增量同步） |
+| 整理日期 | 2026-06-29（初整）；2026-07-06（NIMM 标准化）；2026-08-18（增量同步）；2026-09-15（增量同步）；2026-11-11（本地增量同步） |
 | 算法贡献人 | 郭云谦、王亭波 |
 | 算法分类 | `00space_downscale` |
 | 当前状态 | 已整理至中间目录；导入已统一为模块名；待正式入库 |
@@ -41,6 +41,21 @@ CLI 入口 `cli/dsc_orographic_enhancement.py` 读取温度、相对湿度、气
 | `00temp/orographic_precipitation_downscaling/test/`、`docs/`、`nbs/` | 测试、文档与 notebook |
 | `00temp/orographic_precipitation_downscaling/00temp/`、`00log/` | 中间数据与包内整理日志 |
 | `00temp/orographic_precipitation_downscaling/NIMM_list.md` | 算法包内整理清单 |
+
+## 2026-11-11 更新
+
+- 自 `D:\workspace\test\00temp\orographic_precipitation_downscaling` 增量同步至 `00temp/orographic_precipitation_downscaling/`；未修改、未删除该原始路径。
+- 同步内容：
+  - 新增 `src/redistribute_orographic_enhancement.py` 与 CLI `cli/redistribute_cascade_cli.py`。
+  - 更新 `src/orographic_enhancement.py`（当日再次自本地覆盖同步最新修改）。
+  - CLI 重命名（旧名删除，保留新名）：
+    - `dsc_orographic_enhancement.py` → `meta_orographic_enhancement_cli.py`
+    - `dsc_orographic_enhancement_uv.py` → `orographic_enhancement_cli.py`
+    - `dsc_apply_orographic_enhancement.py` → `apply_orographic_enhancement_cli.py`
+  - 更新 `cli/__init__.py`、`docs/orographic_enhancement.md`、`docs/orographic_precipitation_downscaling.md`、`resource/conf.ini`。
+- 按用户要求：**不同步** `cli/interp_ec_to_agl.py`、`cli/preprocess_ec_oe_inputs.py`（若曾误同步已从中间目录移除）。
+- 未同步本地 `resource/data`、`test_data/`、`__pycache__`、caches、notebooks 等大体量样例与缓存。
+- 贡献人未修改：郭云谦、王亭波。
 
 ## 2026-09-15 更新
 
