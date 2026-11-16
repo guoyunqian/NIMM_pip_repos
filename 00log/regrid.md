@@ -10,7 +10,7 @@
 | 整理日期 | 2026-07-30 初整；2026-08-05 / 2026-08-17 增量同步 |
 | 算法贡献人 | 郭云谦、王亭波 |
 | 算法分类 | `ancillaries` |
-| 当前状态 | 已整理至中间目录；导入保持 `regrid`；网格校验已改用 `meb.checkout_griddata`；待正式入库 |
+| 当前状态 | **已被 `grid_grid_fusion` 更名/合并取代**；`00temp/regrid` 已于 2026-11-16 删除；请用 `00temp/grid_grid_fusion`；本日志仅作历史记录 |
 
 ## 算法理解
 
@@ -33,6 +33,20 @@
 | `00temp/regrid/test/`、`docs/`、`nbs/` | 测试、文档、notebook |
 | `00temp/regrid/00temp/`、`00log/` | 中间数据约定与整理日志 |
 | `00temp/regrid/NIMM_list.md` | 算法级整理清单 |
+
+## 2026-11-16 更名/合并至 grid_grid_fusion，并删除中间目录
+
+- 源侧能力已并入 `grid_grid_fusion`（`00temp/grid_grid_fusion`）。
+- 类更名对照：
+
+| 原 `regrid` | 新 `grid_grid_fusion` |
+| --- | --- |
+| `RegridLandSea` | `InterpGgLandSea` |
+| `RegridWithLandSeaMask` | `InterpGgLandSea2` |
+| `AdjustLandSeaPoints` | `AdjustLandSeaPoints`（保留，位于 landsea 插件） |
+
+- **已删除** `00temp/regrid` 目录；同期删除被本包布局取代的 `00temp/interp_gg_linear`。
+- 新工作应使用 `grid_grid_fusion`；详见 `00log/grid_grid_fusion.md`。
 
 ## 2026-08-17 增量同步
 
@@ -66,7 +80,5 @@
 
 ## 仍存在问题（需人工补充）
 
-1. 迁入正式 `NIMM/ancillaries/` 时调整为仓库正式包路径。
-2. `BasePlugin` 正式入库时评估是否改为仓库统一基类。
-3. `test_data` 约 1.7MB，中间目录未同步；是否放入 `NIMM_pip_testdata` / 正式仓库需再定。
-4. `resource/` 已含容器冒烟最小样例；正式入库时确认是否保留或再筛选。
+1. **中间目录已删除**；能力由 `grid_grid_fusion` 承接，正式路径应落在 `NIMM/08consistense/grid_grid_fusion`。
+2. `frequency_matching_rain24` / `interp_sg_cressman` 背景对齐已改接 `grid_grid_fusion.InterpGgLinear`；Cressman 算法仍用独立包 `interp_sg_cressman`（与 `station_grid_fusion` 逐步订正版并存）。

@@ -9,7 +9,7 @@
 
 由主程序 ``correct_tp_24h_nowcast.py`` 调用。函数名与 ``interpolation.py`` 一致：
 
-- ``mesh_val``：格点→格点，转发子模块 ``interp_gg_linear.src.interp_gg_linear``
+- ``mesh_val``：格点→格点，转发同级子模块 ``grid_grid_fusion.InterpGgLinear``
 - ``bilinear_interp``：格点→站点。仓库没有单独的格点→站点算法包，
   转发 ``meteva.base.interp_gs_linear(..., reset_lon_range=False)``（其它项目算法已在用），
   越界站点填 ``dbUndef``，结果仍写在 ``data0``
@@ -25,20 +25,20 @@ import numpy as np
 import meteva.base as meb
 
 
-def _ensure_interp_gg_linear_on_path() -> None:
-    """将 ``00temp/interp_gg_linear`` 的根与 ``src`` 追加到 sys.path（不抢占本包 utils）。"""
+def _ensure_grid_grid_fusion_on_path() -> None:
+    """将 ``00temp/grid_grid_fusion`` 的根与 ``src`` 追加到 sys.path（不抢占本包 utils）。"""
     here = os.path.dirname(os.path.abspath(__file__))
     temp_root = os.path.normpath(os.path.join(here, "..", ".."))
-    gg_root = os.path.join(temp_root, "interp_gg_linear")
+    gg_root = os.path.join(temp_root, "grid_grid_fusion")
     gg_src = os.path.join(gg_root, "src")
     for p in (gg_root, gg_src):
         if os.path.isdir(p) and p not in sys.path:
             sys.path.append(p)
 
 
-_ensure_interp_gg_linear_on_path()
+_ensure_grid_grid_fusion_on_path()
 
-from interp_gg_linear import interp_gg_linear  # noqa: E402
+from interp_gg_linear_plugin import InterpGgLinear  # noqa: E402
 
 
 def _target_grid(inter_extend):
@@ -61,9 +61,9 @@ def _target_grid(inter_extend):
 def mesh_val(grd, inter_extend):
     """格点场重采样到 ``inter_extend`` 网格。越界填 0，与原 ``mesh_val`` 一致。"""
     grid = _target_grid(inter_extend)
-    out = interp_gg_linear(grd, grid, outer_value=0.0)
+    out = InterpGgLinear(outer_value=0.0).process(grd, grid)
     if out is None:
-        raise ValueError("interp_gg_linear 未得到目标网格")
+        raise ValueError("InterpGgLinear 未得到目标网格")
     return out
 
 

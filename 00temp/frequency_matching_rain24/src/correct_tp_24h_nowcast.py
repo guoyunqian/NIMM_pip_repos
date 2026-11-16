@@ -19,7 +19,7 @@
   （``optical_flow_nowcast.LK`` / ``Extrapolation``）
 - Cressman：``interpolation_sg_cressman.GressManInterpolation``
   （子模块 ``interp_sg_cressman``）
-- 双线性格点→格点：``interpolation_gg_linear.mesh_val``（子模块 ``interp_gg_linear``）
+- 双线性格点→格点：``interpolation_gg_linear.mesh_val``（同级子模块 ``grid_grid_fusion.InterpGgLinear``）
 - 双线性格点→站点：``interpolation_gg_linear.bilinear_interp``（``meteva.base.interp_gs_linear``）
 
 原光流、原 Cressman、原双线性用 ``correct_tp_24h.process``，或 ``python -m cli``。

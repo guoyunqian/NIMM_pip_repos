@@ -24,10 +24,10 @@ import meteva.base as meb
 
 
 def _ensure_interp_submodules_on_path() -> None:
-    """将 ``interp_sg_cressman`` / ``interp_gg_linear`` 的根与 ``src`` 追加到 sys.path。"""
+    """将 ``interp_sg_cressman`` / ``grid_grid_fusion`` 的根与 ``src`` 追加到 sys.path。"""
     here = os.path.dirname(os.path.abspath(__file__))
     temp_root = os.path.normpath(os.path.join(here, "..", ".."))
-    for name in ("interp_sg_cressman", "interp_gg_linear"):
+    for name in ("interp_sg_cressman", "grid_grid_fusion"):
         root = os.path.join(temp_root, name)
         src = os.path.join(root, "src")
         for p in (root, src):
@@ -37,7 +37,7 @@ def _ensure_interp_submodules_on_path() -> None:
 
 _ensure_interp_submodules_on_path()
 
-from interp_gg_linear import interp_gg_linear  # noqa: E402
+from interp_gg_linear_plugin import InterpGgLinear  # noqa: E402
 from interp_sg_cressman import interp_sg_cressman  # noqa: E402
 
 # 经纬度度数 → 米（与 interp_sg_cressman 文档中 r_list 单位一致）
@@ -101,7 +101,7 @@ def GressManInterpolation(sta, grd, distance_limits, num_limit=1.0, smooth=0.001
         return out
 
     # 与旧实现一致：过小的订正值回退背景
-    bg_aligned = interp_gg_linear(grd, grid, outer_value=0.0)
+    bg_aligned = InterpGgLinear(outer_value=0.0).process(grd, grid)
     if bg_aligned is None:
         return out
     out_vals = np.asarray(out.values, dtype=float).copy()
