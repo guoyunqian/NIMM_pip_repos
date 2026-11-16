@@ -1,75 +1,233 @@
-# 网格站点融合算法说明
+# station_grid_fusion 算法说明
 
-## 算法概述
+将站点观测融合到规则格点场。面向 `meteva_base` 站点表与六维格点场。
 
-网格站点融合算法用于将站点观测信息融合到规则格点产品中。算法包含无背景场的站点到格点反距离权重插值，以及有背景场时的站点-格点偏差扩散订正，可用于要素精细化、观测订正或主客观一致协调处理。
+四个插件接口统一为：
 
-## 核心能力
+```text
+process(sta, grid, background=None)
+```
 
-- `InterpSgIdw`：基于球面距离 KDTree 的反距离权重站点到格点插值。
-- `InterpSgIdwDelta`：先计算站点观测与背景场插值值之间的偏差，再用 IDW 和高斯距离权重将偏差扩散到格点并叠加背景场。
-- `InterpSgDeltaGaussian`：将单站最近邻偏差按高斯半径扩散到周边格点并叠加背景场。
-- `InterpSgTotal`：综合调度入口，无背景场时调用站点到格点插值，有背景场时执行偏差订正融合。
-- `interp_station_to_grid_renew.py`：保留函数式实现、业务流程示例、时间处理和并行辅助函数。
+- `sta`：站点数据  
+- `grid`：目标网格（`meb.grid` / `glon`·`glat` 等）  
+- `background`：可选格点场；有则先对齐到目标网格再参与融合（IDW / Gaussian / Kriging 为偏差订正，Cressman 为初估场）
 
-## 目录结构
+背景对齐依赖同级包 `grid_grid_fusion.InterpGgLinear`（`outer_value` 控制越界填充）。结果 `attrs` 继承自输入站点。
+
+---
+
+## 1. 插件一览
+
+| 插件 | 功能简介 |
+| --- | --- |
+| `InterpSgIdw` | 反距离权重（IDW）；可选高斯衰减与背景偏差订正 |
+| `InterpSgGaussian` | 最近邻 × 高斯半径扩散；可选背景偏差订正 |
+| `InterpSgKriging` | 局部普通克里金（OK）；可选背景偏差订正 |
+| `InterpSgCressman` | Cressman 逐步订正；可选背景作初估场 |
+
+---
+
+## 2. 目录结构
 
 | 路径 | 内容 |
 | --- | --- |
-| `src/` | 核心插件类和函数式业务流程源码 |
-| `cli/` | 在本包目录执行 `python -m cli`，用 `--module` 选择 total、idw、idw_delta、gaussian |
-| `resource/fusion.ini` | 命令行未显式传入的参数先读此文件，再没有则用预设 |
-| `test/` | 配置解析测试，以及从 `nbs/` 移入的示例脚本 |
-| `test_data/` | 测试数据说明，原始目录未提供样例数据 |
-| `nbs/` | Jupyter notebook |
-| `docs/` | 算法说明文档 |
-| `utils/util_env.py` | 读取 `resource/fusion.ini` |
+| `src/` | 插件（`InterpSg*`） |
+| `cli/` | `python -m cli` |
+| `resource/conf.ini` | CLI 缺省参数 |
+| `test/` | 配置与算法测试 |
+| `nbs/` | Notebook |
+| `docs/` | 本文档 |
+| `utils/util_env.py` | 读取运行配置；并入 `00temp/utils` |
 
-## 主要入口
+---
 
-```python
-from station_grid_fusion.src import InterpSgTotal
+## 3. 共同约定
 
-result = InterpSgTotal().process(sta, to_grid, grid_background=grid_background)
-```
+1. 按 `member` / `level` / `time` / `dtime` 切片分别插值后拼接。  
+2. 站点经纬度转到球面笛卡尔坐标后用 KDTree 找近邻（距离为米量级）。  
+3. 有 `background` 时：用 `InterpGgLinear` 对齐到目标网格；IDW / Gaussian / Kriging 插 `obs − bg_at_sta` 再叠回背景；Cressman 以对齐后的背景为初估场。  
+4. 依赖：`meteva_base`、`numpy`、`scipy`、`grid_grid_fusion.InterpGgLinear`、`utils.base_plugin`。
 
-无背景场插值：
+---
+
+## 4. `InterpSgIdw`
+
+### 原理
+
+- 无背景：直接插站点值。  
+- 有背景：插偏差再叠回背景。  
+- `gaussian=False`（纯 IDW）：`w = 1 / d^decrease`；`effectR` 为硬截断——最近站距离超过该值时，无背景填 0，有背景则偏差置 0（保留背景）。  
+- `gaussian=True`（IDW×高斯）：`w = (1 / d^decrease) * exp(-(d / effectR)^2)`，`effectR` 为高斯半径。
+
+### 参数
+
+| 参数 | 默认 | 说明 |
+| --- | --- | --- |
+| `effectR` | `1000` | 纯 IDW：硬截断半径；高斯模式：高斯尺度（米量级） |
+| `nearNum` | `8` | 每格点近邻站点数 |
+| `decrease` | `2` | 距离衰减指数 |
+| `gaussian` | `False` | 是否乘高斯核 |
+| `outer_value` | `None` | 背景对齐越界填充，传给 `InterpGgLinear` |
+| `sta` / `grid` / `background` | — | 见上文接口 |
+
+### 示例
 
 ```python
 from station_grid_fusion.src import InterpSgIdw
+import meteva_base as meb
 
-result = InterpSgIdw(effectR=1000, nearNum=8, decrease=2).process(sta, grid_info)
+sta = meb.read_stadata_from_csv("sta.csv")  # 按实际读站方式
+grid = meb.basicdata.grid([70, 140, 0.1], [15, 55, 0.1])
+
+# 纯 IDW
+result = InterpSgIdw(effectR=1000, nearNum=8, decrease=2).process(sta, grid)
+
+# IDW × 高斯 + 背景偏差订正
+bg = meb.read_griddata_from_nc("bg.nc")
+result = InterpSgIdw(
+    effectR=1000, nearNum=8, decrease=2, gaussian=True, outer_value=0.0
+).process(sta, grid, background=bg)
 ```
 
-有背景场偏差订正：
+---
+
+## 5. `InterpSgGaussian`
+
+### 原理
+
+每格点只取最近 1 站，权重 `w = exp(-(d / halfR)^2)`；`d > halfR` 时权重为 0。有背景时同样先插偏差再叠回。
+
+### 参数
+
+| 参数 | 默认 | 说明 |
+| --- | --- | --- |
+| `halfR` | `20` | 高斯半径（米量级），须 `> 0` |
+| `outer_value` | `None` | 背景对齐越界填充 |
+| `sta` / `grid` / `background` | — | 见上文接口 |
+
+### 示例
 
 ```python
-from station_grid_fusion.src import InterpSgIdwDelta
+from station_grid_fusion.src import InterpSgGaussian
 
-result = InterpSgIdwDelta(effectR=1000, nearNum=8, decrease=2).process(sta, grid_background)
+result = InterpSgGaussian(halfR=20).process(sta, grid)
+result = InterpSgGaussian(halfR=20, outer_value=0.0).process(sta, grid, background=bg)
 ```
 
-## CLI 示例
+---
 
-在本包目录下执行。没写的参数先读 `resource/fusion.ini`，配置里也没有再用代码预设。`sta` 和 `grid` 两边都为空时会报错。
+## 6. `InterpSgKriging`
 
-`--module total` 不传 `--background` 时做站点到格点插值，预设影响半径 `1000`、邻近站 `8`、衰减 `2`。传入背景场后做偏差订正，预设为 `400`、`10`、`2`。`idw` 与 `idw_delta` 预设为 `1000`、`8`、`2`。`gaussian` 的高斯半径预设为 `20`。
+### 原理
+
+对每个目标格点取 `nearNum` 个近邻站，建立局部普通克里金方程组：
+
+```text
+γ(si, sj) λj + μ = γ(si, x0)
+Σ λj = 1
+```
+
+估计值 = `Σ λj · zj`。矩阵奇异时该点退化为反距离加权。
+
+变异函数可选 `spherical` / `exponential` / `gaussian`；`sill`、`range_` 为 `None` 时按当前切片站点样本自动估计。
+
+### 参数
+
+| 参数 | 默认 | 说明 |
+| --- | --- | --- |
+| `model` | `"spherical"` | 变异函数：`spherical` / `exponential` / `gaussian` |
+| `sill` | `None` | 基台；空则用站点方差 |
+| `range_` | `None` | 变程（米量级）；空则近邻距离中位数粗估 |
+| `nugget` | `0.0` | 块金，`>= 0` 且应小于基台 |
+| `nearNum` | `20` | 每格点近邻站点数 |
+| `outer_value` | `None` | 背景对齐越界填充 |
+| `sta` / `grid` / `background` | — | 见上文接口 |
+
+### 示例
+
+```python
+from station_grid_fusion.src import InterpSgKriging
+
+result = InterpSgKriging(model="spherical", nearNum=20).process(sta, grid)
+result = InterpSgKriging(
+    model="exponential", nearNum=20, nugget=0.0, outer_value=0.0
+).process(sta, grid, background=bg)
+```
+
+---
+
+## 7. `InterpSgCressman`
+
+### 原理
+
+经典逐步订正。初估场：无背景为 0；有背景则为对齐后的背景。对 `r_list` 中每个半径 R（通常由大到小）扫一遍：
+
+```text
+innov_i = obs_i − analysis_at_sta_i
+analysis(x) ← analysis(x) + Σ w_i·innov_i / Σ w_i
+w = (R² − d²) / (R² + d²)   （d ≥ R 时 w = 0）
+```
+
+下一扫在更新后的分析场上重新取站点值再算创新量。
+
+### 参数
+
+| 参数 | 默认 | 说明 |
+| --- | --- | --- |
+| `r_list` | `(60000, 40000, 20000)` | 影响半径列表（米），须非空且各项 `> 0` |
+| `nearNum` | `100` | 每格点近邻站点数上限，`>= 1` |
+| `outer_value` | `None` | 背景对齐越界填充 |
+| `sta` / `grid` / `background` | — | `background` 为初估场 |
+
+### 示例
+
+```python
+from station_grid_fusion.src import InterpSgCressman
+
+result = InterpSgCressman(
+    r_list=[60000, 40000, 20000], nearNum=100
+).process(sta, grid)
+
+result = InterpSgCressman(
+    r_list=[60000, 40000, 20000], nearNum=100, outer_value=0.0
+).process(sta, grid, background=bg)
+```
+
+---
+
+## 8. CLI
+
+在本包目录执行 `python -m cli`。未写参数先读 `resource/conf.ini`，再无则用预设；`sta`、`grid` 为空时报错。
+
+| `--module` | 插件 |
+| --- | --- |
+| `idw` | `InterpSgIdw(gaussian=False)`；可用 `--background` |
+| `idw_delta` | `InterpSgIdw(gaussian=True)`；`--grid` 同时作背景场（兼容旧入口） |
+| `gaussian` | `InterpSgGaussian` |
+| `kriging` | `InterpSgKriging` |
+| `cressman` | `InterpSgCressman` |
+| `total` | `idw` 旧别名 |
 
 ```bash
-python -m cli --module total --sta /data/code/nimm/demo_data/input/sta_grid_interp/sta.csv --grid /data/code/nimm/demo_data/input/sta_grid_interp/grid.nc
+python -m cli --module idw --sta sta.csv --grid grid.nc
+python -m cli --module idw --sta sta.csv --grid grid.nc --background bg.nc
+python -m cli --module idw_delta --sta sta.csv --grid bg.nc
+python -m cli --module gaussian --sta sta.csv --grid grid.nc --half-r 20
+python -m cli --module gaussian --sta sta.csv --grid grid.nc --background bg.nc --half-r 20
+python -m cli --module kriging --sta sta.csv --grid grid.nc --kriging-model spherical --near-num 20
+python -m cli --module cressman --sta sta.csv --grid grid.nc --r-list 60000,40000,20000
+python -m cli --module cressman --sta sta.csv --grid grid.nc --background bg.nc
 ```
 
-```bash
-python -m cli --module idw_delta --sta /data/code/nimm/demo_data/input/sta_grid_interp/sta.csv --grid /data/code/nimm/demo_data/input/sta_grid_interp/grid.nc
-```
+常用参数：`--effect-r` / `--near-num` / `--decrease`（IDW）、`--half-r`（Gaussian）、`--kriging-model` / `--sill` / `--range` / `--nugget`（Kriging）、`--r-list` / `--near-num`（Cressman）、`--outer-value`、`--output`、`--config`。
 
-```bash
-python -m cli --module gaussian --sta /data/code/nimm/demo_data/input/sta_grid_interp/sta.csv --grid /data/code/nimm/demo_data/input/sta_grid_interp/grid.nc --half-r 20
-```
+---
 
-## 注意事项
+## 9. 选型提示
 
-1. 原始代码依赖 `nimm.PostProcessingPlugin`、`meteva_base`、`meteva`、`numpy`、`scipy`、`pandas` 等环境。
-2. 示例脚本保留 `/data/code/nimm/...`、`D:\Desktop\...`、`/home/...` 和共享盘路径，正式测试前需要替换为仓库相对样例路径。
-3. `InterpSgTotal` 当前硬编码 `sys.path.append('/data/code/nimm/nimm/sta_grid_interp')`，并在有背景场分支调用未显式导入的 `interp_sg_idw_delta`，正式入库前需要修正导入路径。
-4. 原始目录未提供独立测试数据。示例脚本在 `test/`，notebook 在 `nbs/`。
+| 场景 | 建议 |
+| --- | --- |
+| 通用站点插值 | `InterpSgIdw` |
+| 偏差订正且需平滑衰减 | `InterpSgIdw(gaussian=True)` 或 `InterpSgGaussian` |
+| 需显式变异函数 / 局部 OK | `InterpSgKriging` |
+| 多半径逐步订正（客观分析风格） | `InterpSgCressman` |

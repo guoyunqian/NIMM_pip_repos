@@ -6,70 +6,66 @@
 | --- | --- |
 | 算法名称 | `station_grid_fusion` |
 | 中文名称 | 网格站点融合算法 |
-| 原始路径 | `D:\temp\202301_zhinengwangge\20230206_unitycode\NIMM_pip_repos\TEMP\260625\00_sta_grid_interp` |
-| 整理日期 | 2026-06-29 |
+| 原始路径 | `D:\workspace\test\00temp\station_grid_fusion`（本次同步）；初整路径见历史节 |
+| 整理日期 | 2026-06-29（初整）；2026-11-16（重构同步） |
 | 算法贡献人 | 郭云谦、陈荣 |
 | 算法分类 | `08consistense` |
-| 当前状态 | 已整理至中间目录，待补充至算法仓库 |
+| 当前状态 | 已同步至中间目录；依赖同级包 `grid_grid_fusion` 已于 2026-11-16 同步入库；待正式补充至算法仓库 |
 
 ## 算法理解
 
-该算法用于站点观测与格点背景场的一致协调和融合。无背景场时，使用反距离权重将站点值插值到目标格点；有背景场时，先计算站点观测与背景场插值值的偏差，再将偏差按 IDW 或 Gaussian 权重扩散到格点并叠加背景场，得到融合后的格点产品。
+将站点观测融合到规则格点场，面向 `meteva_base` 站点表与六维格点场。四个插件接口统一为 `process(sta, grid, background=None)`：无背景时直接插值站点值到目标格点；有背景时先对齐背景场再参与融合（IDW / Gaussian / Kriging 为偏差订正，Cressman 为初估场）。
 
 核心源码包括：
 
-- `src/interp_sg_idw_plugin.py`：`InterpSgIdw`，站点到格点 IDW 插值插件。
-- `src/interp_sg_idw_delta_plugin.py`：`InterpSgIdwDelta`，基于背景场偏差的 IDW/Gaussian 融合插件。
-- `src/interp_sg_delta_gaussian_plugin.py`：`InterpSgDeltaGaussian`，最近邻偏差高斯扩散融合插件。
-- `src/interp_sg_total_plugin.py`：`InterpSgTotal`，综合站点到格点插值和背景场偏差订正调度。
-- `src/interp_station_to_grid_renew.py`：函数式实现、业务流程示例、日期处理和并行辅助函数。
+- `src/interp_sg_idw_plugin.py`：`InterpSgIdw`，反距离权重；可选高斯衰减与背景偏差订正。CLI 别名 `idw_delta` 对应 Idw + `gaussian`。
+- `src/interp_sg_gaussian_plugin.py`：`InterpSgGaussian`，最近邻 × 高斯半径扩散；可选背景偏差订正。
+- `src/interp_sg_kriging.py`：`InterpSgKriging`，局部普通克里金（OK）；可选背景偏差订正。
+- `src/interp_sg_cressman_plugin.py`：`InterpSgCressman`，Cressman 逐步订正；可选背景作初估场。
 
-## 本次整理操作
-
-已将原始目录内容整理到中间目录：
-
-`00temp/station_grid_fusion/`
-
-整理内容包括：
-
-- `src/`：原始根目录下的核心 Python 源码，并新增 `__init__.py` 统一导出插件类。
-- `nbs/`：原始示例脚本和 notebook。
-- `docs/`：新增 `station_grid_fusion.md`。
-- `cli/`、`resource/`、`test/`、`test_data/`、`utils/`：原始目录未提供对应内容，已新增说明文件补齐仓库结构。
-
-未执行操作：
-
-- 未删除或移动任何原始文件。
-- 未补充到正式 `NIMM/08consistense/` 目录。
-- 未修改原始算法逻辑。
-- 未补充真实测试数据。
+背景对齐依赖同级包 `grid_grid_fusion.InterpGgLinear`（`outer_value` 控制越界填充）。该包已同步至 `00temp/grid_grid_fusion`；旧包 `interp_gg_linear` 已删除。
 
 ## 目录对应关系
 
 | 中间目录 | 内容说明 |
 | --- | --- |
-| `00temp/station_grid_fusion/src/` | 核心插件和函数式流程源码 |
-| `00temp/station_grid_fusion/cli/` | CLI 说明 |
-| `00temp/station_grid_fusion/resource/` | 资源说明 |
-| `00temp/station_grid_fusion/test/` | 测试说明 |
-| `00temp/station_grid_fusion/test_data/` | 测试数据说明 |
-| `00temp/station_grid_fusion/nbs/` | 示例脚本和 notebook |
-| `00temp/station_grid_fusion/docs/` | 文档 |
-| `00temp/station_grid_fusion/utils/` | 工具说明 |
+| `00temp/station_grid_fusion/src/` | 四插件：`InterpSgIdw` / `InterpSgGaussian` / `InterpSgKriging` / `InterpSgCressman` |
+| `00temp/station_grid_fusion/cli/` | `python -m cli` 与 `station_grid_fusion_cli.py` |
+| `00temp/station_grid_fusion/resource/` | `conf.ini` CLI 缺省参数与说明 |
+| `00temp/station_grid_fusion/test/` | 配置与算法测试（含 Cressman / Kriging 等） |
+| `00temp/station_grid_fusion/nbs/` | 示例 notebook（含说明 notebook） |
+| `00temp/station_grid_fusion/docs/` | `station_grid_fusion.md` |
+| `00temp/station_grid_fusion/utils/` | `util_env.py` 等运行配置辅助 |
 
-## 已发现问题与后续建议
+## 2026-11-16 更新
 
-1. 原始代码依赖 `nimm.PostProcessingPlugin` 和 `meteva_base`/`meteva`，当前环境未确认依赖完整性。
-2. `src/interp_sg_total_plugin.py` 中包含硬编码 `sys.path.append('/data/code/nimm/nimm/sta_grid_interp')`，正式入库前需要移除并改为仓库包路径。
-3. `src/interp_sg_total_plugin.py` 的有背景场分支调用 `interp_sg_idw_delta`，但文件中仅导入了 `interp_sg_idw`，后续需要补齐导入或改用 `InterpSgIdwDelta`。
-4. 示例脚本和 `__main__` 块中保留 `/data/code/nimm/...`、`D:\Desktop\...`、`/home/...`、共享盘等原始路径。
-5. 原始目录未提供独立 `cli/`、`docs/`、`test/`、`test_data/`、`resource/` 和 `utils/` 内容，当前仅补充说明文件。
-6. `interp_station_to_grid_renew.py` 同时包含核心函数、业务流程、时间工具和并行工具，正式入库时可评估拆分。
+- 自 `D:\workspace\test\00temp\station_grid_fusion` 增量同步至 `00temp/station_grid_fusion/`；未修改、未删除源目录；未同步 `__pycache__`、`.pytest_cache`、`.ipynb_checkpoints` 及大体量 `resource/data`。
+- 重构为 4 插件：`InterpSgIdw` / `InterpSgGaussian` / `InterpSgKriging` / `InterpSgCressman`；统一 `process(sta, grid, background=None)`。
+- `idw_delta` 为 CLI 别名，对应 Idw + gaussian。
+- 已删除中间目录中源侧已不存在的旧模块：`interp_sg_total_plugin.py`、`interp_sg_idw_delta_plugin.py`、`interp_sg_delta_gaussian_plugin.py`、`interp_station_to_grid_renew.py`，以及 `resource/fusion.ini`。
+- 同步校验：27 个 `.py`/`.md`/`.ini`/`.ipynb` 文件哈希与源一致。
+- **依赖**：背景对齐对接同级 `grid_grid_fusion.InterpGgLinear`（已入库）；旧 `interp_gg_linear` 目录已删除。
 
-## 校验记录
+同步文件概要：
 
-- 已完成中间目录复制和目录补齐。
-- 已确认中间目录无 `.venv`、`.idea`、`__pycache__`、`.pyc`、`.ipynb_checkpoints` 或运行日志残留。
-- 已补充算法说明文档和各空目录说明。
-- 已使用 Codex 捆绑 Python 完成 9 个 Python 文件的语法解析校验。
-- 尝试导入 `station_grid_fusion.src` 时，当前 Codex 捆绑 Python 环境缺少 `nimm.PostProcessingPlugin`，未继续执行到 `meteva_base`、`meteva` 和 `scipy` 依赖校验；正式测试前需补齐依赖并统一包路径。
+- NEW：`src/interp_sg_cressman_plugin.py`、`src/interp_sg_gaussian_plugin.py`、`src/interp_sg_kriging.py`、`nbs/station_grid_fusion_说明.ipynb`、`test/conftest.py`、`test/test_cressman.py`、`test/test_kriging_math.py`
+- DIFF：`cli/README.md`、`cli/station_grid_fusion_cli.py`、`docs/station_grid_fusion.md`、`resource/conf.ini`、`src/interp_sg_idw_plugin.py`、`src/__init__.py`、`test/README.md`、`test/test_cli_config.py`、`test/test_idw_delta.py`、`test/test_idw_gaussian.py`、`test/test_interp.py`、`utils/util_env.py`
+- SAME：`cli/fusion_main.py`、`cli/__init__.py`、`cli/__main__.py`、既有 notebook、`resource/README.md`、`utils/README.md`、`utils/__init__.py`
+
+## 2026-06-29 更新
+
+- 初整至中间目录 `00temp/station_grid_fusion/`；原始路径为 `D:\temp\202301_zhinengwangge\20230206_unitycode\NIMM_pip_repos\TEMP\260625\00_sta_grid_interp`。
+- 当时核心为 `InterpSgIdw` / `InterpSgIdwDelta` / `InterpSgDeltaGaussian` / `InterpSgTotal` 及 `interp_station_to_grid_renew.py`（已在 2026-11-16 重构移除）。
+- 未删除或移动任何原始文件；未补充到正式 `NIMM/08consistense/`。
+
+## 2026-11-16 与 `interp_sg_cressman` 的关系
+
+- 本包 `InterpSgCressman` 为**经典逐步订正**（创新量累加）；独立包 `interp_sg_cressman` 为**观测加权覆盖**，算法不同，**并存**。
+- 曾误删独立包并改接频率匹配；已恢复 `00temp/interp_sg_cressman`，`frequency_matching_rain24` 仍引用旧包行为。
+
+## 仍存在问题（需人工补充）
+
+1. 依赖同级包 `grid_grid_fusion.InterpGgLinear` 已于 2026-11-16 同步入库；正式联调/导入路径仍需确认。
+2. 补充至正式 `NIMM/08consistense/` 时需调整为仓库正式包路径。
+3. 依赖 `meteva_base`、`numpy`、`scipy`、`utils.base_plugin` 等，正式测试前需确认环境。
+4. 未同步大体量测试/资源数据；`resource/` 以 `conf.ini` 与说明为主。

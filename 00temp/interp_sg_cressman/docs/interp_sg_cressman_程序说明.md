@@ -21,7 +21,7 @@ $$
    站点与目标网格经纬度经 `lon_lat_to_cartesian` 转到笛卡尔坐标（地球半径，距离单位为**米**），用 `cKDTree` 为每个格点查最多 `nearNum` 个邻近站。
 
 3. **初值**  
-   若提供背景场，先经 `interp_gg_linear` 对齐到目标网格作为初值；否则初值为 0 场。`outer_value` 控制背景越界填充。
+   若提供背景场，先经 `grid_grid_fusion.InterpGgLinear` 对齐到目标网格作为初值；否则初值为 0 场。`outer_value` 控制背景越界填充。
 
 4. **Cressman 加权写回**  
    对 `r_list` 中每个半径 \(R\)（通常由大到小）：
@@ -52,7 +52,7 @@ $$
 1. `sele_by_para(..., drop_IV=True)` 去缺测，`split` 按维拆分。  
 2. 由目标 `grid` 与当前子集构造 `grid2`（填入 time/dtime/level/member）。  
 3. 站、格点转笛卡尔坐标，`cKDTree.query` 得距离与邻站下标。  
-4. 背景场 `interp_gg_linear` 对齐（可选），展平为初值数组。  
+4. 背景场 `InterpGgLinear` 对齐（可选），展平为初值数组。  
 5. 按 `r_list` 逐半径算权重并写回有邻站的格点，`concat` 各子集。
 
 **目标网格优先级（`runner._resolve_target_grid`）**

@@ -8,7 +8,7 @@
 函数入口：``interp_sg_cressman``
 插件入口：``InterpSGCressmanPlugin``（可调用，``plugin(sta, grid)``）
 
-依赖：子模块 ``interp_gg_linear``（背景场对齐）、``utils.base_plugin``。
+依赖：同级子模块 ``grid_grid_fusion.InterpGgLinear``（背景场对齐）、``utils.base_plugin``。
 """
 
 from __future__ import annotations
@@ -26,20 +26,20 @@ from scipy.spatial import cKDTree
 from utils.base_plugin import BasePlugin
 
 
-def _ensure_interp_gg_linear_on_path() -> None:
-    """将同级子模块 ``interp_gg_linear`` 的根与 ``src`` 追加到 sys.path。"""
+def _ensure_grid_grid_fusion_on_path() -> None:
+    """将同级子模块 ``grid_grid_fusion`` 的根与 ``src`` 追加到 sys.path。"""
     here = os.path.dirname(os.path.abspath(__file__))
     temp_root = os.path.normpath(os.path.join(here, "..", ".."))
-    gg_root = os.path.join(temp_root, "interp_gg_linear")
+    gg_root = os.path.join(temp_root, "grid_grid_fusion")
     gg_src = os.path.join(gg_root, "src")
     for p in (gg_root, gg_src):
         if os.path.isdir(p) and p not in sys.path:
             sys.path.append(p)
 
 
-_ensure_interp_gg_linear_on_path()
+_ensure_grid_grid_fusion_on_path()
 
-from interp_gg_linear import interp_gg_linear  # noqa: E402
+from interp_gg_linear_plugin import InterpGgLinear  # noqa: E402
 
 
 def interp_sg_cressman(sta0, grid, r_list, background=None, nearNum=100, outer_value=None):
@@ -56,12 +56,12 @@ def interp_sg_cressman(sta0, grid, r_list, background=None, nearNum=100, outer_v
         Cressman 影响半径列表（米制笛卡尔距离，与 ``lon_lat_to_cartesian`` 一致），
         按顺序逐级订正。
     background : meteva 格点场, optional
-        背景场；提供时通过 ``interp_gg_linear`` 插到目标网格作为初值，
+        背景场；提供时通过 ``InterpGgLinear`` 插到目标网格作为初值，
         否则初值为 0 场。
     nearNum : int
         KDTree 查询的邻近站点数上限（不超过实际站数）。
     outer_value : float, optional
-        背景场双线性插值越界时的填充值，传给 ``interp_gg_linear``。
+        背景场双线性插值越界时的填充值，传给 ``InterpGgLinear``。
 
     输出
     ----
@@ -103,7 +103,7 @@ def interp_sg_cressman(sta0, grid, r_list, background=None, nearNum=100, outer_v
 
         bg = meteva_base.basicdata.grid_data(grid2)
         if background is not None:
-            bg_interp = interp_gg_linear(background, grid2, outer_value=outer_value)
+            bg_interp = InterpGgLinear(outer_value=outer_value).process(background, grid2)
             if bg_interp is not None:
                 bg = bg_interp
 
