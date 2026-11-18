@@ -31,7 +31,7 @@
 | 频率匹配 | `src/cal_frequency_match.py` | 分位数频率匹配 |
 | 插值（原 Cressman 与原双线性） | `src/interpolation.py` | `correct_tp_24h`：`GressManInterpolation` / `mesh_val` / `bilinear_interp` |
 | 插值（项目 Cressman） | `src/interpolation_sg_cressman.py` | → 子模块 `interp_sg_cressman`；`correct_tp_24h_nowcast` 使用 |
-| 插值（项目双线性） | `src/interpolation_gg_linear.py` | 格点→格点 → 子模块 `grid_grid_fusion.InterpGgLinear`；格点→站点 → `meteva.base.interp_gs_linear`；`correct_tp_24h_nowcast` 使用 |
+| 插值（项目双线性） | `src/interpolation_gg_linear.py` | 格点→格点 → 子模块 `interpolation_grid_grid.InterpGgLinear`；格点→站点 → `meteva.base.interp_gs_linear`；`correct_tp_24h_nowcast` 使用 |
 | 本包工具 | `src/utils/config.py`、`data_proc.py`、`data_save.py`、`util_env.py`、`logger.py`、`verify.py` | 参数、预处理、写出、ini、日志、检验（`from utils.xxx`） |
 | 共享插件 | `00temp/utils/multipro_plugin.py`、`data_prepare_plugin.py` | 经根 `utils/__init__` 合并；包内无副本 |
 | 配置资源 | `resource/optimize_tp_24.ini`、`resource/*.json`、`sta.m3`、`mask010.nc` | 运行参数、模式路径、站网、掩膜 |

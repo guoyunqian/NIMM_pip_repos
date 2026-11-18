@@ -23,7 +23,9 @@
 | `multi_rain_mait24_blending` | 复制自 `mait_24.ini` | 原已有 | 原已有 | 仅默认 ini 改名 |
 | `optical_flow_nowcast` | 复制自 `optical_flow.ini` | CLI 曾抽出，后撤回 | 已有 | 默认 ini 改名；CLI 入口仍为 `run`；插件类 `process` 原样保留 |
 | `orographic_nwp_3d_downscaling` | 复制样例站点 ini | CLI 曾抽出，后撤回 | 已有 | 默认回落改为 `resource/conf.ini`；不传 `config` 时业务仍读工作目录 `para_file`；插件 `process` 原样保留 |
-| `station_grid_fusion` | 复制自 `fusion.ini` | CLI 曾抽出，后撤回 | 已有 | 默认 ini 改名；CLI 入口仍为 `run` |
+| `interpolation_station_grid` | 复制自 `fusion.ini`（原 `station_grid_fusion`） | CLI 曾抽出，后撤回 | 已有 | 默认 ini 改名；CLI 入口仍为 `run`；包已更名 |
+| `interpolation_grid_grid` | 已有 `resource/conf.ini`（原 `grid_grid_fusion`） | CLI 入口仍为 `run` | 已有 | 包已更名；CLI/`process` 约定同前 |
+| `interpolation_grid_station` | 已有 `resource/conf.ini` | CLI 入口仍为 `run` | 已有 | 新包；CLI 入口仍为 `run` |
 | `steps_multi_time_fusion` | 复制自 `steps.ini` | CLI 曾抽出，后撤回 | 已有 | 默认 ini 改名；CLI 入口仍为 `run` |
 | `wind_fft_blending` | 复制自 `fft_merge.ini` | 原已有 | 原已有 | 仅默认 ini 改名 |
 | `linear_scd_multi_time_fusion` | 复制自 `scd_pair_fusion_config.ini` | `pair`/`padding`/`split` 补 `process` | 本次补齐 | 融合/补齐默认读 `conf.ini`；拆分仍默认 `split_config.ini`，可用 `config` 覆盖 |
@@ -65,5 +67,5 @@
 - `kalman_element_forecast_correction`（仅 CLI；`src/kalman_cli.process` 保留）
 - `optical_flow_nowcast`（仅 CLI；插件类 `process` 保留）
 - `orographic_nwp_3d_downscaling`（仅 CLI；插件 `process` 保留）
-- `station_grid_fusion`
+- `interpolation_station_grid`（原 `station_grid_fusion`）
 - `steps_multi_time_fusion`

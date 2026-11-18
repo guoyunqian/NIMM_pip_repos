@@ -9,7 +9,7 @@
 
 由主程序 ``correct_tp_24h_nowcast.py`` 调用。函数名与 ``interpolation.py`` 一致：
 
-- ``mesh_val``：格点→格点，转发同级子模块 ``grid_grid_fusion.InterpGgLinear``
+- ``mesh_val``：格点→格点，转发同级子模块 ``interpolation_grid_grid.InterpGgLinear``
 - ``bilinear_interp``：格点→站点。仓库没有单独的格点→站点算法包，
   转发 ``meteva.base.interp_gs_linear(..., reset_lon_range=False)``（其它项目算法已在用），
   越界站点填 ``dbUndef``，结果仍写在 ``data0``
@@ -25,18 +25,18 @@ import numpy as np
 import meteva.base as meb
 
 
-def _ensure_grid_grid_fusion_on_path() -> None:
-    """将 ``00temp/grid_grid_fusion`` 的根与 ``src`` 追加到 sys.path（不抢占本包 utils）。"""
+def _ensure_interpolation_grid_grid_on_path() -> None:
+    """将 ``00temp/interpolation_grid_grid`` 的根与 ``src`` 追加到 sys.path（不抢占本包 utils）。"""
     here = os.path.dirname(os.path.abspath(__file__))
     temp_root = os.path.normpath(os.path.join(here, "..", ".."))
-    gg_root = os.path.join(temp_root, "grid_grid_fusion")
+    gg_root = os.path.join(temp_root, "interpolation_grid_grid")
     gg_src = os.path.join(gg_root, "src")
     for p in (gg_root, gg_src):
         if os.path.isdir(p) and p not in sys.path:
             sys.path.append(p)
 
 
-_ensure_grid_grid_fusion_on_path()
+_ensure_interpolation_grid_grid_on_path()
 
 from interp_gg_linear_plugin import InterpGgLinear  # noqa: E402
 

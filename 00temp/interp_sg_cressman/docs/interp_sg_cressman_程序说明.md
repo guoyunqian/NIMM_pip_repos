@@ -21,7 +21,7 @@ $$
    站点与目标网格经纬度经 `lon_lat_to_cartesian` 转到笛卡尔坐标（地球半径，距离单位为**米**），用 `cKDTree` 为每个格点查最多 `nearNum` 个邻近站。
 
 3. **初值**  
-   若提供背景场，先经 `grid_grid_fusion.InterpGgLinear` 对齐到目标网格作为初值；否则初值为 0 场。`outer_value` 控制背景越界填充。
+   若提供背景场，先经 `interpolation_grid_grid.InterpGgLinear` 对齐到目标网格作为初值；否则初值为 0 场。`outer_value` 控制背景越界填充。
 
 4. **Cressman 加权写回**  
    对 `r_list` 中每个半径 \(R\)（通常由大到小）：

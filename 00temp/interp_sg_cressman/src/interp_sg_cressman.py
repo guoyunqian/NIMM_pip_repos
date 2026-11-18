@@ -8,7 +8,7 @@
 函数入口：``interp_sg_cressman``
 插件入口：``InterpSGCressmanPlugin``（可调用，``plugin(sta, grid)``）
 
-依赖：同级子模块 ``grid_grid_fusion.InterpGgLinear``（背景场对齐）、``utils.base_plugin``。
+依赖：同级子模块 ``interpolation_grid_grid.InterpGgLinear``（背景场对齐）、``utils.base_plugin``。
 """
 
 from __future__ import annotations
@@ -26,18 +26,18 @@ from scipy.spatial import cKDTree
 from utils.base_plugin import BasePlugin
 
 
-def _ensure_grid_grid_fusion_on_path() -> None:
-    """将同级子模块 ``grid_grid_fusion`` 的根与 ``src`` 追加到 sys.path。"""
+def _ensure_interpolation_grid_grid_on_path() -> None:
+    """将同级子模块 ``interpolation_grid_grid`` 的根与 ``src`` 追加到 sys.path。"""
     here = os.path.dirname(os.path.abspath(__file__))
     temp_root = os.path.normpath(os.path.join(here, "..", ".."))
-    gg_root = os.path.join(temp_root, "grid_grid_fusion")
+    gg_root = os.path.join(temp_root, "interpolation_grid_grid")
     gg_src = os.path.join(gg_root, "src")
     for p in (gg_root, gg_src):
         if os.path.isdir(p) and p not in sys.path:
             sys.path.append(p)
 
 
-_ensure_grid_grid_fusion_on_path()
+_ensure_interpolation_grid_grid_on_path()
 
 from interp_gg_linear_plugin import InterpGgLinear  # noqa: E402
 

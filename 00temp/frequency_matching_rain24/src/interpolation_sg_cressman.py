@@ -24,10 +24,10 @@ import meteva.base as meb
 
 
 def _ensure_interp_submodules_on_path() -> None:
-    """将 ``interp_sg_cressman`` / ``grid_grid_fusion`` 的根与 ``src`` 追加到 sys.path。"""
+    """将 ``interp_sg_cressman`` / ``interpolation_grid_grid`` 的根与 ``src`` 追加到 sys.path。"""
     here = os.path.dirname(os.path.abspath(__file__))
     temp_root = os.path.normpath(os.path.join(here, "..", ".."))
-    for name in ("interp_sg_cressman", "grid_grid_fusion"):
+    for name in ("interp_sg_cressman", "interpolation_grid_grid"):
         root = os.path.join(temp_root, name)
         src = os.path.join(root, "src")
         for p in (root, src):
