@@ -6,11 +6,11 @@
 | --- | --- |
 | 算法名称 | `generate_orographic_smoothing_coefficients` |
 | 中文名称 | 地形平滑系数生成 |
-| 原始路径 | `D:\workspace\improver\generate_orographic_smoothing_coefficients`（原包名 `generate_orographic_smoothing_coefficients`） |
-| 整理日期 | 2026-07-28（NIMM 标准化）；2026-07-29（CLI 重命名）；2026-08-22（原目录增量同步） |
+| 原始路径 | `D:\workspace\test\00temp\generate_orographic_smoothing_coefficients`（本次同步）；历史见 improver 路径 |
+| 整理日期 | 2026-07-28（NIMM 标准化）；2026-07-29（CLI 重命名）；2026-08-22 / 2026-09-28；2026-11-20（CLI/文档/notebook 同步） |
 | 算法贡献人 | 郭云谦、王亭波 |
 | 算法分类 | `ancillaries` |
-| 当前状态 | 已整理至中间目录；导入已统一为模块名；待正式入库 |
+| 当前状态 | 已同步至中间目录；CLI 已对接 CliBase；待正式入库 |
 
 ## 算法理解
 
@@ -62,6 +62,12 @@
 - 容器冒烟约定：`main()` 默认使用 `resource/cli_input`；包根 `python -m cli smoothing`。
 - 写入最小 `input_orography_meb.nc` 样例；仿真容器冒烟通过。
 - 包内文档补充子命令说明（示例路径未改）。
+
+## 2026-11-20 更新
+
+- 自 `D:\workspace\test\00temp\generate_orographic_smoothing_coefficients` 增量同步（未改源目录）。
+- DIFF：`cli/dsc_generate_orographic_smoothing_coefficients.py`（CliBase / `process` 参数与配对输出路径）、`docs/generate_orographic_smoothing_coefficients.md`、`nbs/generate_orographic_smoothing_coefficients.ipynb`、`test/test_cli_smoke.py`。
+- 算法核 `src/` 与本次源侧一致（无差异）；未同步大体量 `test_data/`。
 
 ## 仍存在问题（需人工补充）
 
