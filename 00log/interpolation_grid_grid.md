@@ -40,7 +40,7 @@
 - **跳过** `resource/data/cli_linear_out.m4`（约 29.91MB）；保留小 nc（含约 0.37MB 样例与约 2.5MB landsea 输出样例）。
 - 文本/代码哈希校验：33 个 `.py`/`.md`/`.ini`/`.ipynb` 一致；另复制 3 个小数据文件；合计 36 文件。
 - **删除**旧中间目录 `00temp/grid_grid_fusion`。
-- 下游路径改接：`interp_sg_cressman`、`frequency_matching_rain24` 的 sys.path 引导改为本包名；`meb.interp_gg_linear` API 未改。
+- 下游路径改接：当时 `interp_sg_cressman`、`frequency_matching_rain24` 的 sys.path 引导改为本包名；`meb.interp_gg_linear` API 未改。（注：2026-11-20 起原 `interp_sg_cressman` 包已删，Cressman 改由 `interpolation_station_grid.InterpSgCressman` 提供。）
 - **分类**：由 `08consistense` 调整为 `ancillaries`（插值辅助工具族）。
 
 ## 仍存在问题（需人工补充）

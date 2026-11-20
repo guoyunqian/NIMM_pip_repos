@@ -16,7 +16,6 @@
 | `fy4b_argi_l1_decoder` | 复制自 `fy4.ini` | src 入口保留；CLI 抽出撤回 | 已有 / src 补齐 | CLI 入口仍为 `run`；单文件/批量 src `process` 支持 `config` |
 | `grid_stat_merge` | 复制自 `grid_stat_merge.ini` | 原已有 | 原已有 | 仅默认 ini 改名 |
 | `gust_factor` | 复制自 `gust_factor.ini` | 原已有 | 原已有 | 仅默认 ini 改名 |
-| `interp_sg_cressman` | 复制自 `interp_sg_cressman.ini` | 原已有 | 原已有 | 仅默认 ini 改名 |
 | `kalman_element_forecast_correction` | 复制自 `kalman.ini` | CLI 曾抽出，后撤回 | 已有 | 默认 ini 改名；CLI 入口仍为 `run`；`src/kalman_cli.process` 原样保留 |
 | `multi_rain_mait01_blending` | 复制自 `mait_1.ini` | 原已有 | 原已有 | 仅默认 ini 改名 |
 | `multi_rain_mait03_blending` | 复制自 `mait_3.ini` | 原已有 | 原已有 | 仅默认 ini 改名 |
