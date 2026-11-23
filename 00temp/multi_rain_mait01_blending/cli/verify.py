@@ -11,6 +11,11 @@ import importlib.util
 import sys
 from pathlib import Path
 
+from clize.parser import value_converter
+from clize.runner import Clize
+from clize.runner import SubcommandDispatcher, run
+from utils.data_prepare_plugin import prepare_dataset
+
 
 def _bootstrap_paths():
     """项目根优先（加载本地 ``utils/__init__`` 合并 ``00temp/utils``），再 ``src``。"""
@@ -35,6 +40,8 @@ import meteva.product as mpd
 
 
 from datetime import datetime
+
+
 
 para_example = {
     "num_process": 6,
@@ -253,7 +260,6 @@ def _load_sta_all(h5_file, key="sta_all", rename=None):
 
 def process_prepare(*, para_file, recover=True):
     """从配置脚本读取 ``para`` 并调用 ``prepare_dataset`` 生成检验数据集。"""
-    from utils.data_prepare_plugin import prepare_dataset
 
     spec = importlib.util.spec_from_file_location("verify_para", para_file)
     mod = importlib.util.module_from_spec(spec)
@@ -303,7 +309,6 @@ def process_plot_dt(*, h5_file, dtime, grade_list, rename=None):
 # ---------------------------------------------------------------------------
 
 def _cli_converters():
-    from clize.parser import value_converter
 
     @value_converter
     def comma_str_list(s):
@@ -342,7 +347,6 @@ def _cli_converters():
 
 
 def _make_cli_commands():
-    from clize.runner import Clize
 
     comma_str_list, comma_float_list, optional_str, optional_bool_cli = _cli_converters()
 
@@ -420,10 +424,6 @@ def main():
     python -m cli.verify ts ts       # 第三步：meteva.score批量算TS，绘图存入h5
     python -m cli.verify ts plot_dt  # 第四步：读取已经算好的ts结果，画单时效柱状图
     """
-    from clize.runner import SubcommandDispatcher, run
 
     run(SubcommandDispatcher(commands=_make_cli_commands()))
 
-
-if __name__ == "__main__":
-    main()

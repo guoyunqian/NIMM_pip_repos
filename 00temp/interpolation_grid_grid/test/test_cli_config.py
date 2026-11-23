@@ -2,9 +2,11 @@
 """ini 补齐与 CLI 缺省参数。"""
 from __future__ import annotations
 
+import inspect
+
 import pytest
 
-from cli.interpolation_grid_grid_cli import build_parser
+from cli.interpolation_grid_grid_cli import process
 from utils.util_env import clear_ini_cache, resolve_args, resolve_io_type, resolve_module
 
 
@@ -63,12 +65,12 @@ def test_invalid_module() -> None:
 
 
 def test_cli_omitted_args_are_none() -> None:
-    args = build_parser().parse_args([])
-    assert args.module is None
-    assert args.grid is None
-    assert args.outer_value is None
-    assert args.grid_type is None
-    assert args.grid_template_type is None
+    params = inspect.signature(process).parameters
+    assert params["module"].default is None
+    assert params["grid"].default is None
+    assert params["outer_value"].default is None
+    assert params["grid_type"].default is None
+    assert params["grid_template_type"].default is None
 
 
 def test_resolve_io_type_by_extension() -> None:

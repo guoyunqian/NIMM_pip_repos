@@ -39,30 +39,10 @@ import core.mdl_obs_path           as Mmop
 # =============================================================================
 # 新增：纯函数入口（无任何parser，完全通过参数调用）
 # =============================================================================
-def _infer_root_path(work_dir):
-    """????????????? Parameter ???????"""
-    cur = os.path.abspath(work_dir)
-    for _ in range(10):
-        if os.path.isdir(os.path.join(cur, "Parameter")):
-            return cur
-        parent = os.path.dirname(cur)
-        if parent == cur:
-            break
-        cur = parent
-    return os.path.abspath(os.path.dirname(work_dir))
-
-
-def _split_model_region(model_region):
-    parts = model_region.split("_", 1)
-    if len(parts) != 2 or not all(parts):
-        raise ValueError(f"model_region must look like EC_12P5KM, got {model_region!r}")
-    return parts[0], parts[1]
-
-
-def _append_optional_pylib(root_path):
-    pylib_path = os.path.join(root_path, "lib", "pylib")
-    if os.path.isdir(pylib_path) and pylib_path not in sys.path:
-        sys.path.append(pylib_path)
+try:
+    from .util_plugin import _append_optional_pylib, _infer_root_path, _split_model_region
+except ImportError:
+    from util_plugin import _append_optional_pylib, _infer_root_path, _split_model_region
 
 
 def run_fast_refine(debug=0, update=0, operation="i", begin_date=None,

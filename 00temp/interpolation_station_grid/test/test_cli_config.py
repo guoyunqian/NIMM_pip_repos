@@ -2,9 +2,11 @@
 """ini 补齐与 CLI 缺省参数。"""
 from __future__ import annotations
 
+import inspect
+
 import pytest
 
-from cli.fusion_main import build_parser
+from cli.fusion_main import process
 from utils.util_env import (
     clear_ini_cache,
     resolve_args,
@@ -120,17 +122,17 @@ def test_invalid_module() -> None:
 
 
 def test_cli_omitted_args_are_none() -> None:
-    args = build_parser().parse_args([])
-    assert args.module is None
-    assert args.sta is None
-    assert args.grid is None
-    assert args.background is None
-    assert args.reprocess is None
-    assert args.effect_r is None
-    assert args.half_r is None
-    assert args.sta_type is None
-    assert args.grid_type is None
-    assert args.output is None
+    params = inspect.signature(process).parameters
+    assert params["module"].default is None
+    assert params["sta"].default is None
+    assert params["grid"].default is None
+    assert params["background"].default is None
+    assert params["reprocess"].default is None
+    assert params["effect_r"].default is None
+    assert params["half_r"].default is None
+    assert params["sta_type"].default is None
+    assert params["grid_type"].default is None
+    assert params["output"].default is None
 
 
 def test_resolve_io_and_sta_type() -> None:

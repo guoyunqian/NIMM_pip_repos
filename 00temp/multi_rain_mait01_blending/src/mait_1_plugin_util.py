@@ -1,4 +1,4 @@
-﻿# -*- coding: UTF-8 -*-
+# -*- coding: UTF-8 -*-
 """
 MAIT 1h 数据读取与时间工具（``mait_1_plugin_util.py``）。
 

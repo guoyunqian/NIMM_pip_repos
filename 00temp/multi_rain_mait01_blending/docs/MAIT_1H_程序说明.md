@@ -102,62 +102,102 @@ flowchart TD
 | `test/mait_1_nimm_test.py` | 批量起报测试 |
 | `cli/__main__.py` | `python -m cli` 转发至 `src/mait_1h_cli.py` |
 
-## 4. 算法要点
+## 4. 算法原理
 
-- **TS**：阈值 0.1/1/5/10 mm，权重 0.3/0.2/0.25/0.25；`score_last = 0.5×before + 0.5×now`  
-- **融合**：线性加权 + `MetevaFrequencyMatch`  
-- **格点**：Cressman 0.6/0.4/0.2/0.1 → 平滑 10 次 → 格点 FM → 极值处理  
+目标：用近期历史与临近时效的技巧，给多模式 **1 小时累积降水** 动态加权，再在站点上频率匹配，并客观分析到格点。
+
+1. **样本**  
+   - 历史：昨日实况 + 同时效各模式站点场（实况缺失则该时效中断）。  
+   - 评分：近 **10 日**同时效 → `score_before`；当前时效前 **1 h** → `score_now`。  
+   - 当前：各模式当前 Micaps3 + 背景 Micaps4（定网格；缺背景则全 0）。
+
+2. **分区 TS 权重**  
+   按 `split_lat × split_lon` 划分子区，训练区外扩 `area_scale=0.5`。对量级 0.1 / 1 / 5 / 10 mm（权重 0.3 / 0.2 / 0.25 / 0.25）分别算 TS，合成各模式技巧；  
+   \[
+   \mathrm{score\_last}=0.5\cdot\mathrm{score\_before}+0.5\cdot\mathrm{score\_now}.
+   \]
+   再按可用性归一为权重 \(w_n\)。
+
+3. **站点融合与频率匹配**  
+   当前场线性加权 \(\sum_n w_n V_n\)，经 `MetevaFrequencyMatch` 按分位映射订正；站点值另乘 1.2（业务约定）。
+
+4. **Cressman 上格点**  
+   订正站与掩膜外伪站混合，影响半径 0.6 / 0.4 / 0.2 / 0.1（倍格距量级），9 点平滑 10 次，再做格点频率匹配与极值处理，按 `clip_coords` 写出 Micaps4/NC。
 
 ---
 
-## 5. 配置文件说明
+## 5. 参数说明
+
+### 5.1 运行参数（`mait_1.ini` / CLI 共用）
+
+| 参数 | 类型 | 含义 |
+|------|------|------|
+| `time_inputs` | `list[str]` | 起报列表（12 位 `%Y%m%d%H%M`）；必填 |
+| `predict_valid_list` | `list[int]` | 预报累计时效窗；默认 **1–48 h 逐小时** |
+| `para_path` | `path` | 模式/实况/输出路径（`para_ini`）；默认 `resource/para_1.ini` |
+| `background_ini` | `path` | 背景格点模板；默认 `resource/para_1_background.ini` |
+| `beta_path` | `str` | beta 模板（主循环未用 npy 链）；默认 `beta_1h/YYYYMMDDHH` |
+| `is_obs_bjt` | `bool` | 实况检索是否按北京时（−8 h）；默认 true |
+| `pro_count` | `int` | 起报并行进程数（`>1` 启用）；默认 4 |
+| `clip_coords` | `list[float]` | `lon0,lon1,lat0,lat1,dlon,dlat`；默认 `70,140,0,60,0.1,0.1` |
+| `split_lat` / `split_lon` | `int` | 分区 TS 权重子区数；默认 1 / 1 |
+| `log_file` | `str` | 日志模板；默认 `log/YYYYMMDD.txt` |
+| `station_info` | `path` | 站点表；默认 `resource/sta.info` |
+| `mask_dat` | `path` | 插值掩膜；默认 `resource/mask010.dat` |
+
+未在 CLI 给出的项回落 `resource/conf.ini` 或 `mait_1.ini`。调用链：`python -m cli` → `cli/multi_rain_mait01_blending_cli.process` → `_process`（单起报）。
+
+### 5.2 算法内部常量（代码内，非 ini）
+
+| 参数 | 类型 | 含义 |
+|------|------|------|
+| `area_scale` | `float` | 训练区相对子区边长外扩；默认 0.5 |
+| `predict_type` | `int` | 1 小时累积降水；默认 1 |
+| TS 量级 / 权重 | `list[float]` | 分区 TS 合成；默认 0.1 / 1 / 5 / 10 mm；权重 0.3 / 0.2 / 0.25 / 0.25 |
+| 双路 TS | — | 近 **10 日**同时效 + 前 **1 h**；`score_last = 0.5×score_before + 0.5×score_now`（beta 链关闭时 `score_before` 置零） |
+| 站点 FM 级 | `list[float]` | `MetevaFrequencyMatch` 站点订正；默认 0.1–100 mm（15 级） |
+| 站点写出系数 | `float` | 与业务 mait_st 站点幅值对齐；默认 **×1.2** |
+| Cressman 半径 | `list[float]` | `gressman_interpolation_for_rain`，参数 `(1.0, 0.001, 2.0, 0.01)`；默认 **0.6 / 0.4 / 0.2 / 0.1**（倍格距） |
+| 掩膜外伪站 | — | 5×5 稀疏采样背景；`mask<0` 处取背景格点 |
+| 平滑 | `int` | Cressman 之后；默认 9 点 × **10** 次 |
+| 格点 FM 级 | `list[float]` | 网格频率匹配；默认 0.01–250 mm（19 级） |
+| 极值 / 小值 | — | ≥240→250；<0.01 置 0；1 h 不做长时效折减 |
+
+### 5.3 路径（`para_1.ini` / `para_1_background.ini`）
 
 | 文件 | 内容 |
 |------|------|
-| `resource/mait_1.ini` | 日志、**`para_ini`**、background、mask、clip、时效、多进程 |
-| `resource/local.ini` / `para_1.ini` | 模式 M3、`fact`、`staoutputPath`（GBK） |
-| `resource/para_1_background.ini` | 背景 M4/NC，键名与 para 一致 |
-| `resource/sta.info` | 站点表 |
-| `resource/mask010.dat` | 插值掩膜 |
+| `para_1.ini`（或 `local.ini`） | `modelNum` + 各模式 Micaps3、`fact`、`staoutputPath` |
+| `para_1_background.ini` | 背景 M4/NC，键名与 para 一致（`TTT`） |
 
-**重要**：程序只读 `mait_1.ini` 里 **`para_ini=`** 指定的文件；生产环境请设 `para_ini=resource/para_1.ini` 或 `--para-path`。
+`modelNum` 须与模式行数一致。默认模式键：`ecmwf`、`grapesgfs`、`japangfshr`、`grapes3km`、`shanghaimr`、`beijingmr`、`guangzhoumr`；占位 `YYYY` / `YYYYMMDDHH` / `VVV`。产品前缀 `staoutputPath` → 站点 `.m3`、格点 `.m4`/`.nc`。
 
 ---
 
-## 6. `process()` 参数
+## 6. 运行示例
 
-**调用链**：`python -m cli` / `python src/mait_1h_cli.py` → `process()` → `RunProcess._process_single()`。
+按起报与逐小时累计窗口回算（本包根目录）：
 
-| 参数 | 作用 | `None` 时 |
-|------|------|----------|
-| `time_inputs` | 起报列表（12 位） | CLI 必填 |
-| `predict_valid_list` | 时效循环 | ini：1…48 |
-| `para_path` | para 文件 | ini：`para_ini` |
-| `beta_path` | beta 模板（主循环未用 npy 链） | ini |
-| `is_obs_bjt` | 是否减 8h | ini：`is_obs_bj` |
-| `is_multi` / `pro_count` | 多进程 | ini |
-| `clip_coords` / `split_lat` / `split_lon` | 裁剪与分区 | ini |
-
----
-
-## 7. CLI 示例
-
-```text
-python -m cli --time-inputs=202605260800
-python src/mait_1h_cli.py --time-inputs=202507020000 --para-path=resource/para_1.ini
-python -m cli --help
+```bash
+python -m cli time_inputs=2026052400,2026052412 \
+  predict_valid_list=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24 \
+  para_path=resource/para_1.ini pro_count=4
 ```
 
-| CLI 选项 | `process` 参数 |
-|----------|----------------|
-| `--time-inputs` | `time_inputs` |
-| `--predict-valid-list` | `predict_valid_list` |
-| `--para-path` | `para_path` |
-| `--beta-path` | `beta_path` |
-| `--is-obs-bjt` | `is_obs_bjt` |
-| `--is-multi` | `is_multi` |
-| `--clip-coords` | `clip_coords` |
-| `--pro-count` | `pro_count` |
-| `--split-lat` / `--split-lon` | `split_lat` / `split_lon` |
+```python
+from cli.multi_rain_mait01_blending_cli import process
+process(
+    time_inputs=["2026052400", "2026052412"],
+    predict_valid_list=list(range(1, 25)),
+    para_path="resource/para_1.ini",
+    pro_count=4,
+)
+```
 
-依赖：`pip install -r requirements-cli.txt`；失败时查 `log/YYYYMMDD.txt`。
+单起报、读 conf 默认时效窗：
+
+```bash
+python -m cli time_inputs=202605260800
+```
+
+跑完后在 `staoutputPath` 下核对 `YYYYMMDDHH.VVV.m3` / `.m4`；`is_obs_bjt=true` 时检索与文件名时刻按 §2.4 减 8h。失败查 `log/YYYYMMDD.txt`。
