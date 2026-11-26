@@ -22,7 +22,7 @@
 | 算法 | `src/proc/` | ensemble / frequency_match / optical_flow / rain_extrapolation / spatial_analysis / alglib |
 | 本包工具 | `src/utils/` | types / log / string_process / io_meb / util_env / util_paths / grid_data 等 |
 | 配置 | `resource/conf.ini`、`path.json`、`config.json`、`sta.info`、`mask*.dat` | |
-| 文档 | `docs/frequency_matching_rain03_算法说明.md`、`nbs/frequency_matching_rain03_说明.ipynb` | 与 docs 同结构：说明 / 原理 / 实现 / 参数 / 使用 / CLI / 示例 |
+| 文档 | `docs/frequency_matching_rain03.md`、`nbs/frequency_matching_rain03.ipynb` | 与 docs 同结构：说明 / 原理 / 实现 / 参数 / 使用 / CLI / 示例 |
 | 测试 | `test/test_util_env.py`、`test_layout.py`、`test_datetime_args.py`、`test_io_meb.py` | |
 | **整理日志** | `00log/frequency_matching_rain03_整理_20260826.log` | |
 | **中间数据** | `00temp/frequency_matching_rain03/` | 占位 |

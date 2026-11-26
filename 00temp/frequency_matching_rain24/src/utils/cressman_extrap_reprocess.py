@@ -2,11 +2,11 @@
 """
 Cressman / Extrapolation 再处理封装。
 
-不改项目核源码，调整调用与后处理，使项目 ``interp_sg_cressman``、
+不改项目核源码，调整调用与后处理，使项目 ``InterpSgCressman(reprocess=True)``、
 ``Extrapolation.forecast`` 接近原版 ``GressManInterpolation`` / ``Lagrangian``。
 
-Cressman 再处理已迁至 ``interp_sg_cressman.src.cressman_plugin``；
-本文件再导出 ``cressman_project_innov`` 等，并保留 Extrapolation / Lagrangian 对齐。
+Cressman 再处理在 ``interpolation_station_grid`` 的 ``InterpSgCressman``。
+本文件按旧签名再导出 ``cressman_project_innov`` 等，并保留 Extrapolation / Lagrangian 对齐。
 
 aligned 估 UV 用原版 OpticalFlow；``OpticalFlowProject`` 仅可选对照。
 """
@@ -20,35 +20,175 @@ import pandas as pd
 import meteva.base as meb
 import meteva_base
 
-from src.extrapolation_plugin import forecast as extrap_fn
-from src.lsqr_optical_flow_plugin import LsqrOpticalFlow as window_lsqr_cls
-
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _TEMP = os.path.normpath(os.path.join(_HERE, "..", "..", ".."))
-_CRESS_ROOT = os.path.join(_TEMP, "interp_sg_cressman")
+_CRESS_ROOT = os.path.join(_TEMP, "interpolation_station_grid")
 _CRESS_SRC = os.path.join(_CRESS_ROOT, "src")
 _OF_ROOT = os.path.join(_TEMP, "optical_flow_nowcast")
 
 
+def _load_extrap_forecast():
+    """从 optical_flow_nowcast 取 ``forecast``，用完恢复本包 ``utils``。"""
+    saved_utils = {
+        key: sys.modules.pop(key)
+        for key in list(sys.modules)
+        if key == "utils" or key.startswith("utils.")
+    }
+    saved_src = {
+        key: sys.modules.pop(key)
+        for key in list(sys.modules)
+        if key == "src" or key.startswith("src.")
+    }
+    path_before = list(sys.path)
+    try:
+        while _OF_ROOT in sys.path:
+            sys.path.remove(_OF_ROOT)
+        sys.path.insert(0, _OF_ROOT)
+        from src.extrapolation_plugin import forecast
+        return forecast
+    finally:
+        sys.path[:] = path_before
+        for key in list(sys.modules):
+            if key == "src" or key.startswith("src."):
+                if key not in saved_src:
+                    del sys.modules[key]
+        sys.modules.update(saved_src)
+        for key in list(sys.modules):
+            if key == "utils" or key.startswith("utils."):
+                if key not in saved_utils:
+                    del sys.modules[key]
+        sys.modules.update(saved_utils)
+
+
 def _ensure_cressman_on_path():
-    for p in (_CRESS_SRC, _CRESS_ROOT):
-        if os.path.isdir(p) and p not in sys.path:
-            sys.path.insert(0, p)
+    for path in (_CRESS_SRC, _CRESS_ROOT):
+        if os.path.isdir(path) and path not in sys.path:
+            sys.path.insert(0, path)
 
 
 _ensure_cressman_on_path()
+from interp_sg_cressman_plugin import InterpSgCressman  # noqa: E402
 
-# Cressman 再处理已迁入 interp_sg_cressman.src.cressman_plugin
-from cressman_plugin import (  # noqa: E402
-    cressman_innov_gressman_like,
-    cressman_innov_wrap,
-    cressman_project_innov,
-    project_innov_wrap,
-)
+_extrap_forecast = None
 
-_extrap_forecast = extrap_fn
-_LsqrOpticalFlow = window_lsqr_cls
-_window_lsqr = _LsqrOpticalFlow()
+
+def _forecast():
+    """第一次外推时再加载项目 ``forecast``。"""
+    global _extrap_forecast
+    if _extrap_forecast is None:
+        _extrap_forecast = _load_extrap_forecast()
+    return _extrap_forecast
+
+
+def cressman_project_innov(
+    sta,
+    grd,
+    distance_limits,
+    num_limit=1.0,
+    smooth=0.001,
+    power_param=2.0,
+    rain_limit=None,
+    nearNum=None,
+    r_km_scale=1.35,
+    innov_gain=1.0,
+    residual_passes=0,
+    residual_degree_polish=True,
+    residual_polish_rounds=1,
+    degree_blend=0.85,
+    station_anchor_radius=0.35,
+    station_anchor_strength=0.0,
+):
+    """项目核再处理。``distance_limits`` 为度。须带背景场 ``grd``。"""
+    nsta = len(sta)
+    if nsta == 0:
+        return grd.copy()
+    if nearNum is None:
+        k_near = 8 if nsta <= 1 else min(100, nsta)
+    else:
+        k_near = max(1, min(int(nearNum), nsta))
+    return InterpSgCressman(
+        r_list=list(distance_limits),
+        nearNum=k_near,
+        reprocess=True,
+        rain_limit=rain_limit,
+        num_limit=num_limit,
+        smooth=smooth,
+        power_param=power_param,
+        r_km_scale=r_km_scale,
+        innov_gain=innov_gain,
+        residual_passes=residual_passes,
+        residual_degree_polish=residual_degree_polish,
+        residual_polish_rounds=residual_polish_rounds,
+        degree_blend=degree_blend,
+        station_anchor_radius=station_anchor_radius,
+        station_anchor_strength=station_anchor_strength,
+    ).process(sta, background=grd)
+
+
+project_innov_wrap = cressman_project_innov
+
+
+def cressman_innov_gressman_like(
+    sta, grd, distance_limits, num_limit=1.0, smooth=0.001, power_param=2.0, rain_limit=None, nearNum=None,
+):
+    """度制 GressMan 复刻。``nearNum`` 不参与。"""
+    _ = nearNum
+    from interpolation import GressManInterpolation
+
+    return GressManInterpolation(
+        sta, grd, distance_limits,
+        num_limit=num_limit, smooth=smooth, power_param=power_param, rain_limit=rain_limit,
+    )
+
+
+def cressman_innov_wrap(sta_lon, sta_lat, sta_val, bg, r_degs, nearNum=8):
+    """经纬度和数值收成站点表后走 ``cressman_project_innov``。"""
+    lon = np.atleast_1d(sta_lon)
+    return cressman_project_innov(
+        pd.DataFrame(
+            {
+                "lon": list(lon),
+                "lat": list(np.atleast_1d(sta_lat)),
+                "data0": list(np.atleast_1d(sta_val)),
+                "id": list(range(len(lon))),
+            }
+        ),
+        bg,
+        r_degs,
+        nearNum=nearNum,
+    )
+
+
+def _window_lsqr():
+    saved_utils = {
+        key: sys.modules.pop(key)
+        for key in list(sys.modules)
+        if key == "utils" or key.startswith("utils.")
+    }
+    saved_src = {
+        key: sys.modules.pop(key)
+        for key in list(sys.modules)
+        if key == "src" or key.startswith("src.")
+    }
+    path_before = list(sys.path)
+    try:
+        while _OF_ROOT in sys.path:
+            sys.path.remove(_OF_ROOT)
+        sys.path.insert(0, _OF_ROOT)
+        from src.lsqr_optical_flow_plugin import LsqrOpticalFlow
+        return LsqrOpticalFlow()
+    finally:
+        sys.path[:] = path_before
+        for key in list(sys.modules):
+            if key == "src" or key.startswith("src."):
+                if key not in saved_src:
+                    del sys.modules[key]
+        sys.modules.update(saved_src)
+        for key in list(sys.modules):
+            if key == "utils" or key.startswith("utils."):
+                if key not in saved_utils:
+                    del sys.modules[key]
+        sys.modules.update(saved_utils)
 # LsqrOpticalFlow/mesh_val → meteva grid(gtime=...) 对 1970-01-01 等会触发
 # pandas date_range「exactly three must be specified」；统一换成安全时刻。
 _SAFE_TIME = pd.Timestamp("2000-01-01 00:00:00")
@@ -118,7 +258,7 @@ class OpticalFlowProject:
         # gd_output 就地写回：先规范化坐标再算，结果写回调用方原对象的 data
         out_u = _fix_grd_time(gd_output[0])
         out_v = _fix_grd_time(gd_output[1])
-        _window_lsqr.get_optical_flow(
+        _window_lsqr().get_optical_flow(
             before,
             next_,
             min_window,
@@ -198,7 +338,7 @@ def extrapolate_like_lagrangian(precip, u_deg, v_deg, lon, lat, dlon, dlat, delt
     if v.ndim == 0:
         v = np.full_like(precip, float(v))
     # 度位移 → 像素/步；n_iter=0：不沿轨迹重采风
-    raw = _extrap_forecast(
+    raw = _forecast()(
         precip,
         np.stack([u / dlon, v / dlat], 0),
         1,

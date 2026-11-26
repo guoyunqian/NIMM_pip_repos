@@ -32,7 +32,7 @@
 | GAM 模型 | `src/gam_models.py` | pyGAM 拟合/预测 |
 | EMOS 依赖 | 兄弟包 `emos_probability_calibration/src/emos_*.py` | `train_emos` / `apply_emos` / `create_prob_template` |
 | CLI | `cli/run_samos.py` | `process`：读入 → GAM+EMOS → 可选写出 |
-| 示例 Notebook | `nbs/samos.ipynb` | 站点 SAMOS：0/1/2 static 对比 |
+| 示例 Notebook | `nbs/samos_probability_calibration.ipynb` | 站点 SAMOS：0/1/2 static 对比 |
 | 结果演示 | `tests/samos_probability_calibration_main.py` | 打印输入/输出结构 |
 | 测试数据 | `test_data/spot/`、`test_data/grid/` | 站点 CSV / 格点 NetCDF 样例 |
 
@@ -125,7 +125,7 @@
 
 ## 示例 Notebook 说明
 
-`nbs/samos.ipynb` 使用站点样例数据，在 **0 / 1 / 2 个 GAM static** 三种配置下完成完整 SAMOS 流程并出图：
+`nbs/samos_probability_calibration.ipynb` 使用站点样例数据，在 **0 / 1 / 2 个 GAM static** 三种配置下完成完整 SAMOS 流程并出图：
 
 1. **§1** 读取数据；`train_gams`（含 static）→ `train_samos`（`emos_additional_fields=None`）→ `apply_samos`。
 2. **§2** 按站一维对比 α、β、γ、δ（四种配置下 β 均为单 predictor；差异来自 GAM 气候异常不同）。
@@ -133,7 +133,7 @@
 4. **§4** 低于阈值（285/288/292 K）概率对比。
 5. **§5** 分位值订正对比（订正输出 10/50/90；未订正输入为 0/50/100）。
 
-运行方式：在 Jupyter 中打开 `nbs/samos.ipynb`，自第一个代码单元起 **Run All**。建议内核使用已安装 `pygam`、且 NumPy/SciPy 与之兼容的环境（如 `improver_samos`）。
+运行方式：在 Jupyter 中打开 `nbs/samos_probability_calibration.ipynb`，自第一个代码单元起 **Run All**。建议内核使用已安装 `pygam`、且 NumPy/SciPy 与之兼容的环境（如 `improver_samos`）。
 
 最小调用示例：
 
@@ -204,3 +204,16 @@ python tests/samos_probability_calibration_main.py --domain spot --static 1
 
 - 六维格点/站点统一 SAMOS API（`src/samos_*.py` + `src/gam_*.py`）。
 - `cli/`、`docs/`、`nbs/`、`test_data/`、结果演示脚本。
+
+## 算法实现原理
+
+SAMOS（Standardized Anomaly Model Output Statistics，标准化异常模式输出统计）先用 GAM（Generalized Additive Model，广义可加模型）估计预报和实况的气候均值、标准差，把变量换成标准化异常，再在异常空间做 EMOS，最后用实况气候态还原到原单位。
+
+```python
+from cli.samos_probability_calibration_cli import process
+
+process(
+    historic_forecast_path="resource/cli_input/hf.csv",
+    truth_path="resource/cli_input/truth.csv",
+)
+```

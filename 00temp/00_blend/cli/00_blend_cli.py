@@ -27,6 +27,7 @@ def process(
     tolerate_period_mismatch: bool = False,
     fcst_cubes=None,
     factor_cubes=None,
+    output_path=None,
     config=None,
 ):
     """按评分权重融合。``config`` 只换配置文件。给出两组 Cube 时调用插件。"""
@@ -45,4 +46,18 @@ def process(
         )
         print("格点评分会再做 51x51 均值平滑。传入 fcst_cubes 与 factor_cubes 后执行融合。")
         return 0
-    return plugin.process(fcst_cubes, factor_cubes)
+    result = plugin.process(fcst_cubes, factor_cubes)
+    if output_path and result is not None:
+        import iris
+
+        path = os.path.expanduser(str(output_path).strip())
+        if not os.path.isabs(path):
+            path = os.path.normpath(os.path.join(_ROOT_DIR, path))
+        if not os.path.splitext(path)[1]:
+            path += ".nc"
+        parent = os.path.dirname(path)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        iris.save(result, path)
+        print("已写出 %s" % path)
+    return result

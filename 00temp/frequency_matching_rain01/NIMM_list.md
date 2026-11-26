@@ -33,8 +33,8 @@
 | 本包工具 | `src/utils/util_env.py`、`util_paths.py`、`log.py`、`string_process.py` | ini / 路径 / 日志 / 日期占位符 |
 | 共享插件 | `00temp/utils/multipro_plugin.py`、`data_prepare_plugin.py` | 经根 `utils/__init__` 合并；包内无副本 |
 | 配置资源 | `resource/qpf_fm.ini`、`path.json`、`config.json`、`sta.info`、`mask010.dat` | 路径、模式、站网、掩膜 |
-| 文档 | `docs/multi_qpf_fm_rain01_算法说明.md`、`README.md` | 算法与入口说明 |
-| notebook | `nbs/qpf_fm_rain01_说明.ipynb` | 说明 notebook（文件名待随代号同步） |
+| 文档 | `docs/frequency_matching_rain01.md`、`README.md` | 算法与入口说明 |
+| notebook | `nbs/frequency_matching_rain01.ipynb` | 说明 notebook（文件名待随代号同步） |
 | 测试 | `test/test_multi_qpf_fm_rain01.py`、`test_runner_config.py`、`test_util_env.py` | 配置、频率匹配、路径 |
 | **整理日志** | `00log/multi_qpf_fm_rain01_整理_20260723.log` | 一次整理过程一份日志 |
 | **中间数据** | `00temp/multi_qpf_fm_rain01/` | 整理过程临时样本（当前占位） |

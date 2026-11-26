@@ -15,7 +15,7 @@ def test_required_paths_exist():
         _ROOT / "resource" / "grid_stat_merge.ini",
         _ROOT / "README.md",
         _ROOT / "NIMM_list.md",
-        _ROOT / "docs" / "grid_stat_merge_程序说明.md",
+        _ROOT / "docs" / "grid_stat_merge.md",
         _ROOT / "00log" / "grid_stat_merge_整理_20260826.log",
         _ROOT / "00temp" / "grid_stat_merge",
     ]

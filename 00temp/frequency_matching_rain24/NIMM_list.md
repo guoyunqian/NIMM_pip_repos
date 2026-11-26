@@ -31,8 +31,8 @@
 | 本包工具 | `src/utils/config.py`、`data_proc.py`、`data_save.py`、`util_env.py`、`logger.py`、`verify.py` | 参数、预处理、写出、ini、日志、检验（`from utils.xxx`） |
 | 共享插件 | `00temp/utils/multipro_plugin.py`、`data_prepare_plugin.py` | 经根 `utils/__init__` 合并；包内无副本 |
 | 配置资源 | `resource/optimize_tp_24.ini`、`resource/*.json`、`sta.m3`、`mask010.nc` | 运行参数、模式路径、站网、掩膜 |
-| 文档 | `docs/multi_optimize_tp_24h_程序说明.md`、`README.md` | 算法与入口说明 |
-| notebook | `nbs/multi_optimize_tp_24h_说明.ipynb` | 说明 notebook |
+| 文档 | `docs/frequency_matching_rain24.md`、`README.md` | 算法与入口说明 |
+| notebook | `nbs/frequency_matching_rain24.ipynb` | 说明 notebook |
 | 测试 | `test/test_multi_optimize_tp_24h.py` | 布局 / 导入 / CLI / 调度任务集等价 |
 | **整理日志** | `00log/multi_optimize_tp_24h_整理_20260723.log` | 一次整理过程一份日志 |
 | **中间数据** | `00temp/multi_optimize_tp_24h/` | 整理过程临时样本（当前占位） |

@@ -31,6 +31,6 @@
 | -------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 核心算法 | `src/sklearn_plugin.py`            | `SklearnCal`：统一训练 / 推理插件（`__init__` 配置模型与参数，`process(mode="train"\|"predict")` 调度，回归 / 分类自动判定）；内置算法名映射表 `AVAILABLE_MODELS` / `AVAILABLE_FEATURES` |
 | CLI      | `cli/sklearn_code_cli.py` | 函数级 `process` / `_process` + `@merge_params`；读 `resource/conf.ini`；模型存在则加载预测，否则或 `retrain=true` 时先训练再预测 |
-| 文档     | `docs/算法参数清单.md`                    | 框架内置算法参数清单（feat_kwargs／model_kwargs），含 sklearn 1.5 官方文档链接与英文参数表 |
-| notebook | `nbs/算法参数和性能介绍.ipynb` | 算法参数与性能介绍：3 个回归 + 3 个分类 + 2 个特征工程的关键参数速查；气温回归与“未来 1 小时是否降水 / 24 小时降水量级”分类的精度 / 耗时 / 体积基准；PCA 主成分数与随机森林树数/深度实验 |
+| 文档     | `docs/sklearn_code.md`                    | 框架内置算法参数清单（feat_kwargs／model_kwargs），含 sklearn 1.5 官方文档链接与英文参数表 |
+| notebook | `nbs/sklearn_code.ipynb` | 算法参数与性能介绍：3 个回归 + 3 个分类 + 2 个特征工程的关键参数速查；气温回归与“未来 1 小时是否降水 / 24 小时降水量级”分类的精度 / 耗时 / 体积基准；PCA 主成分数与随机森林树数/深度实验 |
 | 测试     | `test/`                                   | 单元测试：`test_SklearnCal.py`（fixture 内联，含回归 / 分类用例，共 30 用例；`python -m pytest test -q`） |

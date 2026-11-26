@@ -1,5 +1,7 @@
 # interpolation_grid_grid 算法说明
 
+## 算法实现原理
+
 将源格点场重采样到目标水平网格。面向 `meteva_base` 六维场（`member, level, time, dtime, lat, lon`）。
 
 包内两类能力：
@@ -281,4 +283,4 @@ result = process(
 4. 输入宜已规范化为六维 meb 场；`*-2` 源场仅支持经纬规则网。
 5. 依赖：`meteva_base`、`numpy`、`scipy`（LandSea）、包内 / 共享 `utils.base_plugin`。
 
-说明与对比 Notebook：`nbs/interpolation_grid_grid_说明.ipynb`、`nbs/cmp_gg_vs_regrid.ipynb`。
+说明与对比 Notebook：`nbs/interpolation_grid_grid.ipynb`、`nbs/cmp_gg_vs_regrid.ipynb`。

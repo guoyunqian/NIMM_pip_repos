@@ -36,4 +36,4 @@ python -m cli --rpt-list=2025100100,2025100112 --is-multi true --pro-count 8
 # process(plugin="resource/ecmwf.json", is_multi=True, pro_count=8)
 ```
 
-整理登记见 `NIMM_list.md`、`00log/`、`00temp/`。详细说明见 [docs/multi_optimize_tp_24h_程序说明.md](docs/multi_optimize_tp_24h_程序说明.md)。
+整理登记见 `NIMM_list.md`、`00log/`、`00temp/`。详细说明见 [docs/frequency_matching_rain24.md](docs/frequency_matching_rain24.md)。

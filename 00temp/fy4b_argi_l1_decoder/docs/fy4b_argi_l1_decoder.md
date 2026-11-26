@@ -80,3 +80,16 @@ python -m cli --module single --input-hdf D:/testdata/FY4/input.HDF --output-dir
 - 正式补充到 `NIMM/basic_data/` 时需要统一导入路径。
 - 需要确认算法名称中 `ARGI` 与原始代码 `AGRI` 的命名差异是否仅为业务命名要求。
 
+## 算法实现原理
+
+FY-4B AGRI（Advanced Geostationary Radiation Imager，先进静止轨道辐射成像仪）L1 数据按标称投影存放 DN（Digital Number，计数值）。本算法读取 `NOMChannelXX` 与 `CALChannelXX`，把 DN 定标为反射率或亮温，再把静止卫星固定网格反算到规则经纬度网格。重采样可用最近邻 `nearest` 或双线性 `bilinear`。单文件输出各通道 NetCDF；批处理按 `CHxx/YYYYMMDD/YYYYMMDDHH.nc` 存放。
+
+```python
+from cli.fy4b_argi_l1_decoder_cli import process
+
+process(
+    module="single",
+    input_hdf="D:/testdata/FY4/input.HDF",
+    output_dir="D:/testdata/FY4/channel_data/case_name",
+)
+```

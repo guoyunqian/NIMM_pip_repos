@@ -180,7 +180,7 @@ def process(
             re_mask=True,
         )
         # CLI 经 meb 读盘得到普通 DataArray，仅支持外部 mask；内部掩码需 MaskedArray
-        # 输入（见 docs/nbhood.md），不在 CLI 场景内。
+        # 输入（见 docs/neighbourhood_probability_processing.md），不在 CLI 场景内。
         result = nbhood.process(work_input_data, mask=mask)
     else:
         result = GeneratePercentilesFromANeighbourhood(

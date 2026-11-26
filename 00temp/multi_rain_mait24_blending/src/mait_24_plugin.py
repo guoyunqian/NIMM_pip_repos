@@ -364,7 +364,7 @@ class StationDataInterp2GridDataProcess(PostProcessingPlugin):
        2. 合并站点与背景
           将上一步的背景点与集成站点 `sd_output` 拼成一份完整 `StationDataArray`，保证后续插值既有观测也有外部信息。
        3. Cressman 逐步插值
-          调用 `MetevaSpatialAnalisis.gressman_interpolation_for_rain`，用 4 个递减半径（8/6/4/2 倍格距）做逐步订正，得到初版网格 `gd_final_output`；随后做 5 次 9 点平滑，抑制噪声。
+          调用 `InterpSgCressman` 的度制逐步订正，用 4 个递减半径（8/6/4/2 倍格距）得到初版网格 `gd_final_output`；随后做 5 次 9 点平滑，抑制噪声。
        4. 双线性采样 → 频率匹配
           用双线性插值把站点值重采样到网格，生成“参考站点”`sd_reference`；再与原始站点一起传入 `MetevaFrequencyMatch`，按 0.01–250 mm 共 19 个降水等级做频率校正，使网格降水分布与实况统计一致。
        5. 长时效折减与极值处理
@@ -382,6 +382,48 @@ class StationDataInterp2GridDataProcess(PostProcessingPlugin):
         self.gd_back_ground = gd_back_ground
         self.sd_output = sd_output
         self.grid_base = grid_base
+
+    @staticmethod
+    def _cressman_interp_sg(sta, grd, distance_limits, num_limit=1.0, smooth=0.001, power_param=2.0, rain_limit=0.01):
+        """用 ``InterpSgCressman`` 的度制逐步订正替换原 ``gressman_interpolation_for_rain``。
+
+        只走单步 ``_gressman_one_step``，半径与原调用相同。不走 ``process`` 的公里创新量路径。
+        ``GridData.data`` 是 (经度, 纬度)，插件场是 (纬度, 经度)，进出各转置一次。
+        """
+        import os
+        import sys
+
+        here = os.path.dirname(os.path.abspath(__file__))
+        temp = os.path.normpath(os.path.join(here, "..", ".."))
+        cress_root = os.path.join(temp, "interpolation_station_grid")
+        for path in (os.path.join(cress_root, "src"), cress_root):
+            if os.path.isdir(path) and path not in sys.path:
+                sys.path.append(path)
+        from interp_sg_cressman_plugin import InterpSgCressman
+
+        cur = np.asarray(grd.data, dtype=float).T.copy()
+        lon = np.asarray(grd.lon, dtype=float)
+        lat = np.asarray(grd.lat, dtype=float)
+        dlon = float(grd.lon_interval)
+        step = InterpSgCressman(
+            nearNum=1,
+            reprocess=True,
+            num_limit=num_limit,
+            smooth=smooth,
+            power_param=power_param,
+            rain_limit=rain_limit,
+        )
+        sta_lon = np.asarray(sta.lon, dtype=float)
+        sta_lat = np.asarray(sta.lat, dtype=float)
+        sta_val = np.asarray(sta.data, dtype=float)
+        for radius in distance_limits:
+            cur = step._gressman_one_step(
+                cur, lon, lat, sta_lon, sta_lat, sta_val, float(radius), dlon,
+                num_limit=num_limit, smooth=smooth, power_param=power_param, rain_limit=rain_limit,
+            )
+        out = copy_data(grd)
+        out._data = cur.T
+        return out
 
     def _m3_data_interp(self, gd_mask_val, gd_mask_xn, gd_mask_yn, gd_back_ground, sd_output, grid_base):
         """
@@ -437,16 +479,27 @@ class StationDataInterp2GridDataProcess(PostProcessingPlugin):
         lt_valid_data = StationDataArray(lt_valid_id_list, lt_valid_lon_list, lt_valid_lat_list,
                                          lt_valid_data0_list)
 
-        # 3) Cressman 四半径逐步订正 → 初版网格
-        gd_final_output = MetevaSpatialAnalisis.gressman_interpolation_for_rain(
+        # 3) 原逐步订正，保留备查：
+        # gd_final_output = MetevaSpatialAnalisis.gressman_interpolation_for_rain(
+        #     lt_valid_data,
+        #     gd_back_ground,
+        #     [
+        #         8 * gd_back_ground.lon_interval,
+        #         6 * gd_back_ground.lon_interval,
+        #         4 * gd_back_ground.lon_interval,
+        #         2 * gd_back_ground.lon_interval
+        #     ], 1.0, 0.001, 2.0, 0.01)
+        # 度制 Cressman 四半径逐步订正 → 初版网格（InterpSgCressman 单步，与原逐步订正同参）
+        gd_final_output = self._cressman_interp_sg(
             lt_valid_data,
             gd_back_ground,
             [
                 8 * gd_back_ground.lon_interval,
                 6 * gd_back_ground.lon_interval,
                 4 * gd_back_ground.lon_interval,
-                2 * gd_back_ground.lon_interval
-            ], 1.0, 0.001, 2.0, 0.01)
+                2 * gd_back_ground.lon_interval,
+            ],
+        )
         # 4) 9 点平滑 5 次，抑制插值噪声
         gd_final_output.smooth_9(5)
 

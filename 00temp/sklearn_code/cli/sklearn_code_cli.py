@@ -131,9 +131,24 @@ def _run_sklearn_job(cfg: dict):
     )
     out_path = Path(output_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    result.to_csv(out_path, index=False)
+    _write_station(result, out_path)
     print("预测完成，结果已保存：%s" % out_path)
     return result
+
+
+def _write_station(result, out_path):
+    """站点表：.m3 写 MICAPS3，其余仍写表文件。"""
+    if out_path.suffix.lower() != ".m3":
+        result.to_csv(out_path, index=False)
+        return
+    import meteva_base as meb
+
+    sta = result.copy()
+    dim = {"level", "time", "dtime", "id", "lon", "lat"}
+    values = [col for col in sta.columns if col not in dim]
+    if len(values) == 1 and values[0] != "data0":
+        sta = sta.rename(columns={values[0]: "data0"})
+    meb.write_stadata_to_micaps3(sta, str(out_path), creat_dir=True)
 
 
 @merge_params()

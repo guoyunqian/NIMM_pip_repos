@@ -24,12 +24,12 @@
 | 运行配置 | `resource/fft_merge.ini` | 未显式传入的参数先读此文件，再没有则用代码预设；算法常量只在此配置 |
 | 共享多进程 | `00temp/utils/multipro_plugin.py` | `SimpleParallelTool`（`main.py` 将 `00temp` 加入 `sys.path`） |
 | 测试 | `test/test_fft_merge.py`、`test/test_main.py` | 算法单元测试与 `process` 集成测试 |
-| 文档 | `docs/FFT_MERGE_程序说明.md`、`docs/multi_wind_fft_blending.md` | 程序说明与整理说明 |
-| notebook | `nbs/fft_merge_说明.ipynb` | 原理与示例 |
+| 文档 | `docs/wind_fft_blending.md`、`docs/wind_fft_blending_overview.md` | 程序说明与整理说明 |
+| notebook | `nbs/wind_fft_blending.ipynb` | 原理与示例 |
 | 样例资源 | `NIMM_pip_testdata/multi_wind_fft_blending/test_data/` | 与 `NIMM_pip_repos` 同级；Micaps11 样例（当前缺失） |
 | 整理日志 | `00log/fft_merge_整理_20260723.log`（本次）；`00log/fft_merge_整理_20260722.log`（前次） | 一次整理过程一份日志 |
 | 中间数据 | `00temp/fft_merge/` | 整理过程临时样本 |
-| 仓库索引 | 仓库根 `NIMM_list.md`、`00log/multi_wind_fft_blending.md` | 全库算法表与摘要日志 |
+| 仓库索引 | 仓库根 `NIMM_list.md`、`00log/wind_fft_blending_overview.md` | 全库算法表与摘要日志 |
 
 > **已废弃**：`cli/fft_merge_cli.py`（原示例 CLI）。请使用 `python -m cli` 或 `python src/main.py`（改 `__main__` 传参）。
 

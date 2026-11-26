@@ -31,9 +31,9 @@
 | 结构常量 | `resource/data_schema.py` | 变量分组、时效、12h 时段映射 |
 | 运行配置 | `resource/config.py` | `SCMOC_DATA_ROOT` / 路径模板（输入在外部 SCMOC，非仓库内） |
 | 共享多进程 | `00temp/utils/multipro_plugin.py` | `SimpleParallelTool`（`main.py` 将上级 `00temp` 加入 `sys.path`） |
-| 算法说明 | `docs/算法说明.md` | 场景 / 原理 / 实现 / 参数 / 调用 |
+| 算法说明 | `docs/weather_phenom_grid_12h.md` | 场景 / 原理 / 实现 / 参数 / 调用 |
 | 使用说明 | `docs/README.md` | 安装与运行（部分旧入口文案待人工同步） |
-| Notebook | `nbs/算法说明.ipynb` 等 | 说明与测试/性能脚本 |
+| Notebook | `nbs/weather_phenom_grid_12h.ipynb` 等 | 说明与测试/性能脚本 |
 | 单元测试 | `test/test_*.py` | data_loader + 四 Plugin |
 | 运行输出 | `PHENOM/<起报时次>/` | 业务产出电码 NC（非整理中间数据） |
 | 整理日志 | `00log/weather_phenom_grid_12h_整理_20260723.log` | 本次（入口/CLI/多进程）整理记录 |
@@ -51,11 +51,11 @@
 |------|------|----------|
 | 1 | 贡献人、原始代码来源未登记 | 补全本表与整理日志 |
 | 2 | docs / nbs 仍有旧 `cli/main.py`、`cli/runner`、`cli/data_loader` 文案 | 改为 `python -m cli` / `src.main.process` / `src.utils.data_loader` |
-| 3 | docs 多份算法文档并存 | 明确 `算法说明.md` / `algorithm_guide.md` / `算法技术指南.md` 主从 |
+| 3 | docs 多份算法文档并存 | 明确 `weather_phenom_grid_12h.md` / `weather_phenom_grid_12h_overview.md` / `weather_phenom_grid_12h_guide.md` 主从 |
 | 4 | 输入依赖外部 SCMOC 网络盘 | 部署设 `SCMOC_DATA_ROOT` 或 `--data-root`；本地以 pytest/mock 为主 |
 | 5 | `PHENOM/` 运行输出是否入库 | 建议加入 `.gitignore`，勿与 `00temp/` 混淆 |
 | 6 | 根目录空 `utils/`、汇报 PPT 大文件 | 确认删除/移出或补充说明 |
-| 7 | `nbs/算法说明.ipynb` 未本机执行验证 | 打开跑通路径与 mock 流程 |
+| 7 | `nbs/weather_phenom_grid_12h.ipynb` 未本机执行验证 | 打开跑通路径与 mock 流程 |
 | 8 | 多起报 `--is-multi` 真实数据端到端未复跑 | 有 SCMOC 权限后验证多进程 |
 | 9 | 正式入库中央仓库路径/编号 | 补充 NIMM 目标路径与种类编号 |
 | 10 | `00temp/weather_phenom_grid_12h/` 仅占位 | 有对照中间文件时放入并记入日志 |

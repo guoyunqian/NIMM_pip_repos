@@ -9,7 +9,7 @@
 - TS 融合、频率匹配、``data0×1.2``、掩码插值与 ``clip_coords`` 裁剪写出等算法未改
 - ``RunContext`` / ``mait_1.ini`` 仅改变配置加载方式，不改变计算公式
 
-详见 ``docs/MAIT_1H_程序说明.md``。
+详见 ``docs/multi_rain_mait01_blending.md``。
 
 调用方式
 --------

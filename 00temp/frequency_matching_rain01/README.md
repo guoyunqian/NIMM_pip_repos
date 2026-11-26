@@ -30,4 +30,4 @@ python src/runner.py
 并行层次：`--is-multi` 调度多起报进程；单起报内时效可用环境变量 `QPF_VALID_PROCESS_WORKERS`；样本/分块为线程池。
 
 配置：`resource/qpf_fm.ini`、`path.json`、`config.json`、`sta.info`、`mask010.dat`。  
-说明见 [docs/multi_qpf_fm_rain01_算法说明.md](docs/multi_qpf_fm_rain01_算法说明.md)。
+说明见 [docs/frequency_matching_rain01.md](docs/frequency_matching_rain01.md)。

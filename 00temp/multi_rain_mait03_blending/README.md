@@ -45,4 +45,4 @@ python src/mait_3h.py
 依赖：`numpy`、`pandas`、`meteva`、`meteva_base`；共享 `utils.base_plugin`。
 
 整理登记见 `NIMM_list.md`、`00log/`。  
-说明（原理 / 实现 / 参数 / 使用 / CLI / 示例）见 [docs/MAIT_3H_程序说明.md](docs/MAIT_3H_程序说明.md)、[nbs/mait_3h_说明.ipynb](nbs/mait_3h_说明.ipynb)。
+说明（原理 / 实现 / 参数 / 使用 / CLI / 示例）见 [docs/multi_rain_mait03_blending.md](docs/multi_rain_mait03_blending.md)、[nbs/multi_rain_mait03_blending.ipynb](nbs/multi_rain_mait03_blending.ipynb)。

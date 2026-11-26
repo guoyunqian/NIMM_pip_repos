@@ -26,8 +26,8 @@
 | 本包工具 | `src/utils/util_env.py` | 读 `resource/gust_factor.ini` |
 | 共享插件路径 | 本包根 `utils/__init__.py` | 合并 `../../utils` + `src/utils` |
 | 配置资源 | `resource/gust_factor.ini`、`test_data/`、`sample/*.nc` | 运行配置与演示样例 |
-| 文档 | `docs/gust_factor_程序说明.md`、`README.md` | 说明 / 原理 / 实现 / 应用 / 调用 |
-| notebook | `nbs/gust_factor_说明.ipynb` | 与 docs 同结构 |
+| 文档 | `docs/gust_factor.md`、`README.md` | 说明 / 原理 / 实现 / 应用 / 调用 |
+| notebook | `nbs/gust_factor.ipynb` | 与 docs 同结构 |
 | 测试 | `test/test_layout.py`、`test_util_env.py`、`test_smoke.py` | 布局 / ini / 烟测 |
 | **整理日志** | `00log/gust_factor_整理_20260904.log` | 一次整理过程一份日志 |
 | **中间数据** | `00temp/gust_factor/` | 整理过程临时样本（当前占位） |

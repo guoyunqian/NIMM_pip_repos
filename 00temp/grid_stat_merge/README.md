@@ -46,4 +46,4 @@ python src/runner.py
 依赖：`numpy`、`pandas`、`scipy`、`meteva`；共享 `utils.base_plugin`（仓库根 `utils/`）。
 
 整理登记见 `NIMM_list.md`、`00log/`。  
-说明（原理 / 实现 / 参数 / 使用 / CLI）见 [docs/grid_stat_merge_程序说明.md](docs/grid_stat_merge_程序说明.md)、[nbs/grid_stat_merge_说明.ipynb](nbs/grid_stat_merge_说明.ipynb)。
+说明（原理 / 实现 / 参数 / 使用 / CLI）见 [docs/grid_stat_merge.md](docs/grid_stat_merge.md)、[nbs/grid_stat_merge.ipynb](nbs/grid_stat_merge.ipynb)。

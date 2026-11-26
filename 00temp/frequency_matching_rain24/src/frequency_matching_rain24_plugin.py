@@ -29,29 +29,11 @@ from utils.data_proc import (
 )
 from utils.logger import logger
 
-# 直接从同级 optical_flow_nowcast 取原版估速/搬雨；临时插路径，避免抢本包 utils
+# 估 UV / 原版外推用本包实现。aligned 再由 CLI 换成项目再处理。
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_OF_ROOT = os.path.normpath(os.path.join(_HERE, "..", "..", "optical_flow_nowcast"))
-_saved_utils = {
-    k: sys.modules.pop(k)
-    for k in list(sys.modules)
-    if k == "utils" or k.startswith("utils.")
-}
-_path_before = list(sys.path)
-try:
-    while _OF_ROOT in sys.path:
-        sys.path.remove(_OF_ROOT)
-    sys.path.insert(0, _OF_ROOT)
-    from src.lagrangian_plugin import Lagrangian  # noqa: E402
-    from src.lsqr_optical_flow_plugin import OpticalFlow  # noqa: E402
-finally:
-    sys.path[:] = _path_before
-    for k in list(sys.modules):
-        if k == "utils" or k.startswith("utils."):
-            if k not in _saved_utils:
-                del sys.modules[k]
-    sys.modules.update(_saved_utils)
-del _saved_utils, _path_before, _HERE, _OF_ROOT
+if _HERE not in sys.path:
+    sys.path.insert(0, _HERE)
+from cal_optical_flow import Lagrangian, OpticalFlow  # noqa: E402
 
 class FrequencyMatch:
 

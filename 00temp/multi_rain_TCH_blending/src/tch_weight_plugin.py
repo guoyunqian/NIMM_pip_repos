@@ -84,7 +84,7 @@ class TchWeightPlugin(BasePlugin):
 
         u = np.ones((1, N - 1))
         R = np.zeros((N, N))
-        R[N - 1, N - 1] = 1 / (2 * np.dot(np.dot(u, np.linalg.inv(S)), u.T))
+        R[N - 1, N - 1] = 1 / (2 * np.dot(np.dot(u, np.linalg.inv(S)), u.T).item())
 
         x0 = R[:, N - 1]
 
@@ -93,12 +93,16 @@ class TchWeightPlugin(BasePlugin):
         inv_S = np.linalg.inv(S)
         denominator = np.power(det_S, 2 / len(S))
 
-        cons = {
-            "type": "ineq",
-            "fun": lambda r: (r[len(S)] - np.dot(
+        def constraint(r):
+            value = (r[len(S)] - np.dot(
                 np.dot(
                     np.reshape(r[0:-1], (1, len(r) - 1)) - r[len(S)] * u_, inv_S),
-                (np.reshape(r[0:-1], (1, len(r) - 1)) - r[len(S)] * u_).T)) / denominator,
+                (np.reshape(r[0:-1], (1, len(r) - 1)) - r[len(S)] * u_).T)) / denominator
+            return np.atleast_1d(np.asarray(value, dtype=float).reshape(-1))
+
+        cons = {
+            "type": "ineq",
+            "fun": constraint,
         }
 
         x = optimize.minimize(

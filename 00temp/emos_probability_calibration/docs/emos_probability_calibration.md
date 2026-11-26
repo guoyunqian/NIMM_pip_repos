@@ -28,7 +28,7 @@
 | 格点/站点适配     | `src/grid.py`                   | 六维输入规范化、站点压缩、系数散射、逐层 train/apply                          |
 | 核心算法        | `src/emos.py`                   | EMOS 系数估计（CRPS 最小化）、ApplyEMOS、分位数/概率转换                    |
 | 工具          | `src/xr_utils.py`               | xarray 坐标识别、分位数插值、预报类型判断等                                 |
-| 示例 Notebook | `nbs/emos.ipynb`                | 站点测试：0/1/2 个 static 协变量下的训练、订正与可视化对比                      |
+| 示例 Notebook | `nbs/emos_probability_calibration.ipynb`                | 站点测试：0/1/2 个 static 协变量下的训练、订正与可视化对比                      |
 | 测试脚本        | `test_data/run_emos.py`         | 命令行查看输入/输出结构（不依赖 IMPROVER）                                |
 | 对照脚本        | `test_data/compare_improver.py` | 可选：与 IMPROVER/Iris 结果对照（需安装 `improver`、`iris`）            |
 | 测试数据        | `test_data/data/xarray/spot/`   | 站点 CSV 样例数据                                               |
@@ -118,7 +118,7 @@
 
 ## 示例 Notebook 说明
 
-`nbs/emos.ipynb` 使用站点样例数据，在 **0 / 1 / 2 个 static** 三种配置下完成完整流程，并生成对比图：
+`nbs/emos_probability_calibration.ipynb` 使用站点样例数据，在 **0 / 1 / 2 个 static** 三种配置下完成完整流程，并生成对比图：
 
 1. **§1** 读取数据，分别训练并订正三种 static 场景。
 2. **§2** 对比 α、γ、δ 系数；β 按 static 配置分图展示全部 predictor。
@@ -126,7 +126,7 @@
 4. **§4** 低于阈值（285/288/292 K）概率对比。
 5. **§5** 分位值订正对比（订正输出 10/50/90；未订正输入为 0/50/100）。
 
-运行方式：在 Jupyter 中打开 `nbs/emos.ipynb`，自第一个代码单元起 **Run All**。
+运行方式：在 Jupyter 中打开 `nbs/emos_probability_calibration.ipynb`，自第一个代码单元起 **Run All**。
 
 最小调用示例：
 
@@ -161,10 +161,23 @@ python test_data/compare_improver.py
 
 - 六维格点/站点统一 API（`emos_calibration.py` + `grid.py`）。
 - 站点稀疏匹配、系数 `predictor_name` 保留、订正阶段站点校验。
-- 站点测试数据（CSV）与 Notebook 可视化（`nbs/emos.ipynb`）。
+- 站点测试数据（CSV）与 Notebook 可视化（`nbs/emos_probability_calibration.ipynb`）。
 - 结构查看脚本 `test_data/run_emos.py`；可选 IMPROVER 对照脚本 `test_data/compare_improver.py`。
 
 待处理 / 说明：
 
 - 格点 NetCDF 测试数据目录 `test_data/data/xarray/grid/` 可按需补充；Notebook 当前以站点 CSV 为主。
 - 正式入库时需确认包路径（当前为 `src.xxx` 相对导入）及 CLI 封装方式。
+
+## 算法实现原理
+
+EMOS（Ensemble Model Output Statistics，集合模式输出统计）把集合预报的误差写成位置和尺度。历史预报与实况用来最小化 CRPS（Continuous Ranked Probability Score，连续等级概率评分），得到系数 α、β、γ、δ。订正时用这些系数生成正态分布或截断正态分布，再输出集合成员、阈值概率或分位数。
+
+```python
+from cli.emos_probability_calibration_cli import process
+
+process(
+    historic_forecast_path="resource/cli_input/hf.csv",
+    truth_path="resource/cli_input/truth.csv",
+)
+```

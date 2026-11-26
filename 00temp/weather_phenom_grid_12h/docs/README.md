@@ -24,7 +24,7 @@
 - **cli 层**：负责数据加载（NC文件I/O，唯一入口）与调度编排，包含命令行入口
 - **src 层**：纯内存计算（判识 → 选取 → 逻辑关系 → 编码），只接收 cli 层传入的内存数据，不涉及任何文件读取
 
-算法与架构细节详见 [algorithm_guide.md](algorithm_guide.md)。
+算法与架构细节详见 [weather_phenom_grid_12h_overview.md](weather_phenom_grid_12h_overview.md)。
 
 ---
 
@@ -107,7 +107,7 @@ python cli/main.py 2026030100 --stats-only
 | 1 | 数据缺失（部分时段跳过，非致命） |
 | 2 | 计算错误（致命异常） |
 
-> 并行参数（`--max-seg-workers`/`--max-workers`/`--numexpr-threads`）调优说明详见 [algorithm_guide.md](algorithm_guide.md)。
+> 并行参数（`--max-seg-workers`/`--max-workers`/`--numexpr-threads`）调优说明详见 [weather_phenom_grid_12h_overview.md](weather_phenom_grid_12h_overview.md)。
 
 ### Python API
 
@@ -160,9 +160,9 @@ weather_phenom_grid_12h/
 ├── test/                  # pytest 单元测试
 ├── docs/
 │   ├── README.md          # 本文件
-│   └── algorithm_guide.md # 算法技术指南（架构、流程、并行策略、测试）
+│   └── weather_phenom_grid_12h_overview.md # 算法技术指南（架构、流程、并行策略、测试）
 ├── nbs/
-│   └── run_test.ipynb     # 一键集成测试 Notebook
+│   └── weather_phenom_grid_12h_test.ipynb     # 一键集成测试 Notebook
 ├── env/
 │   └── requirements.txt   # 依赖清单
 ├── pyproject.toml         # 包管理 + pytest 配置

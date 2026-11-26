@@ -14,7 +14,7 @@ def test_required_paths_exist():
         _ROOT / "resource" / "gust_factor.ini",
         _ROOT / "README.md",
         _ROOT / "NIMM_list.md",
-        _ROOT / "docs" / "gust_factor_程序说明.md",
+        _ROOT / "docs" / "gust_factor.md",
         _ROOT / "00log" / "gust_factor_整理_20260904.log",
         _ROOT / "00temp" / "gust_factor",
     ]

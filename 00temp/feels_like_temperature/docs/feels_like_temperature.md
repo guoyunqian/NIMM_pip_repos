@@ -3,6 +3,10 @@
 - 算法来源：Met Office Improver 中的体感温度计算，结合风寒指数（Osczevski & Bluestein，2005/2008）与遮阴条件下的显温公式（Steadman，1984）。
 - 迁移目标：适配 meteva_base 的 grid_data（xarray.DataArray，维度为 member、level、time、dtime、lat、lon），同时支持纯 numpy 数组输入，尽量保持原函数逻辑与组织。
 
+## 算法实现原理
+
+冷侧用风寒公式，暖侧用显温，再按气温和风速在两者之间过渡。风寒公式见 Osczevski 与 Bluestein（2005；风寒温度），显温见 Steadman（1984；Apparent temperature，显温）。完整式子在下一节。
+
 ## 1. 组件说明
 
 本模块包含以下组件：

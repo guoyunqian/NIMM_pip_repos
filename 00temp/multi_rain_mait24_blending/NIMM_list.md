@@ -30,7 +30,7 @@
 | 插件 | `utils/base_plugin.py`、`utils/multipro_plugin.py` | 插件基类、多进程（与 `00temp/utils` 合并） |
 | 检验辅助 | `utils/data_prepare_plugin.py` | 检验数据准备 |
 | 配置资源 | `resource/mait_24.ini`、`resource/para_24.ini`、`resource/para_24_background.ini` | 路径、模式、背景格点 |
-| 文档 | `docs/MAIT_24H_程序说明.md`、`nbs/mait_24h_说明.ipynb` | 程序说明与原理 notebook |
+| 文档 | `docs/multi_rain_mait24_blending.md`、`nbs/multi_rain_mait24_blending.ipynb` | 程序说明与原理 notebook |
 | 测试 | `test/test_run_context.py`、`test/test_mait_24h_cli_flow.py`、`test/test_mait_24h.py` | 单元测试与业务脚本 |
 | 整理日志 | `00log/mait_24h_整理_20260723.log`（本次）；`00log/mait_24h_整理_20260706.log`（前次） | 一次整理过程一份日志 |
 | 中间数据 | `00temp/mait_24h/` | 整理过程临时样本（当前为空占位） |

@@ -27,8 +27,8 @@
 | 本包工具 | `src/utils/util_env.py` | 读 `resource/grid_stat_merge.ini`（`from utils.util_env`） |
 | 共享插件 | 仓库根 `utils/base_plugin.py`（及可选 `grid_stat_merge_plugin.py`） | 经本包根 `utils/__init__.py` 合并 `../../utils` + `src/utils` |
 | 配置资源 | `resource/grid_stat_merge.ini` | 路径与融合参数（`R` / `domain` / 热传导等） |
-| 文档 | `docs/grid_stat_merge_程序说明.md`、`README.md` | 算法与入口 |
-| notebook | `nbs/grid_stat_merge_说明.ipynb` | 说明 notebook |
+| 文档 | `docs/grid_stat_merge.md`、`README.md` | 算法与入口 |
+| notebook | `nbs/grid_stat_merge.ipynb` | 说明 notebook |
 | 测试 | `test/test_layout.py`、`test_util_env.py`、`test_merge_smoke.py` | 布局 / ini / 小场烟测 |
 | **整理日志** | `00log/grid_stat_merge_整理_20260826.log` | 一次整理过程一份日志 |
 | **中间数据** | `00temp/grid_stat_merge/` | 整理过程临时样本（当前占位） |

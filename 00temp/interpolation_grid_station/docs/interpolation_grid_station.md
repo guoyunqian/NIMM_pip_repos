@@ -1,6 +1,8 @@
 # interpolation_grid_station 算法说明
 
-将源格点场插值到站点位置。面向 `meteva_base` 六维场（`member, level, time, dtime, lat, lon`）。
+## 算法实现原理
+
+在站点经纬度上对源格点取样。最近邻取四舍五入后的格点，双线性用周围四个格点按距离加权，双三次用三次卷积核。面向 `meteva_base` 六维场（`member, level, time, dtime, lat, lon`）。
 
 算法对齐 `00temp/utils/interpolating.py` 中的 `interp_gs_*`，封装为 `PostProcessingPlugin`。
 

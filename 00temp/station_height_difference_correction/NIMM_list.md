@@ -16,8 +16,8 @@
 | 模块工具 | `src/utils/_sta.py` | 站点表列校验与对齐 |
 | 插件基类 | `utils/base_plugin.py` | BasePlugin / PostProcessingPlugin 本地提供 |
 | CLI | `cli/dsc_estimate_dz_rescaling.py`、`cli/dsc_apply_dz_rescaling.py` | 文件式示例入口 |
-| 文档 | `docs/dz_rescaling.md`、`docs/station_height_difference_correction.md` | 算法说明 |
-| notebook | `nbs/dz_rescaling_validation.ipynb` | 示例与验证 |
+| 文档 | `docs/station_height_difference_correction.md`、`docs/station_height_difference_correction_overview.md` | 算法说明 |
+| notebook | `nbs/station_height_difference_correction.ipynb` | 示例与验证 |
 | 测试 | `test/` | 单元与 CLI 冒烟 |
 | 整理日志 | `00log/station_height_difference_correction_整理_20260731.log` | 整理过程记录 |
 

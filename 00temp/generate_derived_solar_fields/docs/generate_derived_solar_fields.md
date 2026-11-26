@@ -1,5 +1,9 @@
 # generate_derived_solar_fields 算法说明
 
+## 算法实现原理
+
+地方太阳时由经度和日期决定，范围 0 到 24 小时。晴空太阳辐射在目标网格上按太阳高度对指定时段积分，单位是 `W s m-2`。投影坐标先按 `grid_mapping` 换到经纬度再计算。
+
 ## 1. 模块功能概述
 
 `generate_derived_solar_fields/src/generate_derived_solar_fields.py` 提供两个太阳相关衍生场算法：

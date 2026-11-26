@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""将 坐标投影转换.md 转为 Word。"""
+"""将 coordinate_projection_transform.md 转为 Word。"""
 from __future__ import annotations
 
 import re
@@ -10,7 +10,7 @@ from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 
 HERE = Path(__file__).resolve().parent
-MD_PATH = HERE / "坐标投影转换.md"
+MD_PATH = HERE / "coordinate_projection_transform.md"
 OUT_PATH = HERE / "坐标投影转换.docx"
 
 LATEX_MAP = [

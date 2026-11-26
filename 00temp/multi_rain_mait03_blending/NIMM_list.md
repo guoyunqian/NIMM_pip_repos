@@ -24,7 +24,7 @@
 | I/O | `src/utils/util_new.py` | 掩码、频率匹配 |
 | 多进程 | `utils/multipro_plugin.py` | `SimpleParallelTool`（与 mait01/24 相同） |
 | 资源 | `resource/mait_3.ini`、`para_3*.ini`、`para_3_background*.ini`、`station_info.txt`、`mask010.dat` | |
-| 文档 | `docs/MAIT_3H_程序说明.md`、`nbs/mait_3h_说明.ipynb` | 与 docs 同结构：说明 / 原理 / 实现 / 参数 / 使用 / CLI |
+| 文档 | `docs/multi_rain_mait03_blending.md`、`nbs/multi_rain_mait03_blending.ipynb` | 与 docs 同结构：说明 / 原理 / 实现 / 参数 / 使用 / CLI |
 | 测试 | `test/` | 布局 / util_env / 多进程；`mait_3_nimm_test.py` 业务时段入口 |
 | 整理日志 | `00log/mait_3h_整理_20260827.log` | |
 | 原始目录 | 同级 `mait_3h/` | 对照保留 |

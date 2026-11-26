@@ -84,6 +84,24 @@ def _normalize_backend(backend: str) -> str:
     return resolved
 
 
+def _save_cube(result, output):
+    """格点 Cube 写成 nc。未给路径时只返回。"""
+    if result is None or output is None or not str(output).strip():
+        print(result)
+        return result
+    import iris
+
+    path = _abs_path(output)
+    if not os.path.splitext(path)[1]:
+        path += ".nc"
+    parent = os.path.dirname(path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    iris.save(result, path)
+    print("已写出 %s" % path)
+    return result
+
+
 def _process_lonlat_to_equal(cfg):
     import iris
 
@@ -100,8 +118,7 @@ def _process_lonlat_to_equal(cfg):
         regrid_mode=cfg["regrid_mode"],
         extrapolation_mode=cfg["extrapolation_mode"],
     ).process(cube_in)
-    print(result)
-    return result
+    return _save_cube(result, cfg.get("output"))
 
 
 def _process_equal_to_lonlat(cfg):
@@ -119,8 +136,7 @@ def _process_equal_to_lonlat(cfg):
         regrid_mode=cfg["regrid_mode"],
         extrapolation_mode=cfg["extrapolation_mode"],
     ).process(cube_in)
-    print(result)
-    return result
+    return _save_cube(result, cfg.get("output"))
 
 
 @merge_params(sections=["cli", "lonlat_to_equal", "equal_to_lonlat"])
@@ -135,6 +151,7 @@ def process(
     grid_spacing: float = None,
     regrid_mode: str = None,
     extrapolation_mode: str = None,
+    output: str = None,
     config=None,
 ):
     """按 ``mode`` / ``backend`` 做等经纬度与等距互转。
@@ -175,6 +192,7 @@ def process(
                 "grid_distance": distance,
                 "regrid_mode": regrid,
                 "extrapolation_mode": extrap,
+                "output": output,
             }
         )
 
@@ -193,5 +211,6 @@ def process(
             "grid_spacing": spacing,
             "regrid_mode": regrid,
             "extrapolation_mode": extrap,
+            "output": output,
         }
     )

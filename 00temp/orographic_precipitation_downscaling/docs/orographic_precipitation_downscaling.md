@@ -1,123 +1,599 @@
-# orographic_precipitation_downscaling
+# 地形增强算法说明
 
-## 算法概述
+## 1. 模块概览
 
-`orographic_precipitation_downscaling` 用于基于地形抬升效应计算降水地形增强项，并支持将该增强项叠加/扣除到降水场，或以粗格块守恒方式重分配已有降水。原始算法迁移自 Met Office IMPROVER 的地形增强相关实现，并适配 `meteva_base` 的 `grid_data` 六维数据结构，同时保留二维场和 `numpy.ndarray` 输入能力。
+`orographic_enhancement` 及相关订正插件用于计算地形增强项（`m s-1`），并支持将增强项应用到降水场（直接加减，或粗格块守恒重分配）。
 
-本次整理的核心能力包括：
+当前迁移实现包含以下插件类：
 
-- 从温度、相对湿度、气压、风速、风向和目标地形计算地形增强项。
-- 将风速风向解析为目标网格坐标系下的 `u/v` 风分量。
-- 基于迎风抬升项 `v·gradZ`、湿度阈值、地形阈值和上游贡献计算地形增强。
-- 支持将地形增强项以 `add` 或 `subtract` 模式应用到降水场（`ApplyOrographicEnhancement`）。
-- 支持用高分辨率/模式两套增强场之差做粗格块守恒重分配（`RedistributeOrographicEnhancement`），并同时输出订正降水与调整量。
-- 支持多尺度级联订正 CLI（如 `stages=20,5,1`）。
-- 提供 CLI 示例、notebook 示例和单元测试。
+- `ResolveWindComponents`
+- `OrographicEnhancement`
+- `MetaOrographicEnhancement`
+- `ApplyOrographicEnhancement`
+- `RedistributeOrographicEnhancement`
 
-## 算法分类
+主要职责分工：
 
-- 分类：`00space_downscale`
-- 分类依据：算法以地形抬升和风场为主要物理约束，对降水场进行空间降尺度和地形影响订正。
+- `MetaOrographicEnhancement`：流程编排（边界层切片 -> 风分量解析 -> 主算法计算）。
+- `ResolveWindComponents`：将 `wind_speed + wind_direction` 解析为 `u/v` 分量。
+- `OrographicEnhancement`：执行地形增强核心数值计算。
+- `ApplyOrographicEnhancement`：将地形增强项直接叠加/扣除到降水场。
+- `RedistributeOrographicEnhancement`：用两套增强场之差在粗格块内守恒重分配降水；返回订正降水与调整量。
 
-## 主要文件
+---
 
+## 2. 核心计算公式与处理流程
 
-| 类型   | 文件                                    | 说明                               |
-| ---- | ------------------------------------- | -------------------------------- |
-| 核心源码 | `src/orographic_enhancement.py`       | 地形增强项计算、风分量解析和元插件流程              |
-| 应用源码 | `src/apply_orographic_enhancement.py` | 将地形增强项叠加或扣除到降水场                  |
-| 应用源码 | `src/redistribute_orographic_enhancement.py` | 增强差粗格块守恒重分配；返回订正降水与调整量 |
-| 内部工具 | `src/utils/`                          | 网格处理、数值计算、饱和水汽压等内部函数             |
-| 辅助源码 | `utils/base_plugin.py`                | 插件基类与后处理插件基类                     |
-| 辅助源码 | `utils/utils.py`                      | `meteva_base` 网格数据校验、坐标检查与输出封装工具 |
-| CLI  | `cli/meta_orographic_enhancement_cli.py` | 风速风向入口的地形增强计算 |
-| CLI  | `cli/orographic_enhancement_cli.py` | 网格 `u/v` 入口的地形增强计算 |
-| CLI  | `cli/apply_orographic_enhancement_cli.py` | Apply 订正调度 |
-| CLI  | `cli/redistribute_cascade_cli.py` | 多尺度 Redistribute 级联调度（如 `20,5,1`） |
-| 文档   | `docs/orographic_enhancement.md`      | 算法说明文档                         |
-| 测试   | `test/test_orographic_enhancement.py` | 合成样例与官方样例对照测试                    |
-| 测试   | `test/test_grid_spacing.py`           | 投影米制与真经纬格距推断                       |
-| CLI 入口 | `cli/__main__.py`                    | `python -m` 列出示例脚本                   |
+本节说明地形增强数值核心的物理量关系与主链路，不涉及输入校验、网格格式转换与六维结果组装等适配步骤。
 
+### 2.1 核心计算公式
 
+公式采用与实现一致的英文符号；流程图（2.2 节）仅使用中文节点描述。
 
+#### （1）边界层代表场
 
-## 输入输出
+从多层 `temperature`、`humidity`、`pressure`、`wind_speed`、`wind_direction` 中，在 `level` 坐标上选取与边界层代表高度 `boundary_height`（默认 1000 m）最接近的一层，得到二维边界层场。
 
+#### （2）网格风分量
 
+由风速 `ws`（m/s）与风向 `wd`（相对真北，**from** 约定，单位 degree）得到网格坐标系风分量 `u`、`v`（m/s）：
 
-### 地形增强项计算
+```text
+theta = rad(wd) + alpha + pi          # alpha 为真北偏角（投影网格）
+u = ws * sin(theta)
+v = ws * cos(theta)
+```
 
-输入：
+源网格与地形网格投影不一致时，对 `(u, v)` 做旋转并重采样到地形网格。
 
-- `temperature`：温度场，支持 `K` 或 `degC`。
-- `humidity`：相对湿度场，支持 `1` 或 `%`。
-- `pressure`：气压场，支持 `Pa`、`hPa` 或 `kPa`。
-- `wind_speed`：风速场，支持 `m s-1` 或等效单位。
-- `wind_direction`：风向场，通常为相对真北角度。
-- `orography`：目标地形高度场，通常为 `m`。
+#### （3）地形梯度与迎风抬升率
 
-输出：
+地形高度 `Z`（m）沿 x、y 方向分别做 3 点一维平滑得 `Z_smooth`，再求梯度（m/m）：
 
-- `orographic_enhancement`：地形增强项，单位 `m s-1`。
+```text
+grad_x = diff(Z_smooth, axis=x) / dx    # dx 为 x 方向格距（m）
+grad_y = diff(Z_smooth, axis=y) / dy    # dy 为 y 方向格距（m）
+```
 
+经纬输入时 `dx`/`dy` 由度间距按地球半径近似换算（见第 10 节）；投影米制则直接用坐标差分。
 
+迎风抬升率 `vgradz`（m/s）：
 
-### 地形增强项应用（Apply）
+```text
+vgradz = u * grad_x + v * grad_y
+```
 
-输入：
+#### （4）饱和水汽压
 
-- `precip_data`：降水场，单场或场序列。
-- `orographic_enhancement_data`：地形增强项。
-- `operation`：`add` 或 `subtract`。
-- `allowed_time_diff`：多时次增强场与降水场的时间匹配容差。
+温度 `T`（K）、气压 `P`（Pa）下，先对 Goff-Gratch 纯水饱和水汽压查表（183.15–338.15 K，步长 0.1 K）并线性插值得 `SVP_water`，再作湿空气修正：
 
-输出：
+```text
+T_c = T - 273.15
+correction = 1 + 1e-8 * P * (4.5 + 6e-4 * T_c^2)
+SVP = SVP_water * correction
+```
 
-- 应用地形增强后的降水场。
+#### （5）有效计算掩码
 
-### 粗格块守恒重分配（Redistribute）
+`mask = True` 表示该格点**不参与**计算，满足以下任一条件时置掩码：
 
-输入：
+```text
+mean(Z, 3x3 neighbourhood) < orog_thresh     # orog_thresh = 20 m
+RH < rh_thresh                               # rh_thresh = 0.8
+abs(vgradz) < vgradz_thresh                  # vgradz_thresh = 0.0005 m/s
+RH 或 vgradz 为非有限值
+```
 
-- `precip`：订正前降水（已与目标网格对齐）。
-- `oe_high` / `oe_model`：高分辨率与模式地形上的增强场（同网格）。
-- `precip_spacing_km` / `model_orography_spacing_km`：决定 ΔOE 平滑半径与守恒块边长。
-- `wet_threshold_mmh` / `zero_below_mmh`：湿点阈值与小雨置零下限。
+#### （6）格点地形增强
 
-输出：
+对 `mask = False` 的格点，格点尺度增强 `point_oe`（mm/h）：
 
-- `corrected`：订正后降水（含截断再平衡与订正后中心加权九点×2）。
-- `adjustment`：块内 demean 调整量（截断/再平衡与订正后平滑之前；`DataArray` 时名为 `precip_adjustment`）。
+```text
+R_v = 461.6    # J K^-1 kg^-1
+point_oe = (3600 / R_v) * (RH * SVP * vgradz) / T
+point_oe = max(point_oe, 0)
+```
 
-多尺度业务调度见 `cli/redistribute_cascade_cli.py`（`DscRedistributeCascadeCli`），只写最终订正降水。
+#### （7）上游叠加
 
-## 当前整理状态
+沿风向在上游回溯，影响距离约 `upstream_range = 15 km`。设回溯格距为 `d`（格点），风速 `wind_speed = sqrt(u^2 + v^2)`，则高斯权重：
 
-当前阶段为原始算法整理至中间目录，尚未补充到正式算法仓库目录。
+```text
+sigma = wind_speed * cloud_lifetime / grid_spacing    # cloud_lifetime = 102 s
+variance = sigma^2
+weight(d) = exp(-0.5 * d^2 / variance)
+```
 
-已完成：
+对上游各格点 `point_oe` 加权平均，再乘效率系数 `efficiency_factor = 0.23265`，得 `oe_mmh`（mm/h）。
 
-- 原始源码、CLI、文档、notebook、测试脚本复制到 `00temp/orographic_precipitation_downscaling/`。
-- 2026-07-03 从 `D:\workspace\improver\orographic_enhancement` 增量同步，导入路径已统一为中间目录模块名 `orographic_precipitation_downscaling`。
-- **2026-08-18 增量同步**：
-  - 核心算法改用 `meb.checkout_griddata()` 直接调用，移除本地封装函数 `check_for_meb_griddata()` / `check_for_xy_coordinates()`。
-  - CLI 调度脚本同步改用 `meb.checkout_griddata()` 进行网格数据校验。
-  - 补齐测试数据预处理脚本 `cli/preprocess_test_data.py`。
-  - 同步最新测试用例、文档说明和验证 notebook。
-- **2026-09-15 增量同步**：
-  - 从 `D:\workspace\improver\orographic_enhancement` 再次同步源码、CLI、文档与 notebook。
-  - 补齐 `cli/__main__.py`、`test/test_grid_spacing.py`（投影米制 / 真经纬格距推断）。
-  - `src/utils/_grid.py` 同步经纬与投影格距判断（含 `_is_geographic_spatial`）。
-  - 导入仍统一为 `orographic_precipitation_downscaling`；`test_data/` 未拷入中间目录。
-- **2026-11 增量**：
-  - 新增 `RedistributeOrographicEnhancement` 与级联 CLI `redistribute_cascade_cli.py`。
-  - 插件 `process` 返回 `(订正降水, 调整量)`；CLI 对外仍只落盘最终订正降水。
-  - 主 CLI 模块改为无 `dsc_` 前缀文件名（兼容旧 `dsc_*.py` 入口视仓库保留情况而定）。
+#### （8）输出单位
 
-待处理：
+```text
+oe_ms = oe_mmh / 3600000    # 输出地形增强，单位 m/s
+```
 
-- 补充至正式仓库时，需将导入路径调整为 `NIMM` 下实际包路径。
-- 正式入库时需评估 `utils/base_plugin.py` 是否替换为仓库统一基类。
-- 需要在正式补充阶段运行完整测试，并确认 `meteva_base`、`cf_units`、`xarray`、`numpy`、`scipy`、`pyproj`、`pytest`、`netcdf4` 等依赖。
+#### （9）应用到降水场（Apply）
 
+降水率 `P_rate` 与地形增强项 `OE` 统一到相同单位后：
+
+```text
+# 低降水阈值 min_rate ≈ 1/32 mm/h
+OE_eff = 0                         if P_rate < min_rate else OE
+
+# add 模式
+P_corrected = P_rate + OE_eff
+
+# subtract 模式
+P_corrected = P_rate - OE_eff
+P_corrected = max(P_corrected, min_rate)    # 不低于最小降水率
+```
+
+#### （10）粗格块守恒重分配（Redistribute）
+
+先将降水与两套增强场插到同一目标网格，并换算到降水单位。可选：`P < zero_below` 的格点先置 0。
+
+```text
+ΔOE = OE_high - OE_model
+radius = round(precip_spacing_km / target_spacing_km)     # ΔOE 等权窗半径（格点）
+block  = round(model_orography_spacing_km / target_spacing_km)  # 守恒块边长，至少 1
+
+smoothed   = local_mean(ΔOE, radius)                      # 等权矩形窗；radius<1 则跳过
+adjustment = 0                                            # 干点（P < wet_threshold）
+adjustment = smoothed - block_mean(smoothed)              # 仅湿点；块内调整量之和为 0
+
+P_tmp = P + adjustment
+P_bal = clip_and_rebalance(P_tmp)                         # 负值截 0，块内按比例扣回总量
+P_out = center9_smooth(P_bal, passes=2)                   # 角1/边2/中心4，固定 2 次
+
+return P_out, adjustment                                  # 调整量为截断/再平衡与订正后平滑之前
+```
+
+---
+
+### 2.2 核心处理流程
+
+#### 地形增强计算主流程
+
+```mermaid
+flowchart TD
+    A[多层温湿压与风场] --> B[选取边界层代表高度层]
+    B --> C[由风速风向解析网格风分量]
+    C --> D[对齐并重采样至地形网格]
+    D --> E[平滑地形并计算梯度]
+    E --> F[计算迎风抬升率]
+    F --> G[按地形/湿度/抬升阈值生成掩码]
+    G --> H[计算湿空气饱和水汽压]
+    H --> I[计算格点地形增强]
+    I --> J[沿风向上游高斯加权叠加]
+    J --> K[换算为 m/s 地形增强场]
+```
+
+#### 风分量解析（子流程）
+
+```mermaid
+flowchart LR
+    A[风速与风向] --> B[统一单位并转弧度]
+    B --> C[真北偏角修正]
+    C --> D[分解为东西风与南北风]
+    D --> E{源网格与地形网格一致?}
+    E -->|否| F[风分量旋转与重采样]
+    E -->|是| G[输出网格风分量]
+    F --> G
+```
+
+#### 降水订正（Apply 插件）
+
+```mermaid
+flowchart TD
+    A[降水场] --> C{操作模式}
+    B[地形增强场] --> C
+    C -->|叠加| D[原降水 + 增强项]
+    C -->|扣除| E[原降水 - 增强项]
+    D --> F[低降水区增强项置零]
+    E --> G[应用最小降水率下限]
+    F --> H[订正降水场]
+    G --> H
+```
+
+#### 降水订正（Redistribute 插件）
+
+```mermaid
+flowchart TD
+    A[降水场] --> Z[可选小雨置零]
+    B[高分辨率增强] --> D[增强差 ΔOE]
+    C[模式增强] --> D
+    D --> E[等权平滑]
+    E --> F[湿点块内 demean 得调整量]
+    Z --> G[降水 + 调整量]
+    F --> G
+    G --> H[截断再平衡]
+    H --> I[中心加权九点×2]
+    I --> J[订正降水]
+    F --> K[调整量输出]
+```
+
+---
+
+## 3. 类与主函数
+
+### 3.1 MetaOrographicEnhancement
+
+主函数：
+
+- `process(temperature, humidity, pressure, wind_speed, wind_direction, orography) -> xr.DataArray`
+
+功能：
+
+1. 对输入场进行网格与维度检查（xarray 路径）。
+2. 从多层场提取边界层代表高度切片（二维）。
+3. 调用 `ResolveWindComponents` 计算地形网格上的 `uwind/vwind`（二维）。
+4. 将二维温湿压、风分量与地形（保持原始维度）传入 `OrographicEnhancement` 计算；六维输出由主算法在地形模板上重组。
+
+输出语义：
+
+- 入口地形为六维单场时，主算法返回标准六维结果。
+- 入口地形为二维时，主算法返回二维结果。
+
+### 3.2 ResolveWindComponents
+
+主函数：
+
+- `process(wind_speed, wind_direction, target_grid) -> (uwind, vwind)`
+
+功能：
+
+1. 统一风速单位到 `m s-1`。
+2. 识别风向 `from/to` 约定。
+3. 在投影网格场景下处理真北偏角。
+4. 必要时重采样到目标网格。
+
+### 3.3 OrographicEnhancement
+
+主函数：
+
+- `process(temperature, humidity, pressure, uwind, vwind, topography) -> xr.DataArray`
+
+功能：
+
+1. 统一单位与网格。
+2. 计算 `v·gradZ`、掩码、格点增强与上游贡献。
+3. 输出 `orographic_enhancement`（单位 `m s-1`）。
+
+### 3.4 ApplyOrographicEnhancement
+
+主函数：
+
+- `process(precip_data, orographic_enhancement_data, allowed_time_diff=1800) -> xr.DataArray | list[xr.DataArray]`
+
+实现位置：
+
+- `orographic_precipitation_downscaling/src/apply_orographic_enhancement.py`
+
+功能：
+
+1. 按时间匹配增强场。
+2. 以 `add/subtract` 方式作用到降水场。
+3. `subtract` 模式下应用最小降水率下限保护。
+
+### 3.5 RedistributeOrographicEnhancement
+
+主函数：
+
+- `process(precip, oe_high, oe_model) -> (corrected, adjustment)`
+
+实现位置：
+
+- `orographic_precipitation_downscaling/src/redistribute_orographic_enhancement.py`
+
+功能：
+
+1. 计算 `ΔOE = oe_high - oe_model`，按降水格距换算半径做等权平滑。
+2. 仅在湿点上对平滑差做粗格块 demean，得到调整量；再与降水相加。
+3. 负值截断并块内再平衡，保持块内有限值降水总量。
+4. 订正后再做中心加权九点平滑 2 次。
+5. 返回订正降水与调整量（调整量为截断/再平衡与订正后平滑之前）。
+
+说明：插件本身不重网格；降水与两套增强须已在同一目标网格。多尺度串联见 `cli/redistribute_cascade_cli.py`。
+
+---
+
+## 4. 输入输出与参数说明
+
+### 4.1 MetaOrographicEnhancement
+
+输入输出总览：
+
+| 项目 | 说明 |
+| --- | --- |
+| 主函数 | `process(temperature, humidity, pressure, wind_speed, wind_direction, orography)` |
+| 输入类型 | `xr.DataArray` 或 `np.ndarray` |
+| 输入数量 | 6 个场 |
+| xarray 校验 | 使用 `meb.checkout_griddata` 执行标准六维网格检查 |
+| 输出类型 | `xr.DataArray` |
+| 输出语义 | 优先输出标准六维网格；无可用模板时返回二维结果 |
+| 输出变量 | `orographic_enhancement` |
+| 输出单位 | `m s-1` |
+
+参数表：
+
+| 参数名 | 单位 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `temperature` | `K` 或 `degC` | 是 | 无 | 温度场，支持多层输入 |
+| `humidity` | `1` 或 `%` | 是 | 无 | 相对湿度场，支持多层输入 |
+| `pressure` | `Pa` / `hPa` / `kPa` | 是 | 无 | 气压场，支持多层输入 |
+| `wind_speed` | `m s-1` / `km h-1` | 是 | 无 | 风速场，支持多层输入 |
+| `wind_direction` | `degree` | 是 | 无 | 风向场（真北参考） |
+| `orography` | `m` / `km` | 是 | 无 | 地形高度场（目标网格） |
+| `boundary_height` | 同 `boundary_height_units` | 否 | `1000.0` | 边界层代表高度（初始化参数） |
+| `boundary_height_units` | - | 否 | `m` | 边界层高度单位（初始化参数） |
+
+### 4.2 OrographicEnhancement
+
+输入输出总览：
+
+| 项目 | 说明 |
+| --- | --- |
+| 主函数 | `process(temperature, humidity, pressure, uwind, vwind, topography)` |
+| 输入类型 | `xr.DataArray` 或 `np.ndarray` |
+| 输入数量 | 6 个场 |
+| 核心计算维度 | 二维（内部会将六维单场压缩到二维计算） |
+| 输出类型 | `xr.DataArray` |
+| 输出语义 | 地形为六维单场时重组为标准六维（模板仅取自地形）；否则返回二维，空间坐标来自地形，时间类辅助坐标可自气象场继承 |
+| 输出变量 | `orographic_enhancement` |
+| 输出单位 | `m s-1` |
+
+参数表：
+
+| 参数名 | 单位 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `temperature` | `K` 或 `degC` | 是 | 无 | 温度场 |
+| `humidity` | `1` 或 `%` | 是 | 无 | 相对湿度场 |
+| `pressure` | `Pa` / `hPa` / `kPa` | 是 | 无 | 气压场 |
+| `uwind` | `m s-1` | 是 | 无 | 网格 `x` 方向风分量 |
+| `vwind` | `m s-1` | 是 | 无 | 网格 `y` 方向风分量 |
+| `topography` | `m` / `km` | 是 | 无 | 地形高度场，作为目标网格 |
+
+### 4.3 ApplyOrographicEnhancement
+
+输入输出总览：
+
+| 项目 | 说明 |
+| --- | --- |
+| 主函数 | `process(precip_data, orographic_enhancement_data, allowed_time_diff=1800)` |
+| 输入类型 | `xr.DataArray` 或 `Sequence[xr.DataArray]` |
+| 时间匹配 | 多时次增强场按最近时间匹配，受 `allowed_time_diff` 约束 |
+| 输出类型 | 单输入返回 `xr.DataArray`；序列输入返回 `list[xr.DataArray]` |
+
+参数表：
+
+| 参数名 | 单位 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `precip_data` | `mm h-1`（或等效降水率单位） | 是 | 无 | 降水场（可单场或场列表） |
+| `orographic_enhancement_data` | `m s-1` | 是 | 无 | 地形增强场（可单时次或多时次） |
+| `allowed_time_diff` | `s` | 否 | `1800` | 时间匹配容差（秒） |
+| `operation` | - | 否 | `add` | 初始化参数，支持 `add` / `subtract` |
+
+### 4.4 RedistributeOrographicEnhancement
+
+输入输出总览：
+
+| 项目 | 说明 |
+| --- | --- |
+| 主函数 | `process(precip, oe_high, oe_model)` |
+| 输入类型 | `xr.DataArray` 或 `np.ndarray` |
+| 输入数量 | 3 个场（须同空间形状） |
+| 输出类型 | `tuple`：`(corrected, adjustment)`，两项均与 `precip` 同型 |
+| 输出语义 | `corrected` 为订正降水；`adjustment` 为块内 demean 调整量（干点为 0）。`DataArray` 时调整量名为 `precip_adjustment` |
+| 输出单位 | 随降水单位 |
+
+参数表：
+
+| 参数名 | 单位 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `precip` | `mm h-1`（或等效） | 是 | 无 | 订正前降水，已在目标网格 |
+| `oe_high` | 与降水同单位或可换算 | 是 | 无 | 高分辨率地形增强场 |
+| `oe_model` | 与降水同单位或可换算 | 是 | 无 | 模式地形增强场 |
+| `wet_threshold_mmh` | `mm h-1` | 否 | `0.1` | 湿点阈值；低于该值不参与 demean |
+| `zero_below_mmh` | `mm h-1` | 否 | `0.1` | `>0` 时先把小于该值的降水置 0；`0` 关闭 |
+| `precip_spacing_km` | `km` | 是 | 无 | 该次订正的降水格距（初始化参数） |
+| `model_orography_spacing_km` | `km` | 是 | 无 | 该次订正的模式地形格距（初始化参数） |
+
+---
+
+## 5. 关键参数（与原算法保持一致）
+
+- `OROG_THRESH_M = 20.0`
+- `RH_THRESH_RATIO = 0.8`
+- `VGRADZ_THRESH_MS = 0.0005`
+- `UPSTREAM_RANGE_OF_INFLUENCE_KM = 15.0`
+- `CLOUD_LIFETIME_S = 102.0`
+- `EFFICIENCY_FACTOR = 0.23265`
+
+---
+
+## 6. Python 调用示例
+
+### 6.1 计算地形增强
+
+```python
+import xarray as xr
+from orographic_precipitation_downscaling.src.orographic_enhancement import MetaOrographicEnhancement
+
+temperature = xr.open_dataset("temperature.nc")["air_temperature"]
+humidity = xr.open_dataset("humidity.nc")["relative_humidity"]
+pressure = xr.open_dataset("pressure.nc")["air_pressure"]
+wind_speed = xr.open_dataset("wind_speed.nc")["wind_speed"]
+wind_direction = xr.open_dataset("wind_direction.nc")["wind_from_direction"]
+orography = xr.open_dataset("orography.nc")["surface_altitude"]
+
+plugin = MetaOrographicEnhancement(boundary_height=1000.0, boundary_height_units="m")
+oe = plugin(temperature, humidity, pressure, wind_speed, wind_direction, orography)
+```
+
+### 6.2 应用地形增强项
+
+```python
+import xarray as xr
+from orographic_precipitation_downscaling.src.apply_orographic_enhancement import ApplyOrographicEnhancement
+
+precip = xr.open_dataset("precipitation.nc")["lwe_precipitation_rate"]
+oe = xr.open_dataset("orographic_enhancement.nc")["orographic_enhancement"]
+
+plugin = ApplyOrographicEnhancement(operation="add")
+applied = plugin.process(precip, oe, allowed_time_diff=1800)
+```
+
+### 6.3 粗格块守恒重分配
+
+```python
+from orographic_precipitation_downscaling.src.redistribute_orographic_enhancement import (
+    RedistributeOrographicEnhancement,
+)
+
+plugin = RedistributeOrographicEnhancement(
+    wet_threshold_mmh=0.1,
+    zero_below_mmh=0.2,
+    precip_spacing_km=20.0,
+    model_orography_spacing_km=20.0,
+)
+# precip / oe_high / oe_model 须已在同一网格
+corrected, adjustment = plugin.process(precip, oe_high, oe_model)
+```
+
+---
+
+## 7. CLI 用法
+
+主入口（无 `dsc_` 前缀）：
+
+| 脚本 | 作用 |
+| --- | --- |
+| `cli/meta_orographic_enhancement_cli.py` | 风速风向 → 地形增强 |
+| `cli/orographic_enhancement_cli.py` | 网格 `u/v` → 地形增强 |
+| `cli/apply_orographic_enhancement_cli.py` | Apply 订正 |
+| `cli/redistribute_cascade_cli.py` | 多尺度 Redistribute 级联（如 `20,5,1`） |
+
+列出帮助：
+
+```powershell
+python -m orographic_precipitation_downscaling.cli
+```
+
+### 7.1 Meta 增强（风速风向）
+
+```python
+from orographic_precipitation_downscaling.cli.meta_orographic_enhancement_cli import (
+    DscOrographicEnhancementCli,
+)
+
+code = DscOrographicEnhancementCli.call(
+    temperature_path="temperature.nc",
+    humidity_path="humidity.nc",
+    pressure_path="pressure.nc",
+    wind_speed_path="wind_speed.nc",
+    wind_direction_path="wind_direction.nc",
+    orography_path="orography.nc",
+    output_path="result.nc",
+    boundary_height=1000.0,
+    boundary_height_units="m",
+)
+```
+
+常用路径参数：`temperature_path`、`humidity_path`、`pressure_path`、`wind_speed_path`、`wind_direction_path`、`orography_path`、`output_path`；以及 `boundary_height` / `boundary_height_units`。
+
+内置测试数据目录：输入 `orographic_precipitation_downscaling/test_data/orographic_enhancement_data/cli_input/`，CLI 输出 `cli_output/`。
+
+### 7.2 级联重分配
+
+```python
+from orographic_precipitation_downscaling.cli.redistribute_cascade_cli import (
+    DscRedistributeCascadeCli,
+)
+
+code = DscRedistributeCascadeCli.call(
+    precip_path="precip.nc",
+    temperature_path="tmp.nc",
+    humidity_path="rh.nc",
+    pressure_path="pres.nc",
+    uwind_path="u.nc",
+    vwind_path="v.nc",
+    orography_model_path="orog_model.nc",
+    orography_target_path="orog_1km.nc",
+    stages="20,5,1",
+    zero_below=0.2,
+    output_path="corrected.nc",
+)
+```
+
+说明：
+
+- 中间尺度地形由目标 1 km 地形 `coarsen(...).mean()` 聚合得到。
+- 每一档内部调用 `RedistributeOrographicEnhancement`；CLI 只落盘最终订正降水，不写调整量。
+- `zero_below` 默认仅作用于第一档。
+
+---
+
+## 8. 验证建议
+
+建议使用同一批标准化输入，对比：
+
+- 迁移算法结果
+- 原算法结果
+- 官方 KGO 结果
+
+建议检查：
+
+- 数值误差（MAE / RMSE / max abs）
+- 单位与变量名
+- 空间坐标方向（lat/lon 是否升序）
+- 六维结构是否完整（`member/level/time/dtime/lat/lon`）
+
+---
+
+## 9. 测试数据预处理
+
+官方投影样例需先预处理，再供 CLI / Notebook 读取。脚本：
+
+`orographic_precipitation_downscaling/cli/preprocess_test_data.py`
+
+仓库根目录运行：
+
+```text
+python orographic_precipitation_downscaling/cli/preprocess_test_data.py
+```
+
+写出目录：
+
+| 路径 | 内容 | 用途 |
+| --- | --- | --- |
+| `test_data/orographic_enhancement_data/cli_input/` | 投影维重命名后的 meb 六维；气象场保留 `height` 作为 `level` | 投影输入验证：修改后方法 / CLI |
+| `test_data/orographic_enhancement_data/latlon/` | 经纬 Iris Cube：`precipitation.nc`、`original_algorithm_result.nc`（ApplyOE 原方法输入），`kgo_hi_res.nc`（对照） | 经纬输入对照。计算增强项的原方法不能直接吃纯经纬，故不写气象/地形 Cube |
+| `test_data/orographic_enhancement_data/latlon/cli_input/` | 气象/地形/降水/原方法增强项的 meb 六维 | 经纬输入：修改后方法（增强项计算与 ApplyOE） |
+
+说明：
+
+- `precipitation.nc` 不是官方 IMPROVER 样例，是已重网格到增强项网格上的降水场（`lwe_precipitation_rate`，`mm hr-1`），y 轴与 `original_algorithm_result.nc` / `original_cli_result.nc` 同向。
+- `original_algorithm_result.nc` 为地形增强项计算原方法结果（供 ApplyOE 使用）。CLI 对照直接读原方法结果 `original_cli_result.nc`（Iris Cube）。投影路径的 KGO 仍读官方 `kgo_hi_res.nc`；经纬重网格 KGO 只写 `latlon/kgo_hi_res.nc` Cube作对照使用。
+- Notebook 只读上述写出结果做对照。
+
+## 10. 网格坐标约定
+
+计算增强项（`OrographicEnhancement` / `MetaOrographicEnhancement` / `ResolveWindComponents`）需要米制格距（地形梯度、上游 15 km 回溯）。xarray 路径按空间坐标自动分支：
+
+| 判定 | 条件 | 格距 |
+| --- | --- | --- |
+| 投影米制 | `lat`/`lon` 的 `units` 均可换算到米（`m`、`km` 等） | 坐标差分换算为米 |
+| 真经纬 | 无距离 `units`（业务 meb 默认），或标注为度；也可带 `grid_mapping_attrs = latitude_longitude` | 正球体近似：`dy = R·Δlat`，`dx = R·cos(lat)·Δlon`（`R = 6378137 m`） |
+| 投影维重命名兼容 | 无 `units` 且坐标数值远超经纬范围（如 `|lat|≫90`） | 将坐标值直接当作米 |
+
+`ApplyOrographicEnhancement` 只做降水与增强项的加减，不读水平格距。
+
+`RedistributeOrographicEnhancement` 的 ΔOE 平滑半径与守恒块边长由初始化参数 `precip_spacing_km`、`model_orography_spacing_km` 相对目标网格格距换算；目标网格格距优先从降水场坐标估计，`numpy` 输入时按 1 km。
+
+`numpy` 输入无坐标对象，增强计算格距固定为 1 km，与原先一致。
+
+---
+
+## 11. 注意事项
+
+若输出文件被占用（如被 Notebook 打开），CLI 写文件可能失败。

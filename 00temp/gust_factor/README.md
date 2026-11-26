@@ -47,4 +47,4 @@ python src/gust_factor.py
 依赖：`numpy`、`pandas`、`meteva_base`；可选 `matplotlib`（对比图）。
 
 整理登记见 `NIMM_list.md`、`00log/`。  
-说明见 [docs/gust_factor_程序说明.md](docs/gust_factor_程序说明.md)、[nbs/gust_factor_说明.ipynb](nbs/gust_factor_说明.ipynb)。
+说明见 [docs/gust_factor.md](docs/gust_factor.md)、[nbs/gust_factor.ipynb](nbs/gust_factor.ipynb)。

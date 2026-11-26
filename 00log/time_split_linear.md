@@ -45,7 +45,7 @@
 | `00temp/time_split_linear/resource/EC/APCP/` | 小样例 nc |
 | `00temp/time_split_linear/test/` | 布局与配置解析测试 |
 | `00temp/time_split_linear/nbs/` | 方法说明与命令行示例 |
-| `00temp/time_split_linear/docs/预报时效拆分.md` | 算法说明（已对齐当前实现） |
+| `00temp/time_split_linear/docs/time_split_linear.md` | 算法说明（已对齐当前实现） |
 | `00temp/time_split_linear/utils/` | ini 读取；并入仓库共享 `utils`（含 `grid_combine`） |
 
 ## 2026-11-11 更新

@@ -1,5 +1,9 @@
 # generate_orographic_smoothing_coefficients 算法说明
 
+## 算法实现原理
+
+相邻格点的地形梯度越大，递归滤波使用的平滑系数越大。未归一化系数是梯度绝对值的 `power` 次方，再线性缩放到给定的最小、最大系数之间。掩码可以把整区或边界系数置零。
+
 ## 1. 模块功能概述
 
 `generate_orographic_smoothing_coefficients/src/generate_orographic_smoothing_coefficients.py`

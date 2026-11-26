@@ -16,7 +16,7 @@
 ``DataFrame``）共用 ``src.utils`` 下按阶段拆分的数值内核
 （``construct`` / ``manipulate`` / ``apply``）；Aggregate 以编排层
 适配为主。各插件的 ``process`` 按输入类型分发到对应路径。数据约定见
-``docs/reliability_calibration.md``。
+``docs/probability_reliability_correction.md``。
 """
 from __future__ import annotations
 

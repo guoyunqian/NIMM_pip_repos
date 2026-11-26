@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """新增算法：窗域 LSQR 估速 + 度制幂次 Cressman 铺 UV（rain24 原版 ``OpticalFlow``）。
 
-与既有 ``LK`` / ``Extrapolation`` 并列独立，不改动旧实现。稀疏 UV 经同级新增的
-``interp_sg_cressman.gressman_plugin.GressManInterpolation`` 铺密，再 ``mesh_val``。
+与既有 ``LK`` / ``Extrapolation`` 并列独立，不改动旧实现。稀疏 UV 经 ``interpolation_station_grid`` 的
+``gressman_plugin.GressManInterpolation`` 铺密，再 ``mesh_val``。
+Cressman 依赖同级 ``interpolation_grid_grid`` 的格点插值，导入前把该包 ``src`` 放入路径。
 类名 ``LsqrOpticalFlow``；兼容别名 ``OpticalFlow`` / ``WindowLsqr``。
 """
 from __future__ import annotations
@@ -24,11 +25,12 @@ from .base_plugin import PostProcessingPlugin
 def _ensure_gressman_on_path() -> None:
     here = os.path.dirname(os.path.abspath(__file__))
     temp_root = os.path.normpath(os.path.join(here, "..", ".."))
-    cress_root = os.path.join(temp_root, "interp_sg_cressman")
-    cress_src = os.path.join(cress_root, "src")
-    for p in (cress_src, cress_root):
-        if os.path.isdir(p) and p not in sys.path:
-            sys.path.append(p)
+    for name in ("interpolation_station_grid", "interpolation_grid_grid"):
+        root = os.path.join(temp_root, name)
+        src = os.path.join(root, "src")
+        for p in (src, root):
+            if os.path.isdir(p) and p not in sys.path:
+                sys.path.append(p)
 
 
 _ensure_gressman_on_path()

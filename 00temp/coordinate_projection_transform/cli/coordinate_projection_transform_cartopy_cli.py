@@ -23,6 +23,7 @@ def process(
     grid_spacing: float = None,
     regrid_mode: str = None,
     extrapolation_mode: str = None,
+    output: str = None,
     config=None,
 ):
     """转发主 CLI；未显式指定时强制 ``backend=cartopy``。"""
@@ -37,5 +38,6 @@ def process(
         grid_spacing=grid_spacing,
         regrid_mode=regrid_mode,
         extrapolation_mode=extrapolation_mode,
+        output=output,
         config=config,
     )
