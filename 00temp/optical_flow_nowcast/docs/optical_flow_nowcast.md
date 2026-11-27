@@ -4,7 +4,7 @@
 
 降水和平流都是 nc，多个降水文件用英文逗号隔开，按时间从早到晚。参数优先级是：调用时写上的值，高于 `resource/conf.ini` 里的非空项，高于代码预设。空着的配置项不覆盖上一层。`config` 用来换本次要读的 ini。
 
-在 `00temp` 下用 `python -m optical_flow_nowcast module=<名字>`，或 `python -m utils.nimm_cli optical_flow_nowcast cli=<名字>`。`module` 默认 `steps`。`window_lsqr`、`window-lsqr` 都转到 `LsqrOpticalFlow`。命令行读完场就调用插件，不把结果场返回；要拿到场，用各节里的 Python 调用。
+在 `00temp` 下用 `python -m optical_flow_nowcast module=<名字>`，或 `python -m utils.nimm_cli optical_flow_nowcast cli=<名字>`。`module` 默认 `steps`。`window_lsqr`、`window-lsqr` 都转到窗域最小二乘。命令行读完场就调用插件，不把结果场返回；要拿到场，用各节里的 Python 调用。
 
 下面每个算法分开写原理、用途、参数和调用。表里的「必填」指命令行不给、配置里也是空时会报错。只在 Python 里用、不进 ini 的项写在该算法参数表后面。`module=` 走统一入口，`cli=` 走该算法自己的入口。Python 示例在本包目录下运行。
 
@@ -50,7 +50,7 @@ uv, delta = LK(
 ).process(load_precip_griddata_list("obs1.nc,obs2.nc"))
 ```
 
-## LsqrOpticalFlow
+## 窗域最小二乘（`LsqrOpticalFlow`）
 
 **原理。** 在前一时次与后一时次降水场上设置滑动窗口。窗口内降水达到阈值、前后变差达到阈值且有效格点不少于下限时，用带阻尼的最小二乘估计该窗口的平流速度。窗口尺度以经纬度给出，可配置多组。稀疏速度再经 `interpolation_station_grid` 的 Cressman 插值到整场，得到 u、v。
 
@@ -130,7 +130,7 @@ forecast = Extrapolation().process(
 )
 ```
 
-## Lagrangian
+## 半拉格朗日平流（`Lagrangian`）
 
 **原理。** 由 u、v 和 `delta_time` 计算各格点上游的经纬度，再对原降水场做双线性插值，得到平流一个时间步后的降水场。u、v 与经纬度使用同一单位。
 
